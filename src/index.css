@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply h-full;
+  }
+  
+  body {
+    @apply h-full bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans;
+  }
+  
+  #root {
+    @apply h-full;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md font-medium transition-colors;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 px-4 py-2 rounded-md font-medium transition-colors;
+  }
+  
+  .task-item {
+    @apply p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-sm transition-shadow;
+  }
+  
+  /* Ensure content area doesn't overlap with absolutely positioned actions */
+  .task-item .task-content {
+    min-width: 0;
+    overflow: hidden;
+  }
+  
+  .task-item .task-content * {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    max-width: 100%;
+  }
+}
+  /* Prevent metadata and steps from overflowing their grid cell */
+  .task-item .task-content .mt-2,
+  .task-item .task-content .space-y-2,
+  .task-item .task-content .flex,
+  .task-item .task-content .w-full {
+    min-width: 0;
+    overflow: hidden;
+  }
