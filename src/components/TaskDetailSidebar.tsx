@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { X, Star, Calendar, Clock, Repeat, FileText, Plus } from 'lucide-react';
+import { X, Star, Calendar, Clock, Repeat, FileText, Plus, Sun } from 'lucide-react';
 import type { Task } from '../types/index.ts';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
+import { DateTimePicker } from './DateTimePicker.tsx';
 import { cn } from '../utils/cn.ts';
 import { formatDate } from '../utils/dateUtils.ts';
 
@@ -25,6 +26,7 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
   const [myDay, setMyDay] = useState(task?.myDay || false);
   const [dueDate, setDueDate] = useState<Date | undefined>(task?.dueDate);
   const [repeat, setRepeat] = useState<string>(task?.repeat || 'none');
+  const [repeatDays, setRepeatDays] = useState<number[]>(task?.repeatDays || [1, 2, 3, 4, 5, 6, 0]); // Default to all days
   const [reminder, setReminder] = useState<Date | undefined>();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showReminderPicker, setShowReminderPicker] = useState(false);
@@ -43,7 +45,8 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
       setMyDay(task?.myDay || false);
       setDueDate(task?.dueDate ? new Date(task.dueDate) : undefined);
       setRepeat(task?.repeat || 'none');
-      setReminder(undefined);
+      setRepeatDays(task?.repeatDays || [1, 2, 3, 4, 5, 6, 0]); // Default to all days
+      setReminder(task?.reminder ? new Date(task.reminder) : undefined);
       setShowDatePicker(false);
       setShowReminderPicker(false);
       setShowRepeatOptions(false);
@@ -60,8 +63,10 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
         important,
         myDay,
         dueDate,
+        reminder,
         notes: notes.trim() || undefined,
         repeat,
+        repeatDays: repeat === 'daily' ? repeatDays : undefined,
       });
     } else if (task) {
       updateTask(task.id, {
@@ -70,7 +75,9 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
         important,
         myDay,
         dueDate,
+        reminder,
         repeat: repeat as Task['repeat'],
+        repeatDays: repeat === 'daily' ? repeatDays : undefined,
       });
     }
 
@@ -90,14 +97,14 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
     }
   };
 
-  const handleDateSelect = (date: Date) => {
-    setDueDate(date);
-    // Don't automatically close the picker - let user choose when to close
+  const handleDateSelect = (date: Date | null) => {
+    setDueDate(date || undefined);
+    setShowDatePicker(false);
   };
 
-  const handleReminderSelect = (date: Date) => {
-    setReminder(date);
-    // Don't automatically close the picker - let user choose when to close
+  const handleReminderSelect = (date: Date | null) => {
+    setReminder(date || undefined);
+    setShowReminderPicker(false);
   };
 
   const removeDueDate = () => {
@@ -355,10 +362,10 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
                 className="w-full justify-start gap-4 h-16 text-left px-5 py-4 rounded-xl hover:bg-transparent"
               >
                 <div className={cn(
-                  "w-10 h-10 flex items-center justify-center text-xl rounded-lg transition-colors",
-                  myDay ? "bg-blue-100 dark:bg-blue-800" : "bg-gray-100 dark:bg-gray-800"
+                  "w-10 h-10 flex items-center justify-center rounded-lg transition-colors",
+                  myDay ? "bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-300" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
                 )}>
-                  ☀️
+                  <Sun size={20} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className={cn(
@@ -453,8 +460,15 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-base text-gray-900 dark:text-white">Repeat</div>
                     {repeat !== 'none' && (
-                      <div className="text-sm text-blue-600 dark:text-blue-400 mt-1 capitalize">
-                        {repeat}
+                      <div className="text-sm text-blue-600 dark:text-blue-400 mt-1">
+                        <span className="capitalize">{repeat}</span>
+                        {repeat === 'daily' && repeatDays.length > 0 && repeatDays.length < 7 && (
+                          <span className="ml-1">
+                            ({repeatDays.length === 5 && repeatDays.includes(1) && repeatDays.includes(2) && repeatDays.includes(3) && repeatDays.includes(4) && repeatDays.includes(5) ? 'weekdays' : 
+                              repeatDays.length === 2 && repeatDays.includes(0) && repeatDays.includes(6) ? 'weekends' :
+                              `${repeatDays.length} day${repeatDays.length > 1 ? 's' : ''}`})
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -472,128 +486,6 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
               </div>
             </div>
           </div>
-
-          {/* Date Picker */}
-          {showDatePicker && (
-            <div className="mb-6 p-5 border rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border-gray-200 dark:border-gray-700 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-sm font-medium text-gray-900 dark:text-white">Choose due date</h4>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowDatePicker(false)}
-                  className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
-                >
-                  <X size={16} className="text-gray-500" />
-                </Button>
-              </div>
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    handleDateSelect(new Date());
-                    setShowDatePicker(false);
-                  }}
-                  className="justify-start h-10 border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                >
-                  Today
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    const tomorrow = new Date();
-                    tomorrow.setDate(tomorrow.getDate() + 1);
-                    handleDateSelect(tomorrow);
-                    setShowDatePicker(false);
-                  }}
-                  className="justify-start h-10 border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                >
-                  Tomorrow
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    const nextWeek = new Date();
-                    nextWeek.setDate(nextWeek.getDate() + 7);
-                    handleDateSelect(nextWeek);
-                    setShowDatePicker(false);
-                  }}
-                  className="justify-start h-10 border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 col-span-2"
-                >
-                  Next week
-                </Button>
-              </div>
-              <input
-                type="date"
-                value={dueDate ? dueDate.toISOString().split('T')[0] : ''}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    handleDateSelect(new Date(e.target.value + 'T12:00:00'));
-                  }
-                }}
-                className="w-full p-3 border rounded-lg dark:bg-gray-800 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              />
-            </div>
-          )}
-
-          {/* Reminder Picker */}
-          {showReminderPicker && (
-            <div className="mb-6 p-5 border rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border-gray-200 dark:border-gray-700 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-sm font-medium text-gray-900 dark:text-white">Set reminder</h4>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowReminderPicker(false)}
-                  className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
-                >
-                  <X size={16} className="text-gray-500" />
-                </Button>
-              </div>
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    const later = new Date();
-                    later.setHours(later.getHours() + 1);
-                    handleReminderSelect(later);
-                    setShowReminderPicker(false);
-                  }}
-                  className="justify-start h-10 border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                >
-                  Later today
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    const tomorrow = new Date();
-                    tomorrow.setDate(tomorrow.getDate() + 1);
-                    tomorrow.setHours(9, 0, 0, 0);
-                    handleReminderSelect(tomorrow);
-                    setShowReminderPicker(false);
-                  }}
-                  className="justify-start h-10 border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                >
-                  Tomorrow
-                </Button>
-              </div>
-              <input
-                type="datetime-local"
-                value={reminder ? reminder.toISOString().slice(0, 16) : ''}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    handleReminderSelect(new Date(e.target.value));
-                  }
-                }}
-                className="w-full p-3 border rounded-lg dark:bg-gray-800 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              />
-            </div>
-          )}
 
           {/* Repeat Options */}
           {showRepeatOptions && (
@@ -613,7 +505,6 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
                 {[
                   { value: 'none', label: 'Never' },
                   { value: 'daily', label: 'Daily' },
-                  { value: 'weekdays', label: 'Weekdays (Mon-Fri)' },
                   { value: 'weekly', label: 'Weekly' },
                   { value: 'monthly', label: 'Monthly' },
                   { value: 'yearly', label: 'Yearly' },
@@ -636,6 +527,70 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
                     {option.label}
                   </Button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Day Selector for Daily Repeat */}
+          {repeat === 'daily' && (
+            <div className="mb-6 p-5 border rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-700 shadow-sm">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">Repeat on days</h4>
+              <div className="grid grid-cols-7 gap-2">
+                {[
+                  { day: 0, label: 'S', fullLabel: 'Sunday' },
+                  { day: 1, label: 'M', fullLabel: 'Monday' },
+                  { day: 2, label: 'T', fullLabel: 'Tuesday' },
+                  { day: 3, label: 'W', fullLabel: 'Wednesday' },
+                  { day: 4, label: 'T', fullLabel: 'Thursday' },
+                  { day: 5, label: 'F', fullLabel: 'Friday' },
+                  { day: 6, label: 'S', fullLabel: 'Saturday' },
+                ].map((item) => (
+                  <button
+                    key={item.day}
+                    onClick={() => {
+                      if (repeatDays.includes(item.day)) {
+                        setRepeatDays(repeatDays.filter(d => d !== item.day));
+                      } else {
+                        setRepeatDays([...repeatDays, item.day]);
+                      }
+                    }}
+                    className={cn(
+                      "h-10 w-10 rounded-lg font-medium text-sm transition-all duration-200 flex items-center justify-center",
+                      repeatDays.includes(item.day)
+                        ? "bg-blue-600 text-white shadow-sm transform scale-105"
+                        : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                    )}
+                    title={item.fullLabel}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRepeatDays([1, 2, 3, 4, 5])}
+                  className="text-xs px-3 py-1 h-7 rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Weekdays
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRepeatDays([0, 6])}
+                  className="text-xs px-3 py-1 h-7 rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Weekends
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRepeatDays([0, 1, 2, 3, 4, 5, 6])}
+                  className="text-xs px-3 py-1 h-7 rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  All days
+                </Button>
               </div>
             </div>
           )}
@@ -702,6 +657,28 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
           </div>
         </div>
       </div>
+
+      {/* Date Picker Modal */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={dueDate}
+          onChange={handleDateSelect}
+          onClose={() => setShowDatePicker(false)}
+          mode="date"
+          title="Set Due Date"
+        />
+      )}
+
+      {/* Reminder Picker Modal */}
+      {showReminderPicker && (
+        <DateTimePicker
+          value={reminder}
+          onChange={handleReminderSelect}
+          onClose={() => setShowReminderPicker(false)}
+          mode="datetime"
+          title="Set Reminder"
+        />
+      )}
     </div>
   );
 }

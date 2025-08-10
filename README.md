@@ -2,7 +2,6 @@
 
 > A modern, feature-rich Microsoft To-Do clone built with React, TypeScript, and Tailwind CSS
 
-[![Demo](https://img.shields.io/badge/Demo-Live-brightgreen)](http://localhost:5175)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8.3-blue)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19.1.0-61dafb)](https://reactjs.org/)
 [![Vite](https://img.shields.io/badge/Vite-7.0.4-646cff)](https://vitejs.dev/)

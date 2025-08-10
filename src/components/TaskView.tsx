@@ -4,7 +4,7 @@ import { TaskList } from './TaskList.tsx';
 import { TaskDetailSidebar } from './TaskDetailSidebar.tsx';
 import { ListEditSidebar } from './ListEditSidebar.tsx';
 import { Button } from './ui/Button.tsx';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { TaskList as TaskListType } from '../types/index.ts';
 import { cn } from '../utils/cn.ts';
 
@@ -12,6 +12,24 @@ export function TaskView() {
   const { currentView, currentListId, lists } = useTaskStore();
   const [showAddSidebar, setShowAddSidebar] = useState(false);
   const [editingList, setEditingList] = useState<TaskListType | null>(null);
+
+  // Add keyboard shortcuts for task creation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+N or Cmd+N to create new task
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        setShowAddSidebar(true);
+      }
+      // Escape to close sidebar
+      if (e.key === 'Escape' && showAddSidebar) {
+        setShowAddSidebar(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showAddSidebar]);
 
   const getViewTitle = () => {
     switch (currentView) {
@@ -117,17 +135,22 @@ export function TaskView() {
               onClick={() => setShowAddSidebar(true)}
               size="sm"
               className={cn(
-                "flex items-center gap-2 transition-all duration-200",
+                "flex items-center gap-2 transition-all duration-200 font-semibold px-4 py-2 h-10",
+                "shadow-lg hover:shadow-xl transform hover:scale-105",
+                "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800",
+                "border-0 text-white relative overflow-hidden",
                 isCustomList && currentList?.color ? "shadow-md" : ""
               )}
               style={isCustomList && currentList?.color ? {
-                backgroundColor: currentList.color,
-                borderColor: currentList.color,
+                background: `linear-gradient(135deg, ${currentList.color}, ${currentList.color}dd)`,
                 color: 'white'
               } : undefined}
+              title="Add Task (Ctrl+N)"
             >
-              <Plus size={16} />
-              Add Task
+              <Plus size={18} />
+              <span>Add Task</span>
+              {/* Subtle shine effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300" />
             </Button>
           </div>
         </header>

@@ -3,6 +3,11 @@ import { useTaskStore } from '../stores/taskStore.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
 import { cn } from '../utils/cn.ts';
+import { getListDisplayInfo, extractFirstEmoji, removeFirstEmoji } from '../utils/emojiUtils.ts';
+import { GroupedListSection } from './GroupedListSection.tsx';
+import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import type { DragEndEvent } from '@dnd-kit/core';
 
 export function Sidebar() {
   const {
@@ -17,13 +22,49 @@ export function Sidebar() {
     toggleDarkMode,
     toggleSidebar,
     addList,
+    addGroup,
     getTaskCountForList,
+    getGroupedLists,
+    moveListToGroup,
   } = useTaskStore();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      // Check if dropping on a group header
+      if (typeof over.id === 'string' && over.id.startsWith('group-')) {
+        const groupId = over.id.replace('group-', '');
+        moveListToGroup(active.id as string, groupId === 'null' ? null : groupId);
+        return;
+      }
+    }
+  };
 
   const handleAddList = () => {
     const name = prompt('Enter list name:');
     if (name?.trim()) {
       addList(name.trim());
+    }
+  };
+
+  const handleAddGroup = () => {
+    const name = prompt('Enter group name:');
+    if (name?.trim()) {
+      const emoji = extractFirstEmoji(name.trim());
+      const cleanName = removeFirstEmoji(name.trim());
+      addGroup(cleanName || name.trim(), undefined, emoji || undefined);
     }
   };
 
@@ -61,6 +102,7 @@ export function Sidebar() {
   ];
 
   const customLists = lists.filter(list => !list.isSystem);
+  const groupedLists = getGroupedLists();
 
   return (
     <>
@@ -139,62 +181,50 @@ export function Sidebar() {
           </div>
 
           {/* Custom Lists */}
-          {!sidebarCollapsed && customLists.length > 0 && (
+          {!sidebarCollapsed && (
+            <div className="p-2 border-t border-gray-200 dark:border-gray-700">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                {groupedLists.map((section) => (
+                  <GroupedListSection
+                    key={section.group?.id || 'ungrouped'}
+                    group={section.group}
+                    lists={section.lists}
+                    currentView={currentView}
+                    currentListId={currentListId}
+                    onSetView={setView}
+                    sidebarCollapsed={sidebarCollapsed}
+                  />
+                ))}
+              </DndContext>
+            </div>
+          )}
+
+          {/* Collapsed Custom Lists */}
+          {sidebarCollapsed && customLists.length > 0 && (
             <div className="p-2 border-t border-gray-200 dark:border-gray-700">
               {customLists.map((list) => {
                 const isActive = currentView === 'list' && currentListId === list.id;
-                const taskCount = getTaskCountForList(list.id);
+                const { icon } = getListDisplayInfo(list);
 
                 return (
                   <button
                     key={list.id}
                     onClick={() => setView('list', list.id)}
                     className={cn(
-                      'w-full flex items-center px-3 py-2 rounded-md text-left transition-colors relative overflow-hidden',
+                      'w-full flex items-center justify-center p-3 rounded-md transition-colors',
                       isActive
                         ? 'bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-gray-100'
                         : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                     )}
-                    style={list.color ? {
-                      borderLeft: isActive ? `4px solid ${list.color}` : `3px solid transparent`,
-                      backgroundImage: isActive 
-                        ? `linear-gradient(90deg, ${list.color}10 0%, transparent 100%)`
-                        : undefined
-                    } : undefined}
                   >
-                    {list.color && (
-                      <div 
-                        className="absolute left-0 top-0 bottom-0 w-1 transition-all duration-200"
-                        style={{ 
-                          backgroundColor: list.color,
-                          opacity: isActive ? 1 : 0.6,
-                          width: isActive ? '4px' : '2px'
-                        }}
-                      />
-                    )}
-                    <div className="flex items-center gap-3 flex-1 min-w-0 relative z-10">
-                      {list.emoji ? (
-                        <span className="text-lg">{list.emoji}</span>
-                      ) : (
-                        <List size={20} />
-                      )}
-                      <span className="flex-1 truncate">{list.name}</span>
-                    </div>
-                    {taskCount > 0 && (
-                      <span 
-                        className={cn(
-                          "text-xs px-2 py-1 rounded-full font-medium relative z-10",
-                          isActive && list.color
-                            ? "text-white shadow-sm"
-                            : "bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300"
-                        )}
-                        style={isActive && list.color ? {
-                          backgroundColor: list.color,
-                          boxShadow: `0 2px 4px ${list.color}40`
-                        } : undefined}
-                      >
-                        {taskCount}
-                      </span>
+                    {icon ? (
+                      <span className="text-lg">{icon}</span>
+                    ) : (
+                      <List size={20} />
                     )}
                   </button>
                 );
@@ -202,17 +232,26 @@ export function Sidebar() {
             </div>
           )}
 
-          {/* Add List Button */}
+          {/* Add List/Group Buttons */}
           {!sidebarCollapsed && (
-            <div className="p-2">
+            <div className="p-2 space-y-1">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleAddList}
                 className="w-full justify-start"
               >
-                <Plus size={20} className="mr-3" />
+                <Plus size={16} className="mr-3" />
                 New List
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleAddGroup}
+                className="w-full justify-start text-gray-600 dark:text-gray-400"
+              >
+                <Plus size={16} className="mr-3" />
+                New Group
               </Button>
             </div>
           )}
