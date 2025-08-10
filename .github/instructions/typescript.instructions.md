@@ -1,6 +1,6 @@
 ---
 description: 'Typescript coding conventions and guidelines'
-applyTo: '**/*.ts'
+applyTo: '**/*.ts, **/*.tsx' 
 ---
 
 # LLM Instruction: TypeScript Coding Standards
@@ -33,16 +33,3 @@ You are a senior TypeScript developer. You write safe, modern, and maintainable 
 - Prefer arrow functions for callbacks and lambdas.
 - Always type arguments and return values explicitly.
 - For reusable types, define interfaces or aliases above the function.
-
-### Example: Typed Function
-```ts
-interface User {
-  id: number;
-  name: string;
-  email?: string;
-}
-
-const getUserById = (id: number): Promise<User | null> => {
-  return fetch(`/api/users/${id}`)
-    .then(res => res.ok ? res.json() : null);
-};

@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 import { isToday, startOfDay, addDays, addWeeks, addMonths, addYears } from 'date-fns';
-import type { Task, TaskList, AppState, ViewType, TaskFilter } from '../types/index.ts';
+import type { Task, TaskList, ListGroup, AppState, ViewType, TaskFilter, TimePreset } from '../types/index.ts';
 import { saveToStorage, loadFromStorage, generateId } from '../utils/storage.ts';
 
 interface TaskStore extends AppState {
   // Actions
-  addTask: (title: string, listId?: string, options?: { important?: boolean; dueDate?: Date; notes?: string; myDay?: boolean; repeat?: string }) => void;
+  addTask: (title: string, listId?: string, options?: { important?: boolean; dueDate?: Date; reminder?: Date; notes?: string; myDay?: boolean; repeat?: string; repeatDays?: number[] }) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   toggleTask: (id: string) => void;
@@ -17,9 +17,24 @@ interface TaskStore extends AppState {
   processRepeatingTasks: () => void;
   
   // List actions
-  addList: (name: string, color?: string, emoji?: string) => void;
+  addList: (name: string, color?: string, emoji?: string, groupId?: string | null) => void;
   updateList: (id: string, updates: Partial<TaskList>) => void;
   deleteList: (id: string) => void;
+  reorderLists: (groupId: string | null, listIds: string[]) => void;
+  moveListToGroup: (listId: string, groupId: string | null) => void;
+  
+  // Group actions
+  addGroup: (name: string, color?: string, emoji?: string) => void;
+  updateGroup: (id: string, updates: Partial<ListGroup>) => void;
+  deleteGroup: (id: string, moveListsToGroupId?: string | null) => void;
+  reorderGroups: (groupIds: string[]) => void;
+  toggleGroupCollapsed: (id: string) => void;
+  
+  // Time preset actions
+  addCustomTimePreset: (label: string, hour: number, minute: number) => void;
+  removeCustomTimePreset: (id: string) => void;
+  removeBuiltInPreset: (id: string) => void;
+  restoreBuiltInPreset: (id: string) => void;
   
   // View actions
   setView: (view: ViewType, listId?: string) => void;
@@ -31,6 +46,8 @@ interface TaskStore extends AppState {
   getFilteredTasks: (filter?: TaskFilter) => Task[];
   getTasksForCurrentView: () => Task[];
   getTaskCountForList: (listId: string) => number;
+  getListsInGroup: (groupId: string | null) => TaskList[];
+  getGroupedLists: () => { group: ListGroup | null; lists: TaskList[] }[];
 }
 
 // Default system lists
@@ -40,6 +57,7 @@ const defaultLists: TaskList[] = [
     name: 'My Day',
     isSystem: true,
     taskCount: 0,
+    order: 0,
     createdAt: new Date(),
   },
   {
@@ -47,6 +65,7 @@ const defaultLists: TaskList[] = [
     name: 'Important',
     isSystem: true,
     taskCount: 0,
+    order: 1,
     createdAt: new Date(),
   },
   {
@@ -54,6 +73,7 @@ const defaultLists: TaskList[] = [
     name: 'Planned',
     isSystem: true,
     taskCount: 0,
+    order: 2,
     createdAt: new Date(),
   },
   {
@@ -61,6 +81,7 @@ const defaultLists: TaskList[] = [
     name: 'Tasks',
     isSystem: true,
     taskCount: 0,
+    order: 3,
     createdAt: new Date(),
   },
 ];
@@ -72,11 +93,14 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
   const initialState: AppState = {
     tasks: [],
     lists: defaultLists,
+    listGroups: [],
     currentView: 'my-day',
     currentListId: undefined,
     searchQuery: '',
     darkMode: false,
     sidebarCollapsed: false,
+    customTimePresets: [],
+    disabledBuiltInPresets: [],
     ...savedState,
   };
 
@@ -86,29 +110,38 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
     saveToStorage({
       tasks: state.tasks,
       lists: state.lists.filter(list => !list.isSystem).concat(defaultLists),
+      listGroups: state.listGroups,
       currentView: state.currentView,
       currentListId: state.currentListId,
       searchQuery: state.searchQuery,
       darkMode: state.darkMode,
       sidebarCollapsed: state.sidebarCollapsed,
+      customTimePresets: state.customTimePresets,
+      disabledBuiltInPresets: state.disabledBuiltInPresets,
     });
   };
 
   // Helper function to calculate next due date for repeating tasks
-  const getNextDueDate = (currentDate: Date, repeatType: Task['repeat']): Date => {
+  const getNextDueDate = (currentDate: Date, repeatType: Task['repeat'], repeatDays?: number[]): Date => {
     switch (repeatType) {
-      case 'daily':
-        return addDays(currentDate, 1);
-      case 'weekdays': {
-        // Skip weekends
-        const nextDay = addDays(currentDate, 1);
-        const dayOfWeek = nextDay.getDay();
-        if (dayOfWeek === 0) { // Sunday
-          return addDays(nextDay, 1); // Move to Monday
-        } else if (dayOfWeek === 6) { // Saturday
-          return addDays(nextDay, 2); // Move to Monday
+      case 'daily': {
+        if (repeatDays && repeatDays.length > 0) {
+          // Find next valid day based on repeatDays
+          const nextDay = addDays(currentDate, 1);
+          let checkDate = nextDay;
+          
+          // Check up to 7 days ahead to find next valid day
+          for (let i = 0; i < 7; i++) {
+            if (repeatDays.includes(checkDate.getDay())) {
+              return checkDate;
+            }
+            checkDate = addDays(checkDate, 1);
+          }
+          
+          // Fallback to next day if no valid day found (shouldn't happen)
+          return nextDay;
         }
-        return nextDay;
+        return addDays(currentDate, 1);
       }
       case 'weekly':
         return addWeeks(currentDate, 1);
@@ -125,7 +158,7 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
     ...initialState,
 
     // Task actions
-    addTask: (title: string, listId = 'all', options: { important?: boolean; dueDate?: Date; notes?: string; myDay?: boolean; repeat?: string } = {}) => {
+    addTask: (title: string, listId = 'all', options: { important?: boolean; dueDate?: Date; reminder?: Date; notes?: string; myDay?: boolean; repeat?: string; repeatDays?: number[] } = {}) => {
       const newTask: Task = {
         id: generateId(),
         title,
@@ -133,8 +166,10 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
         important: options.important || false,
         myDay: options.myDay || false,
         dueDate: options.dueDate,
+        reminder: options.reminder,
         notes: options.notes,
         repeat: (options.repeat as Task['repeat']) || 'none',
+        repeatDays: options.repeatDays,
         createdAt: new Date(),
         updatedAt: new Date(),
         listId,
@@ -268,7 +303,7 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
             startOfDay(task.dueDate) < today
           ) {
             // Reset task for next occurrence
-            const nextDueDate = getNextDueDate(task.dueDate, task.repeat);
+            const nextDueDate = getNextDueDate(task.dueDate, task.repeat, task.repeatDays);
             return {
               ...task,
               completed: false,
@@ -284,7 +319,7 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
     },
 
     // List actions
-    addList: (name: string, color?: string, emoji?: string) => {
+    addList: (name: string, color?: string, emoji?: string, groupId?: string | null) => {
       const newList: TaskList = {
         id: generateId(),
         name,
@@ -292,6 +327,8 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
         color,
         isSystem: false,
         taskCount: 0,
+        groupId,
+        order: get().lists.filter(l => l.groupId === groupId).length,
         createdAt: new Date(),
       };
 
@@ -428,6 +465,162 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
         return tasks.filter(task => !task.completed).length;
       }
       return tasks.filter(task => task.listId === listId && !task.completed).length;
+    },
+
+    // Time preset actions
+    addCustomTimePreset: (label: string, hour: number, minute: number) => {
+      const newPreset: TimePreset = {
+        id: generateId(),
+        label,
+        hour,
+        minute,
+        isCustom: true,
+        createdAt: new Date(),
+      };
+
+      set((state) => ({
+        customTimePresets: [...state.customTimePresets, newPreset],
+      }));
+      saveState();
+    },
+
+    removeCustomTimePreset: (id: string) => {
+      set((state) => ({
+        customTimePresets: state.customTimePresets.filter(preset => preset.id !== id),
+      }));
+      saveState();
+    },
+
+    removeBuiltInPreset: (id: string) => {
+      set((state) => ({
+        disabledBuiltInPresets: [...state.disabledBuiltInPresets, id],
+      }));
+      saveState();
+    },
+
+    restoreBuiltInPreset: (id: string) => {
+      set((state) => ({
+        disabledBuiltInPresets: state.disabledBuiltInPresets.filter(presetId => presetId !== id),
+      }));
+      saveState();
+    },
+
+    // List management actions
+    reorderLists: (groupId: string | null, listIds: string[]) => {
+      set((state) => ({
+        lists: state.lists.map((list) => {
+          if (list.groupId === groupId) {
+            const newOrder = listIds.indexOf(list.id);
+            return newOrder >= 0 ? { ...list, order: newOrder } : list;
+          }
+          return list;
+        }),
+      }));
+      saveState();
+    },
+
+    moveListToGroup: (listId: string, groupId: string | null) => {
+      set((state) => {
+        const targetLists = state.lists.filter(l => l.groupId === groupId);
+        const newOrder = targetLists.length;
+        
+        return {
+          lists: state.lists.map((list) =>
+            list.id === listId ? { ...list, groupId, order: newOrder } : list
+          ),
+        };
+      });
+      saveState();
+    },
+
+    // Group management actions
+    addGroup: (name: string, color?: string, emoji?: string) => {
+      const newGroup: ListGroup = {
+        id: generateId(),
+        name,
+        emoji,
+        color,
+        collapsed: false,
+        order: get().listGroups.length,
+        createdAt: new Date(),
+      };
+
+      set((state) => ({
+        listGroups: [...state.listGroups, newGroup],
+      }));
+      saveState();
+    },
+
+    updateGroup: (id: string, updates: Partial<ListGroup>) => {
+      set((state) => ({
+        listGroups: state.listGroups.map((group) =>
+          group.id === id ? { ...group, ...updates } : group
+        ),
+      }));
+      saveState();
+    },
+
+    deleteGroup: (id: string, moveListsToGroupId?: string | null) => {
+      set((state) => ({
+        listGroups: state.listGroups.filter((group) => group.id !== id),
+        lists: state.lists.map((list) =>
+          list.groupId === id ? { ...list, groupId: moveListsToGroupId || null } : list
+        ),
+      }));
+      saveState();
+    },
+
+    reorderGroups: (groupIds: string[]) => {
+      set((state) => ({
+        listGroups: state.listGroups.map((group) => {
+          const newOrder = groupIds.indexOf(group.id);
+          return newOrder >= 0 ? { ...group, order: newOrder } : group;
+        }),
+      }));
+      saveState();
+    },
+
+    toggleGroupCollapsed: (id: string) => {
+      set((state) => ({
+        listGroups: state.listGroups.map((group) =>
+          group.id === id ? { ...group, collapsed: !group.collapsed } : group
+        ),
+      }));
+      saveState();
+    },
+
+    // Getters
+    getListsInGroup: (groupId: string | null) => {
+      const { lists } = get();
+      return lists
+        .filter((list) => !list.isSystem && list.groupId === groupId)
+        .sort((a, b) => a.order - b.order);
+    },
+
+    getGroupedLists: () => {
+      const { lists, listGroups } = get();
+      const customLists = lists.filter(list => !list.isSystem);
+      const sortedGroups = [...listGroups].sort((a, b) => a.order - b.order);
+      const ungroupedLists = customLists
+        .filter((list) => !list.groupId)
+        .sort((a, b) => a.order - b.order);
+
+      const result: { group: ListGroup | null; lists: TaskList[] }[] = [];
+
+      // Add ungrouped lists first
+      if (ungroupedLists.length > 0) {
+        result.push({ group: null, lists: ungroupedLists });
+      }
+
+      // Add grouped lists
+      sortedGroups.forEach((group) => {
+        const groupLists = customLists
+          .filter((list) => list.groupId === group.id)
+          .sort((a, b) => a.order - b.order);
+        result.push({ group, lists: groupLists });
+      });
+
+      return result;
     },
   };
 

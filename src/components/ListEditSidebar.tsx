@@ -6,6 +6,7 @@ import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
 import { EmojiPicker } from './EmojiPicker.tsx';
 import { cn } from '../utils/cn.ts';
+import { getListDisplayInfo, extractFirstEmoji, removeFirstEmoji } from '../utils/emojiUtils.ts';
 
 interface ListEditSidebarProps {
   list?: TaskList;
@@ -40,8 +41,16 @@ export function ListEditSidebar({ list, isOpen, onClose, mode }: ListEditSidebar
   // Reset form when list changes or modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setName(list?.name || '');
-      setEmoji(list?.emoji || '');
+      if (list) {
+        // For existing lists, extract emoji from name if no explicit emoji is set
+        const { displayName, icon } = getListDisplayInfo(list);
+        setName(displayName);
+        setEmoji(icon || '');
+      } else {
+        // For new lists
+        setName('');
+        setEmoji('');
+      }
       setColor(list?.color || '#3b82f6');
       setShowEmojiPicker(false);
     }
@@ -61,6 +70,17 @@ export function ListEditSidebar({ list, isOpen, onClose, mode }: ListEditSidebar
     }
 
     onClose();
+  };
+
+  const handleNameChange = (value: string) => {
+    const extractedEmoji = extractFirstEmoji(value);
+    if (extractedEmoji && !emoji) {
+      // If user types an emoji and we don't have one set, extract it
+      setEmoji(extractedEmoji);
+      setName(removeFirstEmoji(value));
+    } else {
+      setName(value);
+    }
   };
 
   const handleDelete = () => {
@@ -149,7 +169,7 @@ export function ListEditSidebar({ list, isOpen, onClose, mode }: ListEditSidebar
               <div className="flex-1">
                 <Input
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => handleNameChange(e.target.value)}
                   placeholder="List name"
                   className="text-lg font-medium"
                   autoFocus={mode === 'create'}
