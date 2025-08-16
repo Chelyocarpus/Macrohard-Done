@@ -1,71 +1,106 @@
-import { Sun, Moon, Star, Calendar, CheckSquare, CheckCircle, List, Plus, Search, Menu } from 'lucide-react';
+import { Sun, Star, Calendar, CheckSquare, List, Plus, Search, Menu } from 'lucide-react';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
 import { cn } from '../utils/cn.ts';
-import { getListDisplayInfo, extractFirstEmoji, removeFirstEmoji } from '../utils/emojiUtils.ts';
+import { getListDisplayInfo } from '../utils/emojiUtils.ts';
 import { GroupedListSection } from './GroupedListSection.tsx';
-import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { ListEditSidebar } from './ListEditSidebar.tsx';
+import { DndContext, closestCenter, PointerSensor, KeyboardSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import type { DragEndEvent } from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
+import { useState } from 'react';
 
-export function Sidebar() {
+interface SidebarProps {
+  setShowAddGroupModal: (show: boolean) => void;
+  showAddListModal: boolean;
+  setShowAddListModal: (show: boolean) => void;
+}
+
+export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddListModal }: SidebarProps) {
+  const [activeId, setActiveId] = useState<string | null>(null);
+  
   const {
     lists,
     currentView,
     currentListId,
     searchQuery,
-    darkMode,
     sidebarCollapsed,
     setView,
     setSearchQuery,
-    toggleDarkMode,
     toggleSidebar,
-    addList,
-    addGroup,
     getTaskCountForList,
     getGroupedLists,
     moveListToGroup,
+    reorderLists,
   } = useTaskStore();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5, // Reduced from 8 for more responsive dragging
       },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200, // Reduced from 250 for better responsiveness
+        tolerance: 8, // Increased for better touch handling
+      },
     })
   );
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveId(null);
 
     if (over && active.id !== over.id) {
-      // Check if dropping on a group header
+      // Check if dropping on a group header to move list to group
       if (typeof over.id === 'string' && over.id.startsWith('group-')) {
         const groupId = over.id.replace('group-', '');
         moveListToGroup(active.id as string, groupId === 'null' ? null : groupId);
         return;
       }
+
+      // Handle reordering within the same group/section
+      const activeList = lists.find(list => list.id === active.id);
+      const overList = lists.find(list => list.id === over.id);
+      
+      if (activeList && overList && activeList.groupId === overList.groupId) {
+        // Get all lists in this group/section
+        const sectionLists = lists
+          .filter(list => !list.isSystem && list.groupId === activeList.groupId)
+          .sort((a, b) => a.order - b.order);
+        
+        const oldIndex = sectionLists.findIndex(list => list.id === active.id);
+        const newIndex = sectionLists.findIndex(list => list.id === over.id);
+        
+        if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+          // Reorder the lists
+          const reorderedLists = [...sectionLists];
+          const [movedList] = reorderedLists.splice(oldIndex, 1);
+          reorderedLists.splice(newIndex, 0, movedList);
+          
+          // Update the order in store
+          const listIds = reorderedLists.map(list => list.id);
+          reorderLists(activeList.groupId || null, listIds);
+        }
+      }
     }
   };
 
   const handleAddList = () => {
-    const name = prompt('Enter list name:');
-    if (name?.trim()) {
-      addList(name.trim());
-    }
+    setShowAddListModal(true);
   };
 
   const handleAddGroup = () => {
-    const name = prompt('Enter group name:');
-    if (name?.trim()) {
-      const emoji = extractFirstEmoji(name.trim());
-      const cleanName = removeFirstEmoji(name.trim());
-      addGroup(cleanName || name.trim(), undefined, emoji || undefined);
-    }
+    setShowAddGroupModal(true);
   };
 
   const systemLists = [
@@ -92,12 +127,6 @@ export function Sidebar() {
       name: 'Tasks',
       icon: CheckSquare,
       view: 'all' as const,
-    },
-    {
-      id: 'completed',
-      name: 'Completed',
-      icon: CheckCircle,
-      view: 'completed' as const,
     },
   ];
 
@@ -186,6 +215,7 @@ export function Sidebar() {
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
               >
                 {groupedLists.map((section) => (
@@ -197,6 +227,7 @@ export function Sidebar() {
                     currentListId={currentListId}
                     onSetView={setView}
                     sidebarCollapsed={sidebarCollapsed}
+                    activeId={activeId}
                   />
                 ))}
               </DndContext>
@@ -231,49 +262,54 @@ export function Sidebar() {
               })}
             </div>
           )}
-
-          {/* Add List/Group Buttons */}
-          {!sidebarCollapsed && (
-            <div className="p-2 space-y-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleAddList}
-                className="w-full justify-start"
-              >
-                <Plus size={16} className="mr-3" />
-                New List
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleAddGroup}
-                className="w-full justify-start text-gray-600 dark:text-gray-400"
-              >
-                <Plus size={16} className="mr-3" />
-                New Group
-              </Button>
-            </div>
-          )}
         </div>
 
         {/* Footer */}
         <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleDarkMode}
-            className={cn('w-full', sidebarCollapsed ? 'px-2' : 'justify-start')}
-          >
-            {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-            {!sidebarCollapsed && (
-              <span className="ml-3">
-                {darkMode ? 'Light Mode' : 'Dark Mode'}
-              </span>
-            )}
-          </Button>
+          {!sidebarCollapsed ? (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={handleAddList}
+                className="flex flex-col items-center justify-center p-3 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all duration-200 group"
+              >
+                <Plus size={20} className="mb-1 text-blue-500 dark:text-blue-400 group-hover:scale-110 transition-transform duration-200" />
+                <span>Neue Liste</span>
+              </button>
+              <button
+                onClick={handleAddGroup}
+                className="flex flex-col items-center justify-center p-3 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all duration-200 group"
+              >
+                <Plus size={20} className="mb-1 text-green-500 dark:text-green-400 group-hover:scale-110 transition-transform duration-200" />
+                <span>New Group</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleAddList}
+                className="flex items-center justify-center p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all duration-200 group"
+                title="Neue Liste"
+              >
+                <Plus size={20} className="text-blue-500 dark:text-blue-400 group-hover:scale-110 transition-transform duration-200" />
+              </button>
+              <button
+                onClick={handleAddGroup}
+                className="flex items-center justify-center p-2 text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all duration-200 group"
+                title="New Group"
+              >
+                <Plus size={20} className="text-green-500 dark:text-green-400 group-hover:scale-110 transition-transform duration-200" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
+      
+      {/* Add List Modal */}
+      <ListEditSidebar
+        isOpen={showAddListModal}
+        onClose={() => setShowAddListModal(false)}
+        mode="create"
+      />
     </aside>
     </>
   );

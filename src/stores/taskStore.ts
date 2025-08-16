@@ -5,16 +5,19 @@ import { saveToStorage, loadFromStorage, generateId } from '../utils/storage.ts'
 
 interface TaskStore extends AppState {
   // Actions
-  addTask: (title: string, listId?: string, options?: { important?: boolean; dueDate?: Date; reminder?: Date; notes?: string; myDay?: boolean; repeat?: string; repeatDays?: number[] }) => void;
+  addTask: (title: string, listId?: string, options?: { important?: boolean; dueDate?: Date; reminder?: Date; notes?: string; myDay?: boolean; repeat?: string; repeatDays?: number[]; steps?: { title: string }[] }) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   toggleTask: (id: string) => void;
   toggleImportant: (id: string) => void;
   toggleMyDay: (id: string) => void;
+  togglePin: (id: string) => void;
+  toggleGlobalPin: (id: string) => void;
   addSubTask: (taskId: string, title: string) => void;
   toggleSubTask: (taskId: string, subTaskId: string) => void;
   deleteSubTask: (taskId: string, subTaskId: string) => void;
   processRepeatingTasks: () => void;
+  reorderTasks: (taskIds: string[], listId: string) => void;
   
   // List actions
   addList: (name: string, color?: string, emoji?: string, groupId?: string | null) => void;
@@ -89,9 +92,17 @@ const defaultLists: TaskList[] = [
 export const useTaskStore = create<TaskStore>()((set, get) => {
   // Load initial state from storage
   const savedState = loadFromStorage();
+
+  // Migrate tasks to include order property and pinned properties if not present
+  const migratedTasks = savedState?.tasks?.map((task: Task, index: number) => ({
+    ...task,
+    order: task.order !== undefined ? task.order : index,
+    pinned: task.pinned !== undefined ? task.pinned : false,
+    pinnedGlobally: task.pinnedGlobally !== undefined ? task.pinnedGlobally : false
+  })) || [];
   
   const initialState: AppState = {
-    tasks: [],
+    tasks: migratedTasks,
     lists: defaultLists,
     listGroups: [],
     currentView: 'my-day',
@@ -158,22 +169,36 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
     ...initialState,
 
     // Task actions
-    addTask: (title: string, listId = 'all', options: { important?: boolean; dueDate?: Date; reminder?: Date; notes?: string; myDay?: boolean; repeat?: string; repeatDays?: number[] } = {}) => {
+    addTask: (title: string, listId = 'all', options: { important?: boolean; dueDate?: Date; reminder?: Date; notes?: string; myDay?: boolean; repeat?: string; repeatDays?: number[]; steps?: { title: string }[] } = {}) => {
+      const currentTasks = get().tasks.filter(task => task.listId === listId);
+      const nextOrder = currentTasks.length > 0 ? Math.max(...currentTasks.map(t => t.order)) + 1 : 0;
+      
+      // Create initial steps if provided
+      const initialSteps = options.steps?.map(step => ({
+        id: generateId(),
+        title: step.title,
+        completed: false,
+        createdAt: new Date(),
+      })) || [];
+      
       const newTask: Task = {
         id: generateId(),
         title,
         completed: false,
         important: options.important || false,
         myDay: options.myDay || false,
+        pinned: false,
+        pinnedGlobally: false,
         dueDate: options.dueDate,
         reminder: options.reminder,
         notes: options.notes,
         repeat: (options.repeat as Task['repeat']) || 'none',
         repeatDays: options.repeatDays,
+        order: nextOrder,
         createdAt: new Date(),
         updatedAt: new Date(),
         listId,
-        steps: [],
+        steps: initialSteps,
       };
       
       set((state) => ({
@@ -227,6 +252,28 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
         tasks: state.tasks.map((task) =>
           task.id === id
             ? { ...task, myDay: !task.myDay, updatedAt: new Date() }
+            : task
+        ),
+      }));
+      saveState();
+    },
+
+    togglePin: (id: string) => {
+      set((state) => ({
+        tasks: state.tasks.map((task) =>
+          task.id === id
+            ? { ...task, pinned: !task.pinned, updatedAt: new Date() }
+            : task
+        ),
+      }));
+      saveState();
+    },
+
+    toggleGlobalPin: (id: string) => {
+      set((state) => ({
+        tasks: state.tasks.map((task) =>
+          task.id === id
+            ? { ...task, pinnedGlobally: !task.pinnedGlobally, updatedAt: new Date() }
             : task
         ),
       }));
@@ -311,6 +358,19 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
               myDay: false, // Remove from My Day when rescheduled
               updatedAt: new Date(),
             };
+          }
+          return task;
+        }),
+      }));
+      saveState();
+    },
+
+    reorderTasks: (taskIds: string[], listId: string) => {
+      set((state) => ({
+        tasks: state.tasks.map((task) => {
+          if (task.listId === listId) {
+            const newOrder = taskIds.indexOf(task.id);
+            return newOrder >= 0 ? { ...task, order: newOrder, updatedAt: new Date() } : task;
           }
           return task;
         }),
@@ -406,6 +466,15 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
         }
         
         return true;
+      })
+      .sort((a, b) => {
+        // Priority sorting: globally pinned > list pinned > regular tasks
+        if (a.pinnedGlobally && !b.pinnedGlobally) return -1;
+        if (!a.pinnedGlobally && b.pinnedGlobally) return 1;
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        // Within same pin status, sort by order
+        return a.order - b.order;
       });
     },
 
@@ -426,12 +495,9 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
         case 'planned':
           // Show tasks with due dates
           return get().getFilteredTasks(filter).filter(task => task.dueDate && !task.completed);
-        case 'completed':
-          filter.completed = true;
-          break;
         case 'list':
           filter.listId = currentListId;
-          filter.completed = false;
+          // Don't filter by completion status for list view - show all tasks
           break;
         case 'all':
         default:
@@ -446,9 +512,6 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
 
     getTaskCountForList: (listId: string) => {
       const { tasks } = get();
-      if (listId === 'completed') {
-        return tasks.filter(task => task.completed).length;
-      }
       if (listId === 'important') {
         return tasks.filter(task => task.important && !task.completed).length;
       }
@@ -464,6 +527,7 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
         // Count ALL incomplete tasks regardless of which list they're in
         return tasks.filter(task => !task.completed).length;
       }
+      // For custom lists, only count active (incomplete) tasks in the counter
       return tasks.filter(task => task.listId === listId && !task.completed).length;
     },
 

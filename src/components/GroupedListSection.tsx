@@ -14,7 +14,10 @@ import { ChevronDown, ChevronRight, List, MoreHorizontal, Plus, Trash2, Edit3 } 
 import { cn } from '../utils/cn';
 import { useTaskStore } from '../stores/taskStore';
 import type { TaskList, ListGroup } from '../types';
+import { ListEditSidebar } from './ListEditSidebar';
 import { getListDisplayInfo, extractFirstEmoji, removeFirstEmoji } from '../utils/emojiUtils';
+import { useContextMenuHandler } from './ui/useContextMenu.ts';
+import { createListContextMenu } from './ui/contextMenus.tsx';
 
 interface GroupedListSectionProps {
   group: ListGroup | null;
@@ -23,6 +26,7 @@ interface GroupedListSectionProps {
   currentListId?: string;
   onSetView: (view: 'list', listId: string) => void;
   sidebarCollapsed: boolean;
+  activeId: string | null;
 }
 
 interface SortableListItemProps {
@@ -31,6 +35,8 @@ interface SortableListItemProps {
   taskCount: number;
   onClick: () => void;
   sidebarCollapsed: boolean;
+  onEditList: (list: TaskList) => void;
+  onCreateTask: (listId: string) => void;
 }
 
 interface DroppableGroupHeaderProps {
@@ -47,34 +53,53 @@ function DroppableGroupHeader({ group, children }: DroppableGroupHeaderProps) {
     <div
       ref={setNodeRef}
       className={cn(
-        'transition-colors',
-        isOver && 'bg-blue-50 dark:bg-blue-900/20 rounded-md'
+        'transition-colors duration-200 relative',
+        isOver && 'bg-blue-100 dark:bg-blue-900/30 rounded-lg border border-blue-300 dark:border-blue-600'
       )}
     >
+      {isOver && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+          <div className="bg-blue-600 dark:bg-blue-500 text-white px-3 py-1 rounded text-sm font-medium">
+            📂 Drop to add to group
+          </div>
+        </div>
+      )}
       {children}
     </div>
   );
 }
 
-function DroppableUngroupedArea({ children }: { children: React.ReactNode }) {
+function DroppableUngroupedArea({ children, activeId, lists }: { children: React.ReactNode; activeId: string | null; lists: TaskList[] }) {
   const { isOver, setNodeRef } = useDroppable({
     id: 'group-null',
   });
+
+  // Find the active list to check if it's in a group
+  const activeList = activeId ? lists.find(list => list.id === activeId) : null;
+  const isMovingFromGroup = activeList?.groupId != null;
 
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        'transition-colors',
-        isOver && 'bg-blue-50 dark:bg-blue-900/20 rounded-md'
+        'transition-all duration-200 ease-in-out relative',
+        isOver && 'bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-lg border-2 border-dashed border-emerald-400 dark:border-emerald-500 p-2 shadow-lg scale-[1.01] transform'
       )}
     >
+      {isOver && isMovingFromGroup && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+          <div className="bg-emerald-600 dark:bg-emerald-500 text-white px-3 py-2 rounded-full text-sm font-medium shadow-lg">
+            🏠 Drop to ungroup
+          </div>
+        </div>
+      )}
       {children}
     </div>
   );
 }
 
-function SortableListItem({ list, isActive, taskCount, onClick, sidebarCollapsed }: SortableListItemProps) {
+function SortableListItem({ list, isActive, taskCount, onClick, sidebarCollapsed, onEditList, onCreateTask }: SortableListItemProps) {
+  const { deleteList, addTask } = useTaskStore();
   const {
     attributes,
     listeners,
@@ -91,6 +116,20 @@ function SortableListItem({ list, isActive, taskCount, onClick, sidebarCollapsed
 
   const { displayName, icon } = getListDisplayInfo(list);
 
+  // Context menu handler for list items
+  const handleContextMenu = useContextMenuHandler(() => {
+    return createListContextMenu(list, {
+      onEdit: () => onEditList(list),
+      onDelete: () => deleteList(list.id),
+      onDuplicate: () => {
+        // Create a duplicate list
+        addTask(`${list.name} Copy`, list.id);
+      },
+      onChangeColor: () => onEditList(list),
+      onCreateTask: () => onCreateTask(list.id),
+    });
+  });
+
   return (
     <div
       ref={setNodeRef}
@@ -98,17 +137,19 @@ function SortableListItem({ list, isActive, taskCount, onClick, sidebarCollapsed
       {...attributes}
       {...listeners}
       className={cn(
-        'cursor-move',
+        'cursor-grab active:cursor-grabbing transition-opacity duration-200',
         isDragging && 'opacity-50'
       )}
     >
       <button
         onClick={onClick}
+        onContextMenu={handleContextMenu}
         className={cn(
-          'w-full flex items-center px-3 py-2 rounded-md text-left transition-colors relative overflow-hidden',
+          'w-full flex items-center px-3 py-2 rounded-lg text-left transition-colors duration-200 relative overflow-hidden group',
           isActive
             ? 'bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-gray-100'
-            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700',
+          isDragging && 'bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-500'
         )}
         style={list.color ? {
           borderLeft: isActive ? `4px solid ${list.color}` : `3px solid transparent`,
@@ -161,27 +202,35 @@ export function GroupedListSection({
   currentView, 
   currentListId, 
   onSetView, 
-  sidebarCollapsed 
+  sidebarCollapsed,
+  activeId
 }: GroupedListSectionProps) {
   const [showGroupMenu, setShowGroupMenu] = useState(false);
   const [editingGroup, setEditingGroup] = useState(false);
   const [groupName, setGroupName] = useState(group?.name || '');
+  const [showAddListModal, setShowAddListModal] = useState(false);
+  const [editingList, setEditingList] = useState<TaskList | null>(null);
   
   const { 
     toggleGroupCollapsed, 
     updateGroup, 
-    deleteGroup, 
-    addList,
-    getTaskCountForList 
+    deleteGroup,
+    getTaskCountForList,
+    setView
   } = useTaskStore();
 
   const handleAddList = () => {
-    const name = prompt('Enter list name:');
-    if (name) {
-      addList(name, undefined, undefined, group?.id || null);
-    }
+    setShowAddListModal(true);
   };
 
+  const handleEditList = (list: TaskList) => {
+    setEditingList(list);
+  };
+
+  const handleCreateTask = (listId: string) => {
+    setView('list', listId);
+    // For now, just switch to the list view. Could open a task creation sidebar in the future
+  };
   const handleSaveGroup = () => {
     if (group && groupName.trim()) {
       const emoji = extractFirstEmoji(groupName.trim());
@@ -216,6 +265,8 @@ export function GroupedListSection({
               taskCount={taskCount}
               onClick={() => onSetView('list', list.id)}
               sidebarCollapsed={true}
+              onEditList={handleEditList}
+              onCreateTask={handleCreateTask}
             />
           );
         })}
@@ -227,7 +278,7 @@ export function GroupedListSection({
     // Ungrouped lists
     return (
       <SortableContext items={lists.map(l => l.id)} strategy={verticalListSortingStrategy}>
-        <DroppableUngroupedArea>
+        <DroppableUngroupedArea activeId={activeId} lists={lists}>
           <div className="space-y-1">
             {lists.map((list) => {
               const isActive = currentView === 'list' && currentListId === list.id;
@@ -241,6 +292,8 @@ export function GroupedListSection({
                   taskCount={taskCount}
                   onClick={() => onSetView('list', list.id)}
                   sidebarCollapsed={false}
+                  onEditList={handleEditList}
+                  onCreateTask={handleCreateTask}
                 />
               );
             })}
@@ -254,85 +307,98 @@ export function GroupedListSection({
     <div className="mb-4">
       {/* Group Header */}
       <DroppableGroupHeader group={group}>
-        <div className="flex items-center justify-between px-3 py-2 mb-1">
-          <div className="flex items-center gap-2 flex-1">
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 mb-2">
+          <div className="flex items-center px-3 py-2.5">
+            {/* Collapse Button - Compact */}
             <button
               onClick={() => toggleGroupCollapsed(group.id)}
-              className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+              className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors flex-shrink-0 mr-2"
             >
               {group.collapsed ? (
-                <ChevronRight size={16} className="text-gray-500" />
+                <ChevronRight size={16} className="text-gray-600 dark:text-gray-400" />
               ) : (
-                <ChevronDown size={16} className="text-gray-500" />
+                <ChevronDown size={16} className="text-gray-600 dark:text-gray-400" />
               )}
             </button>
-          
-          {editingGroup ? (
-            <input
-              type="text"
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              onBlur={handleSaveGroup}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSaveGroup();
-                if (e.key === 'Escape') {
-                  setGroupName(group.name);
-                  setEditingGroup(false);
-                }
-              }}
-              className="flex-1 px-2 py-1 text-sm font-medium bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500"
-              autoFocus
-            />
-          ) : (
-            <div className="flex items-center gap-2 flex-1">
-              {group.emoji && <span className="text-sm">{group.emoji}</span>}
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {group.name}
-              </span>
-            </div>
-          )}
-        </div>
-        
-        <div className="flex items-center gap-1">
-          <button
-            onClick={handleAddList}
-            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-            title="Add list to group"
-          >
-            <Plus size={14} className="text-gray-500" />
-          </button>
-          
-          <div className="relative">
-            <button
-              onClick={() => setShowGroupMenu(!showGroupMenu)}
-              className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-            >
-              <MoreHorizontal size={14} className="text-gray-500" />
-            </button>
             
-            {showGroupMenu && (
-              <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-50 min-w-[120px]">
-                <button
-                  onClick={() => {
-                    setEditingGroup(true);
-                    setShowGroupMenu(false);
+            {/* Group Name Section - Maximum space allocation */}
+            <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
+              {editingGroup ? (
+                <input
+                  type="text"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  onBlur={handleSaveGroup}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveGroup();
+                    if (e.key === 'Escape') {
+                      setGroupName(group.name);
+                      setEditingGroup(false);
+                    }
                   }}
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                >
-                  <Edit3 size={14} />
-                  Edit
-                </button>
+                  className="w-full px-2 py-1 text-sm font-semibold bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  autoFocus
+                />
+              ) : (
+                <>
+                  {group.emoji && (
+                    <span className="text-base flex-shrink-0" aria-hidden="true">
+                      {group.emoji}
+                    </span>
+                  )}
+                  <span 
+                    className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+                    title={group.name}
+                    onClick={() => setEditingGroup(true)}
+                  >
+                    {group.name}
+                  </span>
+                </>
+              )}
+            </div>
+            
+            {/* Action Buttons - Compact */}
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              <button
+                onClick={handleAddList}
+                className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                title="Add list to group"
+              >
+                <Plus size={14} className="text-gray-600 dark:text-gray-400" />
+              </button>
+              
+              <div className="relative">
                 <button
-                  onClick={handleDeleteGroup}
-                  className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                  onClick={() => setShowGroupMenu(!showGroupMenu)}
+                  className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
                 >
-                  <Trash2 size={14} />
-                  Delete
+                  <MoreHorizontal size={14} className="text-gray-600 dark:text-gray-400" />
                 </button>
+                
+                {showGroupMenu && (
+                  <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-50 min-w-[120px]">
+                    <button
+                      onClick={() => {
+                        setEditingGroup(true);
+                        setShowGroupMenu(false);
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                    >
+                      <Edit3 size={14} />
+                      Edit
+                    </button>
+                    <button
+                      onClick={handleDeleteGroup}
+                      className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                    >
+                      <Trash2 size={14} />
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
-        </div>
         </div>
       </DroppableGroupHeader>
 
@@ -352,11 +418,31 @@ export function GroupedListSection({
                   taskCount={taskCount}
                   onClick={() => onSetView('list', list.id)}
                   sidebarCollapsed={false}
+                  onEditList={handleEditList}
+                  onCreateTask={handleCreateTask}
                 />
               );
             })}
           </div>
         </SortableContext>
+      )}
+      
+      {/* Add List Modal */}
+      <ListEditSidebar
+        isOpen={showAddListModal}
+        onClose={() => setShowAddListModal(false)}
+        mode="create"
+        groupId={group?.id || null}
+      />
+
+      {/* Edit List Modal */}
+      {editingList && (
+        <ListEditSidebar
+          list={editingList}
+          isOpen={!!editingList}
+          mode="edit"
+          onClose={() => setEditingList(null)}
+        />
       )}
     </div>
   );

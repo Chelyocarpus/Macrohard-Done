@@ -1,18 +1,43 @@
 import { useState } from 'react';
-import { Star, Calendar, Edit3 } from 'lucide-react';
+import { Star, Calendar, Edit3, GripVertical, Repeat, CheckSquare, FileText, Sun, Bell, Pin } from 'lucide-react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { Task } from '../types/index.ts';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { Button } from './ui/Button.tsx';
+import { MarkdownDisplay } from './ui/MarkdownDisplay.tsx';
 import { cn } from '../utils/cn.ts';
 import { formatDate } from '../utils/dateUtils.ts';
 import { TaskDetailSidebar } from './TaskDetailSidebar.tsx';
+import { useContextMenuHandler } from './ui/useContextMenu.ts';
+import { createTaskContextMenu } from './ui/contextMenus.tsx';
 
 interface TaskItemProps {
   task: Task;
+  isDragEnabled?: boolean;
+  isOver?: boolean;
+  isDragging?: boolean;
 }
 
-export function TaskItem({ task }: TaskItemProps) {
-  const { toggleTask, toggleImportant, toggleSubTask, lists } = useTaskStore();
+export function TaskItem({ task, isDragEnabled = false, isOver = false, isDragging: providedIsDragging = false }: TaskItemProps) {
+  const { toggleTask, toggleImportant, toggleSubTask, lists, deleteTask, addTask, toggleMyDay, togglePin, toggleGlobalPin } = useTaskStore();
+  
+  // Only use sortable hook if drag is enabled
+  const sortable = useSortable({ 
+    id: task.id,
+    disabled: !isDragEnabled
+  });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging: sortableIsDragging,
+  } = sortable;
+  
+  // Use provided isDragging or sortable.isDragging
+  const isDragging = providedIsDragging || sortableIsDragging;
   const [showEditSidebar, setShowEditSidebar] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
 
@@ -32,19 +57,85 @@ export function TaskItem({ task }: TaskItemProps) {
     setShowEditSidebar(true);
   };
 
+  const handleDelete = () => {
+    deleteTask(task.id);
+  };
+
+  const handleDuplicate = () => {
+    addTask(task.title, task.listId, {
+      important: task.important,
+      dueDate: task.dueDate,
+      reminder: task.reminder,
+      notes: task.notes,
+      myDay: task.myDay,
+      repeat: task.repeat,
+      repeatDays: task.repeatDays,
+    });
+  };
+
+  const handleToggleMyDay = () => {
+    toggleMyDay(task.id);
+  };
+
+  const handleTogglePin = () => {
+    togglePin(task.id);
+  };
+
+  const handleToggleGlobalPin = () => {
+    toggleGlobalPin(task.id);
+  };
+
   const handleToggleStep = (stepId: string) => {
     toggleSubTask(task.id, stepId);
-  };  return (
+  };
+
+  const handleTaskClick = () => {
+    // Only toggle steps if the task has steps
+    if (task.steps.length > 0) {
+      setShowSteps(!showSteps);
+    }
+  };
+
+  // Context menu handler
+  const handleContextMenu = useContextMenuHandler(() => {
+    return createTaskContextMenu(task, {
+      onEdit: handleEdit,
+      onDelete: handleDelete,
+      onToggleComplete: handleToggleComplete,
+      onToggleImportant: handleToggleImportant,
+      onToggleMyDay: handleToggleMyDay,
+      onTogglePin: handleTogglePin,
+      onToggleGlobalPin: handleToggleGlobalPin,
+      onDuplicate: handleDuplicate,
+      onSetDueDate: handleEdit, // Opens edit sidebar for now
+    });
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    ...(listColor ? {
+      borderLeft: `3px solid ${listColor}`,
+      backgroundColor: `${listColor}05`
+    } : {})
+  };
+
+  return (
     <>
       <div 
+        ref={setNodeRef}
+        style={style}
         className={cn(
           'task-item group p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors relative overflow-hidden',
-          task.completed && 'opacity-75'
+          task.completed && 'opacity-75',
+          task.steps.length > 0 && 'cursor-pointer',
+          !sortable.active && isDragging && 'opacity-30',
+          isOver && 'bg-blue-50 dark:bg-blue-900/20',
+          task.pinnedGlobally && 'bg-blue-25 dark:bg-blue-950/20 border-l-2 border-blue-400',
+          task.pinned && !task.pinnedGlobally && 'bg-gray-25 dark:bg-gray-800/30 border-l-2 border-gray-400'
         )}
-        style={listColor ? {
-          borderLeft: `3px solid ${listColor}`,
-          backgroundColor: `${listColor}05`
-        } : undefined}
+        onClick={handleTaskClick}
+        onContextMenu={handleContextMenu}
       >
         {listColor && (
           <div 
@@ -52,10 +143,30 @@ export function TaskItem({ task }: TaskItemProps) {
             style={{ backgroundColor: listColor }}
           />
         )}
-        <div className="grid grid-cols-[auto_1fr_80px] gap-3 items-start relative z-10">
+        <div className={cn(
+          "grid gap-3 items-start relative z-10",
+          isDragEnabled ? "grid-cols-[auto_auto_1fr_120px]" : "grid-cols-[auto_1fr_120px]"
+        )}>
+          {/* Drag Handle - always show if drag is enabled or the item is being dragged */}
+          {isDragEnabled && (
+            <div
+              {...(isDragging && sortable.active ? {} : { ...attributes, ...listeners })}
+              className={cn(
+                "mt-0.5 p-1 rounded flex-shrink-0 text-gray-400",
+                isDragging ? "opacity-100 cursor-grabbing text-blue-600 dark:text-blue-400" : "cursor-grab opacity-60 group-hover:opacity-100 hover:text-gray-600 dark:hover:text-gray-300",
+                "transition-opacity"
+              )}
+            >
+              <GripVertical size={16} />
+            </div>
+          )}
+          
           {/* Checkbox */}
           <button
-            onClick={handleToggleComplete}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleToggleComplete();
+            }}
             className={cn(
               'mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0',
               task.completed
@@ -76,39 +187,136 @@ export function TaskItem({ task }: TaskItemProps) {
 
           {/* Task Content - grid column */}
           <div className="task-content min-w-0">
-            <div className={cn(
-              'text-gray-900 dark:text-white font-medium leading-normal',
-              task.completed && 'line-through'
-            )}
-            style={{ 
-              wordWrap: 'break-word',
-              overflowWrap: 'anywhere',
-              wordBreak: 'break-word',
-              whiteSpace: 'pre-wrap',
-              width: '100%',
-              minHeight: 'auto'
-            }}
-            >
-              {task.title}
+            <div className="flex items-start gap-2">
+              <div className={cn(
+                'text-gray-900 dark:text-white font-medium leading-normal flex-1',
+                task.completed && 'line-through'
+              )}
+              style={{ 
+                wordWrap: 'break-word',
+                overflowWrap: 'anywhere',
+                wordBreak: 'break-word',
+                whiteSpace: 'pre-wrap',
+                width: '100%',
+                minHeight: 'auto'
+              }}
+              >
+                {task.title}
+              </div>
+              
+              {/* Custom list name tag - positioned close to the color border */}
+              {taskList && !taskList.isSystem && (
+                <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+                  {taskList.emoji && (
+                    <span className="text-xs">{taskList.emoji}</span>
+                  )}
+                  <span 
+                    className="text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap"
+                    style={taskList.color ? {
+                      borderColor: taskList.color,
+                      color: taskList.color,
+                      backgroundColor: `${taskList.color}10`
+                    } : {
+                      borderColor: '#d1d5db',
+                      color: '#6b7280',
+                      backgroundColor: '#f9fafb'
+                    }}
+                  >
+                    {taskList.name}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Task metadata - Always visible */}
             <div className="mt-2 space-y-2 min-w-0 overflow-hidden">
-              {/* Basic metadata row */}
-              <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 flex-wrap min-w-0 overflow-hidden">
+              {/* Primary metadata row - High priority items */}
+              <div className="flex items-center gap-3 text-sm flex-wrap min-w-0 overflow-hidden">
+                {/* Due Date with enhanced visual hierarchy */}
                 {task.dueDate && (
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <Calendar size={12} />
-                    <span className="whitespace-nowrap">{formatDate(task.dueDate)}</span>
+                  <div className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
+                    "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
+                  )}>
+                    <Calendar size={14} className="flex-shrink-0" />
+                    <span className="whitespace-nowrap text-xs font-medium">{formatDate(task.dueDate)}</span>
                   </div>
                 )}
+
+                {/* Reminder indicator */}
+                {task.reminder && (
+                  <div className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
+                    "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300"
+                  )}>
+                    <Bell size={14} className="flex-shrink-0" />
+                    <span className="whitespace-nowrap text-xs font-medium">Reminder</span>
+                  </div>
+                )}
+
+                {/* My Day indicator with enhanced styling */}
+                {task.myDay && (
+                  <div className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
+                    "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-300"
+                  )}>
+                    <Sun size={14} className="flex-shrink-0" />
+                    <span className="whitespace-nowrap text-xs font-medium">My Day</span>
+                  </div>
+                )}
+
+                {/* Global Pin indicator */}
+                {task.pinnedGlobally && (
+                  <div className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
+                    "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
+                  )}>
+                    <Pin size={14} className="flex-shrink-0 fill-current" />
+                    <span className="whitespace-nowrap text-xs font-medium">Pinned Globally</span>
+                  </div>
+                )}
+
+                {/* List Pin indicator (only show if not globally pinned) */}
+                {task.pinned && !task.pinnedGlobally && (
+                  <div className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
+                    "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                  )}>
+                    <Pin size={14} className="flex-shrink-0 fill-current" />
+                    <span className="whitespace-nowrap text-xs font-medium">Pinned</span>
+                  </div>
+                )}
+
+                {/* Repeat indicator with icon */}
+                {task.repeat && task.repeat !== 'none' && (
+                  <div className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
+                    "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300"
+                  )}>
+                    <Repeat size={14} className="flex-shrink-0" />
+                    <span className="whitespace-nowrap text-xs font-medium capitalize">{task.repeat}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Secondary metadata row - Additional info */}
+              <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 flex-wrap min-w-0 overflow-hidden">
+                {/* Steps indicator with enhanced styling */}
                 {task.steps.length > 0 && (
                   <button
-                    onClick={() => setShowSteps(!showSteps)}
-                    className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors flex-shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowSteps(!showSteps);
+                    }}
+                    className={cn(
+                      "flex items-center gap-1.5 px-2 py-1 rounded-md border transition-all duration-200 flex-shrink-0",
+                      "hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-600",
+                      "text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
+                    )}
                   >
-                    <span className="whitespace-nowrap">
-                      {task.steps.filter(step => step.completed).length} of {task.steps.length} steps
+                    <CheckSquare size={14} className="flex-shrink-0" />
+                    <span className="whitespace-nowrap text-xs font-medium">
+                      {task.steps.filter((step) => step.completed).length} of {task.steps.length} steps
                     </span>
                     <svg 
                       className={cn("w-3 h-3 transition-transform", showSteps && "rotate-180")} 
@@ -119,27 +327,27 @@ export function TaskItem({ task }: TaskItemProps) {
                     </svg>
                   </button>
                 )}
-                {task.repeat && task.repeat !== 'none' && (
-                  <span className="capitalize whitespace-nowrap">Repeats {task.repeat}</span>
-                )}
-                {task.myDay && (
-                  <span className="text-blue-600 dark:text-blue-400 whitespace-nowrap">☀️ My Day</span>
+
+                {/* Notes indicator */}
+                {task.notes && (
+                  <div className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
+                    "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300"
+                  )}>
+                    <FileText size={14} className="flex-shrink-0" />
+                    <span className="whitespace-nowrap text-xs font-medium">Notes</span>
+                  </div>
                 )}
               </div>
 
               {/* Notes - Always visible if they exist */}
               {task.notes && (
-                <div className="text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/30 p-3 rounded border border-gray-100 dark:border-gray-700 leading-relaxed"
-                style={{
-                  wordWrap: 'break-word',
-                  overflowWrap: 'anywhere',
-                  wordBreak: 'break-word',
-                  whiteSpace: 'pre-wrap',
-                  width: '100%',
-                  minHeight: 'auto'
-                }}
-                >
-                  {task.notes}
+                <div className="bg-gray-50 dark:bg-gray-800/30 p-3 rounded border border-gray-100 dark:border-gray-700">
+                  <MarkdownDisplay 
+                    content={task.notes} 
+                    inline={true}
+                    className="text-sm"
+                  />
                 </div>
               )}
               
@@ -148,11 +356,19 @@ export function TaskItem({ task }: TaskItemProps) {
                 <div className="w-full min-w-0 overflow-hidden">
                   <div className="space-y-2">
                     {task.steps.map((step) => (
-                      <div key={step.id} className="flex items-start gap-2 p-2 bg-gray-50 dark:bg-gray-800/30 rounded border border-gray-100 dark:border-gray-700 w-full min-h-fit" style={{ maxWidth: '100%' }}>
+                      <div 
+                        key={step.id} 
+                        className="flex items-start gap-2 p-2 bg-gray-50 dark:bg-gray-800/30 rounded border border-gray-100 dark:border-gray-700 w-full min-h-fit" 
+                        style={{ maxWidth: '100%' }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <input
                           type="checkbox"
                           checked={step.completed}
-                          onChange={() => handleToggleStep(step.id)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleToggleStep(step.id);
+                          }}
                           className="rounded text-blue-600 focus:ring-blue-500 w-3 h-3 flex-shrink-0 mt-1"
                         />
                         <div className={cn(
@@ -181,30 +397,54 @@ export function TaskItem({ task }: TaskItemProps) {
           </div>
 
           {/* Actions - grid column, never overlaps */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             {/* Star - always visible and more prominent */}
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleToggleImportant}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggleImportant();
+              }}
               className={cn(
-                'p-2 h-8 w-8 rounded-full transition-all duration-200 flex-shrink-0',
+                'p-1.5 h-7 w-7 rounded-full transition-all duration-200 flex-shrink-0',
                 task.important 
                   ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 shadow-sm' 
                   : 'text-gray-400 dark:text-gray-500 hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
               )}
             >
-              <Star size={16} className={task.important ? 'fill-current' : ''} />
+              <Star size={14} className={task.important ? 'fill-current' : ''} />
+            </Button>
+
+            {/* Pin - always visible when pinned, hover visible when not */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleTogglePin();
+              }}
+              className={cn(
+                'p-1.5 h-7 w-7 rounded-full transition-all duration-200 flex-shrink-0',
+                task.pinned || task.pinnedGlobally
+                  ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 shadow-sm' 
+                  : 'text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+              )}
+            >
+              <Pin size={14} className={(task.pinned || task.pinnedGlobally) ? 'fill-current' : ''} />
             </Button>
 
             {/* Edit - only visible on hover */}
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleEdit}
-              className="p-2 h-8 w-8 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEdit();
+              }}
+              className="p-1.5 h-7 w-7 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
             >
-              <Edit3 size={16} />
+              <Edit3 size={14} />
             </Button>
           </div>
         </div>
