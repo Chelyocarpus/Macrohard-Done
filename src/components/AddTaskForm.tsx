@@ -1,10 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
-import { Calendar, Star, X } from 'lucide-react';
+import { Calendar, Star, X, Plus, Trash2, ListChecks } from 'lucide-react';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
 import { cn } from '../utils/cn.ts';
 import { formatDate } from '../utils/dateUtils.ts';
+
+interface SubTaskItem {
+  id: string;
+  title: string;
+}
 
 interface AddTaskFormProps {
   onSubmit: () => void;
@@ -17,11 +22,29 @@ export function AddTaskForm({ onSubmit, onCancel }: AddTaskFormProps) {
   const [important, setImportant] = useState(false);
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showSubTasks, setShowSubTasks] = useState(false);
+  const [subTasks, setSubTasks] = useState<SubTaskItem[]>([]);
+  const [newSubTaskTitle, setNewSubTaskTitle] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  const addSubTask = () => {
+    if (newSubTaskTitle.trim()) {
+      const newSubTask: SubTaskItem = {
+        id: Date.now().toString(),
+        title: newSubTaskTitle.trim()
+      };
+      setSubTasks([...subTasks, newSubTask]);
+      setNewSubTaskTitle('');
+    }
+  };
+
+  const removeSubTask = (id: string) => {
+    setSubTasks(subTasks.filter(subTask => subTask.id !== id));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,9 +57,14 @@ export function AddTaskForm({ onSubmit, onCancel }: AddTaskFormProps) {
       listId = currentListId;
     }
 
+    // Convert sub tasks to the format expected by addTask
+    const steps = subTasks.map(subTask => ({ title: subTask.title }));
+
+    // Create the task with sub tasks
     addTask(title.trim(), listId, {
       important,
       dueDate,
+      steps: steps.length > 0 ? steps : undefined,
     });
     
     onSubmit();
@@ -45,6 +73,10 @@ export function AddTaskForm({ onSubmit, onCancel }: AddTaskFormProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       onCancel();
+    }
+    if (e.key === 'Tab' && e.shiftKey && !showSubTasks) {
+      e.preventDefault();
+      setShowSubTasks(true);
     }
   };
 
@@ -72,7 +104,7 @@ export function AddTaskForm({ onSubmit, onCancel }: AddTaskFormProps) {
             className="border-none shadow-none p-0 text-base placeholder:text-gray-400 focus-visible:ring-0"
           />
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               type="button"
               variant="ghost"
@@ -101,6 +133,20 @@ export function AddTaskForm({ onSubmit, onCancel }: AddTaskFormProps) {
               {dueDate ? formatDate(dueDate) : 'Add due date'}
             </Button>
             
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSubTasks(!showSubTasks)}
+              className={cn(
+                'flex items-center gap-2',
+                showSubTasks && 'text-blue-600'
+              )}
+            >
+              <ListChecks size={16} />
+              Add steps
+            </Button>
+            
             {dueDate && (
               <Button
                 type="button"
@@ -113,6 +159,60 @@ export function AddTaskForm({ onSubmit, onCancel }: AddTaskFormProps) {
               </Button>
             )}
           </div>
+          
+          {/* Sub Tasks Section */}
+          {showSubTasks && (
+            <div className="mt-3 p-3 border rounded-md bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Steps</h4>
+              
+              {/* Existing sub tasks */}
+              {subTasks.length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {subTasks.map((subTask) => (
+                    <div key={subTask.id} className="flex items-center gap-2 p-2 bg-white dark:bg-gray-700 rounded border">
+                      <div className="w-3 h-3 rounded border border-gray-300 dark:border-gray-600 flex-shrink-0" />
+                      <span className="text-sm flex-1">{subTask.title}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeSubTask(subTask.id)}
+                        className="p-1 text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Add new sub task */}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add a step"
+                  value={newSubTaskTitle}
+                  onChange={(e) => setNewSubTaskTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addSubTask();
+                    }
+                  }}
+                  className="text-sm"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={addSubTask}
+                  disabled={!newSubTaskTitle.trim()}
+                  className="flex-shrink-0"
+                >
+                  <Plus size={16} />
+                </Button>
+              </div>
+            </div>
+          )}
           
           {/* Simple Date Picker */}
           {showDatePicker && (

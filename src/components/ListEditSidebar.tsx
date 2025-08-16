@@ -13,9 +13,10 @@ interface ListEditSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   mode: 'create' | 'edit';
+  groupId?: string | null;
 }
 
-export function ListEditSidebar({ list, isOpen, onClose, mode }: ListEditSidebarProps) {
+export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEditSidebarProps) {
   const { addList, updateList, deleteList } = useTaskStore();
   
   // Form state
@@ -26,16 +27,57 @@ export function ListEditSidebar({ list, isOpen, onClose, mode }: ListEditSidebar
 
   // Color options
   const colors = [
+    // Primary blues
     '#3b82f6', // blue
+    '#1e40af', // blue-800
+    '#0ea5e9', // sky-500
+    '#0284c7', // sky-600
+    
+    // Greens
     '#10b981', // emerald
-    '#f59e0b', // amber
-    '#ef4444', // red
-    '#8b5cf6', // violet
-    '#06b6d4', // cyan
+    '#059669', // emerald-600
     '#84cc16', // lime
+    '#65a30d', // lime-600
+    '#16a34a', // green-600
+    '#15803d', // green-700
+    
+    // Warm colors
+    '#f59e0b', // amber
+    '#d97706', // amber-600
     '#f97316', // orange
+    '#ea580c', // orange-600
+    '#dc2626', // red-600
+    '#ef4444', // red
+    
+    // Purples & Magentas
+    '#8b5cf6', // violet
+    '#7c3aed', // violet-600
+    '#a855f7', // purple-500
+    '#9333ea', // purple-600
     '#ec4899', // pink
+    '#db2777', // pink-600
+    '#be185d', // pink-700
+    
+    // Cyans & Teals
+    '#06b6d4', // cyan
+    '#0891b2', // cyan-600
+    '#14b8a6', // teal-500
+    '#0d9488', // teal-600
+    
+    // Neutrals & Earth tones
     '#6b7280', // gray
+    '#4b5563', // gray-600
+    '#374151', // gray-700
+    '#78716c', // stone-500
+    '#57534e', // stone-600
+    
+    // Additional vibrant colors
+    '#fbbf24', // amber-400
+    '#fb7185', // rose-400
+    '#a78bfa', // violet-400
+    '#34d399', // emerald-400
+    '#60a5fa', // blue-400
+    '#f472b6', // pink-400
   ];
 
   // Reset form when list changes or modal opens/closes
@@ -60,7 +102,7 @@ export function ListEditSidebar({ list, isOpen, onClose, mode }: ListEditSidebar
     if (!name.trim()) return;
 
     if (mode === 'create') {
-      addList(name.trim(), color, emoji);
+      addList(name.trim(), color, emoji, groupId);
     } else if (list) {
       updateList(list.id, {
         name: name.trim(),
@@ -183,13 +225,13 @@ export function ListEditSidebar({ list, isOpen, onClose, mode }: ListEditSidebar
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
               Color Theme
             </label>
-            <div className="grid grid-cols-5 gap-3">
+            <div className="grid grid-cols-8 gap-2">
               {colors.map((colorOption) => (
                 <button
                   key={colorOption}
                   onClick={() => setColor(colorOption)}
                   className={cn(
-                    'w-12 h-12 rounded-xl border-2 transition-all duration-200 relative overflow-hidden group',
+                    'w-10 h-10 rounded-lg border-2 transition-all duration-200 relative overflow-hidden group',
                     color === colorOption
                       ? 'border-gray-900 dark:border-white scale-110 shadow-lg'
                       : 'border-gray-300 dark:border-gray-600 hover:scale-105 hover:border-gray-400'
@@ -203,13 +245,13 @@ export function ListEditSidebar({ list, isOpen, onClose, mode }: ListEditSidebar
                 >
                   {/* Inner highlight */}
                   <div 
-                    className="absolute inset-1 rounded-lg bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute inset-1 rounded-md bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"
                   />
                   {/* Selection indicator */}
                   {color === colorOption && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-4 h-4 bg-white rounded-full shadow-sm flex items-center justify-center">
-                        <svg className="w-2.5 h-2.5 text-gray-800" fill="currentColor" viewBox="0 0 20 20">
+                      <div className="w-3 h-3 bg-white rounded-full shadow-sm flex items-center justify-center">
+                        <svg className="w-2 h-2 text-gray-800" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       </div>

@@ -5,10 +5,13 @@ export interface Task {
   completed: boolean;
   important: boolean;
   myDay: boolean;
+  pinned: boolean; // Pin task to top of its list
+  pinnedGlobally: boolean; // Pin task to top of all views
   dueDate?: Date;
   reminder?: Date;
   repeat?: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
   repeatDays?: number[]; // 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday
+  order: number; // For drag-and-drop ordering within lists
   createdAt: Date;
   updatedAt: Date;
   listId: string;
@@ -61,7 +64,7 @@ export interface TimePreset {
   createdAt: Date;
 }
 
-export type ViewType = 'my-day' | 'important' | 'planned' | 'all' | 'completed' | 'list';
+export type ViewType = 'my-day' | 'important' | 'planned' | 'all' | 'list';
 
 export interface AppState {
   tasks: Task[];

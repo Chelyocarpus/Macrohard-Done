@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { X, Star, Calendar, Clock, Repeat, FileText, Plus, Sun } from 'lucide-react';
+import { X, Star, Calendar, Repeat, FileText, CheckSquare, Sun, Bell } from 'lucide-react';
 import type { Task } from '../types/index.ts';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
+import { MarkdownEditor } from './ui/MarkdownEditor.tsx';
 import { DateTimePicker } from './DateTimePicker.tsx';
 import { cn } from '../utils/cn.ts';
 import { formatDate } from '../utils/dateUtils.ts';
@@ -35,6 +36,7 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
   // Step management state
   const [newStepTitle, setNewStepTitle] = useState('');
   const [showAddStep, setShowAddStep] = useState(false);
+  const [tempSteps, setTempSteps] = useState<Array<{ id: string; title: string; completed: boolean }>>([]);
 
   // Reset form when task changes or modal opens/closes
   useEffect(() => {
@@ -52,13 +54,20 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
       setShowRepeatOptions(false);
       setNewStepTitle('');
       setShowAddStep(false);
+      // Initialize tempSteps for create mode
+      if (mode === 'create') {
+        setTempSteps([]);
+      }
     }
-  }, [isOpen, task]);
+  }, [isOpen, task, mode]);
 
   const handleSave = () => {
     if (!title.trim()) return;
 
     if (mode === 'create') {
+      // Convert tempSteps to the format expected by addTask
+      const steps = tempSteps.map(step => ({ title: step.title }));
+      
       addTask(title.trim(), initialListId || 'all', {
         important,
         myDay,
@@ -67,6 +76,7 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
         notes: notes.trim() || undefined,
         repeat,
         repeatDays: repeat === 'daily' ? repeatDays : undefined,
+        steps: steps.length > 0 ? steps : undefined,
       });
     } else if (task) {
       updateTask(task.id, {
@@ -117,10 +127,27 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
 
   // Step management functions
   const handleAddStep = () => {
-    if (!newStepTitle.trim() || !task) return;
-    addSubTask(task.id, newStepTitle.trim());
+    if (!newStepTitle.trim()) return;
+    
+    if (mode === 'create') {
+      // Add to temporary steps for create mode
+      const newStep = {
+        id: Date.now().toString(),
+        title: newStepTitle.trim(),
+        completed: false
+      };
+      setTempSteps([...tempSteps, newStep]);
+    } else if (task) {
+      // Add to existing task for edit mode
+      addSubTask(task.id, newStepTitle.trim());
+    }
+    
     setNewStepTitle('');
     setShowAddStep(false);
+  };
+
+  const handleDeleteTempStep = (stepId: string) => {
+    setTempSteps(tempSteps.filter(step => step.id !== stepId));
   };
 
   const handleToggleStep = (stepId: string) => {
@@ -227,8 +254,8 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
             </div>
           </div>
 
-          {/* Add Step Section - Prominent at top */}
-          {mode === 'edit' && task && (
+          {/* Add Step Section - Available in both create and edit modes */}
+          {(mode === 'create' || (mode === 'edit' && task)) && (
             <div className="mb-8">
               <div className="rounded-xl border bg-white dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200 hover:shadow-sm">
                 {!showAddStep ? (
@@ -238,7 +265,7 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
                     className="w-full justify-start gap-4 h-16 text-left px-5 py-4 rounded-xl hover:bg-transparent"
                   >
                     <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-800">
-                      <Plus size={20} className="text-blue-600 dark:text-blue-400" />
+                      <CheckSquare size={20} className="text-blue-600 dark:text-blue-400" />
                     </div>
                     <span className="font-medium text-base text-gray-900 dark:text-white">Add step</span>
                   </Button>
@@ -246,38 +273,40 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
                   <div className="p-5">
                     <div className="flex items-center gap-4 mb-4">
                       <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-800">
-                        <Plus size={20} className="text-blue-600 dark:text-blue-400" />
+                        <CheckSquare size={20} className="text-blue-600 dark:text-blue-400" />
                       </div>
                       <span className="font-medium text-base text-gray-900 dark:text-white">Add step</span>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="space-y-3">
                       <Input
                         value={newStepTitle}
                         onChange={(e) => setNewStepTitle(e.target.value)}
                         onKeyPress={handleKeyPress}
                         placeholder="Enter step description..."
-                        className="flex-1"
+                        className="w-full"
                         autoFocus
                       />
-                      <Button
-                        onClick={handleAddStep}
-                        size="sm"
-                        disabled={!newStepTitle.trim()}
-                        className="px-4"
-                      >
-                        Add
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setShowAddStep(false);
-                          setNewStepTitle('');
-                        }}
-                        className="px-3"
-                      >
-                        Cancel
-                      </Button>
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setShowAddStep(false);
+                            setNewStepTitle('');
+                          }}
+                          className="px-3"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={handleAddStep}
+                          size="sm"
+                          disabled={!newStepTitle.trim()}
+                          className="px-4"
+                        >
+                          Add
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -345,6 +374,56 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
             </div>
           )}
 
+          {/* Temporary Steps List - For create mode */}
+          {mode === 'create' && tempSteps.length > 0 && (
+            <div className="mb-8">
+              <div className="rounded-xl border bg-white dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 transition-all duration-200">
+                <div className="p-5">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                      <span className="text-blue-600 dark:text-blue-400 font-semibold">
+                        {tempSteps.length}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-base text-gray-900 dark:text-white">Steps</span>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        {tempSteps.length} step{tempSteps.length !== 1 ? 's' : ''} to be added
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {tempSteps.map((step) => (
+                      <div key={step.id} className="group flex items-start gap-3 p-3 rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                        <div className="w-4 h-4 rounded border border-gray-300 dark:border-gray-600 flex-shrink-0 mt-0.5" />
+                        <div className="text-sm text-gray-700 dark:text-gray-300 flex-1 leading-relaxed"
+                        style={{ 
+                          wordWrap: 'break-word',
+                          overflowWrap: 'anywhere',
+                          wordBreak: 'break-word',
+                          whiteSpace: 'pre-wrap',
+                          width: '100%',
+                          minHeight: 'auto'
+                        }}
+                        >
+                          {step.title}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteTempStep(step.id)}
+                          className="p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 rounded-full"
+                        >
+                          <X size={16} />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Quick Actions */}
           <div className="space-y-2 mb-8">
             <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-4 tracking-wide uppercase">Quick Actions</h3>
@@ -390,13 +469,13 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
                   onClick={() => setShowReminderPicker(!showReminderPicker)}
                   className="flex-1 flex items-center gap-4 h-16 text-left px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl transition-colors"
                 >
-                  <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
-                    <Clock size={20} className="text-gray-600 dark:text-gray-400" />
+                  <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                    <Bell size={20} className="text-amber-600 dark:text-amber-400" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-base text-gray-900 dark:text-white">Remind me</div>
                     {reminder && (
-                      <div className="text-sm text-blue-600 dark:text-blue-400 mt-1">
+                      <div className="text-sm text-amber-600 dark:text-amber-400 mt-1">
                         {formatDate(reminder)}
                       </div>
                     )}
@@ -608,12 +687,10 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
                   </div>
                   <span className="font-medium text-base text-gray-900 dark:text-white">Add note</span>
                 </div>
-                <textarea
+                <MarkdownEditor
                   value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
+                  onChange={(value) => setNotes(value)}
                   placeholder="Add a detailed description or note about this task..."
-                  className="w-full p-4 border rounded-xl dark:bg-gray-900/50 dark:border-gray-600 resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                  rows={4}
                 />
               </div>
             </div>
