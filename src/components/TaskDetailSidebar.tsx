@@ -8,7 +8,6 @@ import { MarkdownEditor } from './ui/MarkdownEditor.tsx';
 import { DateTimePicker } from './DateTimePicker.tsx';
 import { cn } from '../utils/cn.ts';
 import { formatDate } from '../utils/dateUtils.ts';
-import { Z_INDEX_CLASSES } from '../utils/zIndex.ts';
 
 interface TaskDetailSidebarProps {
   task?: Task;
@@ -171,7 +170,7 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
   if (!isOpen) return null;
 
   return (
-    <div className={`fixed inset-0 ${Z_INDEX_CLASSES.MODAL} flex`}>
+    <div className={`fixed inset-0 z-40 flex`}>
       {/* Backdrop */}
       <div 
         className="flex-1 bg-black/40 backdrop-blur-sm" 

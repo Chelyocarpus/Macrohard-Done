@@ -10,7 +10,6 @@ import type { TaskList as TaskListType } from '../types/index.ts';
 import { cn } from '../utils/cn.ts';
 import { useContextMenuHandler } from './ui/useContextMenu.ts';
 import { createEmptyAreaContextMenu } from './ui/contextMenus.tsx';
-import { Z_INDEX_CLASSES } from '../utils/zIndex.ts';
 
 export function TaskView() {
   const { currentView, currentListId, lists } = useTaskStore();
@@ -109,7 +108,7 @@ export function TaskView() {
               />
             </>
           )}
-          <div className={`flex items-center justify-between relative ${Z_INDEX_CLASSES.RELATIVE}`}>
+          <div className={`flex items-center justify-between relative z-10`}>
             <div className="flex items-center gap-3">
               {isCustomList && currentList?.color && (
                 <div 
