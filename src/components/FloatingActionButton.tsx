@@ -42,6 +42,7 @@ export function FloatingActionButton({
   const [isQuickAddMode, setIsQuickAddMode] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fabContainerRef = useRef<HTMLDivElement>(null);
 
   const menuItems: ActionMenuItem[] = [
     {
@@ -79,9 +80,8 @@ export function FloatingActionButton({
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // Only close if clicking outside the entire FAB container
-      const fabContainer = document.querySelector('[data-fab-container]');
-      if (fabContainer && !fabContainer.contains(event.target as Node)) {
+      // Use component ref instead of global query selector for robustness
+      if (fabContainerRef.current && !fabContainerRef.current.contains(event.target as Node)) {
         setIsMenuOpen(false);
         setIsQuickAddMode(false);
       }
@@ -91,12 +91,14 @@ export function FloatingActionButton({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Focus input when quick add mode is activated
-  useEffect(() => {
-    if (isQuickAddMode && inputRef.current) {
-      inputRef.current.focus();
+  // Ref callback to focus input when it's mounted
+  const inputRefCallback = (element: HTMLInputElement | null) => {
+    inputRef.current = element;
+    // Focus the input immediately when it's mounted in quick add mode
+    if (element && isQuickAddMode) {
+      element.focus();
     }
-  }, [isQuickAddMode]);
+  };
 
   // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -147,13 +149,39 @@ export function FloatingActionButton({
   // Generate colors based on current list color or use default
   const getGradientColors = () => {
     if (currentListColor) {
+      // Validate hex color format
+      const isValidHex = (color: string): boolean => {
+        return /^#[0-9A-Fa-f]{6}$/.test(color);
+      };
+
+      // Convert hex to RGB with validation
+      const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
+        if (!isValidHex(hex)) {
+          return null;
+        }
+        
+        const cleanHex = hex.replace('#', '');
+        const r = parseInt(cleanHex.substr(0, 2), 16);
+        const g = parseInt(cleanHex.substr(2, 2), 16);
+        const b = parseInt(cleanHex.substr(4, 2), 16);
+        
+        // Check for NaN values
+        if (isNaN(r) || isNaN(g) || isNaN(b)) {
+          return null;
+        }
+        
+        return { r, g, b };
+      };
+
       // Convert hex to RGB for gradient variations
       const lightenColor = (color: string, factor: number) => {
-        const hex = color.replace('#', '');
-        const r = parseInt(hex.substr(0, 2), 16);
-        const g = parseInt(hex.substr(2, 2), 16);
-        const b = parseInt(hex.substr(4, 2), 16);
+        const rgb = hexToRgb(color);
+        if (!rgb) {
+          console.warn(`Invalid hex color format: ${color}. Using fallback color.`);
+          return 'rgb(59, 130, 246)'; // Default blue
+        }
         
+        const { r, g, b } = rgb;
         const newR = Math.min(255, Math.floor(r + (255 - r) * factor));
         const newG = Math.min(255, Math.floor(g + (255 - g) * factor));
         const newB = Math.min(255, Math.floor(b + (255 - b) * factor));
@@ -162,11 +190,13 @@ export function FloatingActionButton({
       };
       
       const darkenColor = (color: string, factor: number) => {
-        const hex = color.replace('#', '');
-        const r = parseInt(hex.substr(0, 2), 16);
-        const g = parseInt(hex.substr(2, 2), 16);
-        const b = parseInt(hex.substr(4, 2), 16);
+        const rgb = hexToRgb(color);
+        if (!rgb) {
+          console.warn(`Invalid hex color format: ${color}. Using fallback color.`);
+          return 'rgb(29, 78, 216)'; // Default dark blue
+        }
         
+        const { r, g, b } = rgb;
         const newR = Math.floor(r * (1 - factor));
         const newG = Math.floor(g * (1 - factor));
         const newB = Math.floor(b * (1 - factor));
@@ -174,14 +204,20 @@ export function FloatingActionButton({
         return `rgb(${newR}, ${newG}, ${newB})`;
       };
 
-      const baseColor = currentListColor;
-      const lightColor = lightenColor(baseColor, 0.1);
-      const darkColor = darkenColor(baseColor, 0.2);
-      
-      return {
-        background: `linear-gradient(to right, ${baseColor}, ${lightColor}, ${darkColor})`,
-        hoverBackground: `linear-gradient(to right, ${darkenColor(baseColor, 0.1)}, ${baseColor}, ${darkenColor(baseColor, 0.3)})`
-      };
+      // Validate the base color before processing
+      if (!isValidHex(currentListColor)) {
+        console.warn(`Invalid hex color format: ${currentListColor}. Using default gradient.`);
+        // Fall through to default gradient
+      } else {
+        const baseColor = currentListColor;
+        const lightColor = lightenColor(baseColor, 0.1);
+        const darkColor = darkenColor(baseColor, 0.2);
+        
+        return {
+          background: `linear-gradient(to right, ${baseColor}, ${lightColor}, ${darkColor})`,
+          hoverBackground: `linear-gradient(to right, ${darkenColor(baseColor, 0.1)}, ${baseColor}, ${darkenColor(baseColor, 0.3)})`
+        };
+      }
     }
     
     // Default blue-purple gradient
@@ -204,6 +240,7 @@ export function FloatingActionButton({
 
   return (
     <div 
+      ref={fabContainerRef}
       className={cn(
         "fixed bottom-6 z-50 transition-all duration-150", // Reduced from duration-300 to duration-150 for faster animation that matches instant sidebars
         // Position FAB to respect left sidebar width with modern spacing
@@ -214,7 +251,6 @@ export function FloatingActionButton({
         right: getRightMargin()
       }}
       onKeyDown={handleKeyDown}
-      data-fab-container
     >
       {/* Menu Items */}
       {isMenuOpen && (
@@ -272,7 +308,7 @@ export function FloatingActionButton({
           <div className="flex-1">
             {isQuickAddMode ? (
               <input
-                ref={inputRef}
+                ref={inputRefCallback}
                 value={quickAddText}
                 onChange={(e) => setQuickAddText(e.target.value)}
                 onKeyDown={handleQuickAddKeyDown}
