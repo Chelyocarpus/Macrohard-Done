@@ -18,7 +18,6 @@ import {
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import type { DragEndEvent, DragStartEvent, DragOverEvent } from '@dnd-kit/core';
-import { Z_INDEX_CLASSES } from '../utils/zIndex.ts';
 
 export function TaskList() {
   const { getTasksForCurrentView, reorderTasks, currentView, currentListId } = useTaskStore();
@@ -116,7 +115,7 @@ export function TaskList() {
               <div key={task.id} className="relative">
                 {/* Insertion indicator - show above current task if it's the insertion point */}
                 {activeId && insertionIndex === index && activeId !== task.id && (
-                  <div className={`absolute -top-1 left-0 right-0 h-0.5 bg-blue-500 rounded-full shadow-lg animate-pulse ${Z_INDEX_CLASSES.RELATIVE}`}>
+                  <div className={`absolute -top-1 left-0 right-0 h-0.5 bg-blue-500 rounded-full shadow-lg animate-pulse z-10`}>
                     <div className="absolute -left-1 -top-1 w-2 h-2 bg-blue-500 rounded-full"></div>
                     <div className="absolute -right-1 -top-1 w-2 h-2 bg-blue-500 rounded-full"></div>
                   </div>
@@ -131,7 +130,7 @@ export function TaskList() {
                 
                 {/* Insertion indicator - show below last task if dragging to end */}
                 {activeId && index === tasks.length - 1 && insertionIndex >= tasks.length - 1 && activeId !== task.id && (
-                  <div className={`absolute -bottom-1 left-0 right-0 h-0.5 bg-blue-500 rounded-full shadow-lg animate-pulse ${Z_INDEX_CLASSES.RELATIVE}`}>
+                  <div className={`absolute -bottom-1 left-0 right-0 h-0.5 bg-blue-500 rounded-full shadow-lg animate-pulse z-10`}>
                     <div className="absolute -left-1 -top-1 w-2 h-2 bg-blue-500 rounded-full"></div>
                     <div className="absolute -right-1 -top-1 w-2 h-2 bg-blue-500 rounded-full"></div>
                   </div>

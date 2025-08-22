@@ -6,7 +6,6 @@ import { Input } from './ui/Input.tsx';
 import { EmojiPicker } from './EmojiPicker.tsx';
 import { IconOverrideControl } from './ui/IconOverrideControl.tsx';
 import { extractFirstEmoji, removeFirstEmoji } from '../utils/emojiUtils.ts';
-import { Z_INDEX_CLASSES } from '../utils/zIndex.ts';
 
 interface GroupEditModalProps {
   isOpen: boolean;
@@ -63,7 +62,7 @@ export function GroupEditModal({ isOpen, onClose }: GroupEditModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className={`fixed inset-0 ${Z_INDEX_CLASSES.MODAL} flex items-center justify-center`}>
+    <div className={`fixed inset-0 z-40 flex items-center justify-center`}>
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black bg-opacity-25" 

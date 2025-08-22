@@ -11,7 +11,6 @@ import { formatDate } from '../utils/dateUtils.ts';
 import { TaskDetailSidebar } from './TaskDetailSidebar.tsx';
 import { useContextMenuHandler } from './ui/useContextMenu.ts';
 import { createTaskContextMenu } from './ui/contextMenus.tsx';
-import { Z_INDEX_CLASSES } from '../utils/zIndex.ts';
 
 interface TaskItemProps {
   task: Task;
@@ -149,7 +148,7 @@ export function TaskItem({ task, isDragEnabled = false, isOver = false, isDraggi
           />
         )}
         <div className={cn(
-          `grid gap-3 items-start relative ${Z_INDEX_CLASSES.RELATIVE}`,
+          `grid gap-3 items-start relative z-10`,
           isDragEnabled ? "grid-cols-[auto_auto_1fr_120px]" : "grid-cols-[auto_1fr_120px]"
         )}>
           {/* Drag Handle - always show if drag is enabled or the item is being dragged */}

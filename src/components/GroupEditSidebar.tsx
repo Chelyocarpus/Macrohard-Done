@@ -8,7 +8,6 @@ import { EmojiPicker } from './EmojiPicker.tsx';
 import { IconOverrideControl } from './ui/IconOverrideControl.tsx';
 import { cn } from '../utils/cn.ts';
 import { extractFirstEmoji, removeFirstEmoji } from '../utils/emojiUtils.ts';
-import { Z_INDEX_CLASSES } from '../utils/zIndex.ts';
 
 interface GroupEditSidebarProps {
   group?: ListGroup;
@@ -141,7 +140,7 @@ export function GroupEditSidebar({ group, isOpen, onClose, mode }: GroupEditSide
   if (!isOpen) return null;
 
   return (
-    <div className={`fixed inset-0 ${Z_INDEX_CLASSES.MODAL} flex`}>
+    <div className={`fixed inset-0 z-40 flex`}>
       {/* Backdrop */}
       <div 
         className="flex-1 bg-black bg-opacity-25" 
@@ -153,7 +152,7 @@ export function GroupEditSidebar({ group, isOpen, onClose, mode }: GroupEditSide
         {/* Color accent line */}
         {color && (
           <div 
-            className={`absolute top-0 left-0 right-0 h-1 ${Z_INDEX_CLASSES.RELATIVE}`}
+            className={`absolute top-0 left-0 right-0 h-1 z-10`}
             style={{ backgroundColor: color }}
           />
         )}
@@ -167,7 +166,7 @@ export function GroupEditSidebar({ group, isOpen, onClose, mode }: GroupEditSide
               }}
             />
           )}
-          <div className={`flex items-center gap-3 relative ${Z_INDEX_CLASSES.RELATIVE}`}>
+          <div className={`flex items-center gap-3 relative z-10`}>
             {color && (
               <div 
                 className="w-3 h-3 rounded-full shadow-sm"
@@ -185,7 +184,7 @@ export function GroupEditSidebar({ group, isOpen, onClose, mode }: GroupEditSide
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className={`p-2 relative ${Z_INDEX_CLASSES.RELATIVE}`}
+            className={`p-2 relative z-10`}
           >
             <X size={20} />
           </Button>
@@ -292,7 +291,7 @@ export function GroupEditSidebar({ group, isOpen, onClose, mode }: GroupEditSide
                 className="absolute left-0 top-0 bottom-0 w-1"
                 style={{ backgroundColor: color }}
               />
-              <div className={`space-y-3 relative ${Z_INDEX_CLASSES.RELATIVE}`}>
+              <div className={`space-y-3 relative z-10`}>
                 {/* Group header */}
                 <div className="flex items-center gap-3">
                   <div 

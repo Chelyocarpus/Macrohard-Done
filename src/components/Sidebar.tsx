@@ -6,7 +6,6 @@ import { cn } from '../utils/cn.ts';
 import { getListDisplayInfo } from '../utils/emojiUtils.ts';
 import { GroupedListSection } from './GroupedListSection.tsx';
 import { ListEditSidebar } from './ListEditSidebar.tsx';
-import { Z_INDEX_CLASSES } from '../utils/zIndex.ts';
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
@@ -137,7 +136,7 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
   return (
     <>
       <aside className={cn(
-      `fixed left-0 top-0 h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${Z_INDEX_CLASSES.SIDEBAR}`,
+      `fixed left-0 top-0 h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 z-20`,
       sidebarCollapsed ? 'w-16' : 'w-64'
     )}>
       <div className="flex flex-col h-full">
