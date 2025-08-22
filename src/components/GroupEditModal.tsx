@@ -4,7 +4,9 @@ import { useTaskStore } from '../stores/taskStore.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
 import { EmojiPicker } from './EmojiPicker.tsx';
+import { IconOverrideControl } from './ui/IconOverrideControl.tsx';
 import { extractFirstEmoji, removeFirstEmoji } from '../utils/emojiUtils.ts';
+import { Z_INDEX_CLASSES } from '../utils/zIndex.ts';
 
 interface GroupEditModalProps {
   isOpen: boolean;
@@ -17,6 +19,8 @@ export function GroupEditModal({ isOpen, onClose }: GroupEditModalProps) {
   // Form state
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('');
+  const [color, setColor] = useState('#3b82f6');
+  const [overrideListIcons, setOverrideListIcons] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Reset form when modal opens/closes
@@ -24,6 +28,8 @@ export function GroupEditModal({ isOpen, onClose }: GroupEditModalProps) {
     if (isOpen) {
       setName('');
       setEmoji('');
+      setColor('#3b82f6');
+      setOverrideListIcons(false);
       setShowEmojiPicker(false);
     }
   }, [isOpen]);
@@ -31,7 +37,7 @@ export function GroupEditModal({ isOpen, onClose }: GroupEditModalProps) {
   const handleSave = () => {
     if (!name.trim()) return;
 
-    addGroup(name.trim(), undefined, emoji || undefined);
+    addGroup(name.trim(), color, emoji || undefined, overrideListIcons);
     onClose();
   };
 
@@ -57,7 +63,7 @@ export function GroupEditModal({ isOpen, onClose }: GroupEditModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className={`fixed inset-0 ${Z_INDEX_CLASSES.MODAL} flex items-center justify-center`}>
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black bg-opacity-25" 
@@ -115,7 +121,14 @@ export function GroupEditModal({ isOpen, onClose }: GroupEditModalProps) {
                 />
               </div>
             </div>
-          </div>
+          </div>          {/* Icon Override Setting */}
+          <IconOverrideControl
+            value={overrideListIcons}
+            onChange={setOverrideListIcons}
+            emoji={emoji}
+          />
+
+
 
           {/* Preview */}
           <div className="space-y-3">

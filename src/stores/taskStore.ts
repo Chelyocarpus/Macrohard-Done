@@ -28,7 +28,7 @@ interface TaskStore extends AppState {
   moveListToGroup: (listId: string, groupId: string | null) => void;
   
   // Group actions
-  addGroup: (name: string, color?: string, emoji?: string) => void;
+  addGroup: (name: string, color?: string, emoji?: string, overrideListIcons?: boolean) => void;
   updateGroup: (id: string, updates: Partial<ListGroup>) => void;
   deleteGroup: (id: string, moveListsToGroupId?: string | null) => void;
   reorderGroups: (groupIds: string[]) => void;
@@ -52,6 +52,7 @@ interface TaskStore extends AppState {
   getTaskCountForList: (listId: string) => number;
   getListsInGroup: (groupId: string | null) => TaskList[];
   getGroupedLists: () => { group: ListGroup | null; lists: TaskList[] }[];
+  getGroupForList: (listId: string) => ListGroup | null;
 }
 
 // Default system lists
@@ -719,7 +720,7 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
     },
 
     // Group management actions
-    addGroup: (name: string, color?: string, emoji?: string) => {
+    addGroup: (name: string, color?: string, emoji?: string, overrideListIcons?: boolean) => {
       const newGroup: ListGroup = {
         id: generateId(),
         name,
@@ -727,6 +728,7 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
         color,
         collapsed: false,
         order: get().listGroups.length,
+        overrideListIcons: overrideListIcons || false,
         createdAt: new Date(),
       };
 
@@ -824,6 +826,13 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
       });
 
       return result;
+    },
+
+    getGroupForList: (listId: string) => {
+      const { lists, listGroups } = get();
+      const list = lists.find(l => l.id === listId);
+      if (!list || !list.groupId) return null;
+      return listGroups.find(g => g.id === list.groupId) || null;
     },
   };
 

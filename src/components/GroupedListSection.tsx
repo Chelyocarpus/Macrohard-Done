@@ -15,9 +15,11 @@ import { cn } from '../utils/cn';
 import { useTaskStore } from '../stores/taskStore';
 import type { TaskList, ListGroup } from '../types';
 import { ListEditSidebar } from './ListEditSidebar';
+import { GroupEditSidebar } from './GroupEditSidebar';
 import { getListDisplayInfo, extractFirstEmoji, removeFirstEmoji } from '../utils/emojiUtils';
 import { useContextMenuHandler } from './ui/useContextMenu.ts';
 import { createListContextMenu } from './ui/contextMenus.tsx';
+import { Z_INDEX_CLASSES } from '../utils/zIndex.ts';
 
 interface GroupedListSectionProps {
   group: ListGroup | null;
@@ -58,7 +60,7 @@ function DroppableGroupHeader({ group, children }: DroppableGroupHeaderProps) {
       )}
     >
       {isOver && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+        <div className={`absolute inset-0 flex items-center justify-center pointer-events-none ${Z_INDEX_CLASSES.RELATIVE}`}>
           <div className="bg-blue-600 dark:bg-blue-500 text-white px-3 py-1 rounded text-sm font-medium">
             📂 Drop to add to group
           </div>
@@ -87,7 +89,7 @@ function DroppableUngroupedArea({ children, activeId, lists }: { children: React
       )}
     >
       {isOver && isMovingFromGroup && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+        <div className={`absolute inset-0 flex items-center justify-center pointer-events-none ${Z_INDEX_CLASSES.RELATIVE}`}>
           <div className="bg-emerald-600 dark:bg-emerald-500 text-white px-3 py-2 rounded-full text-sm font-medium shadow-lg">
             🏠 Drop to ungroup
           </div>
@@ -168,7 +170,7 @@ function SortableListItem({ list, isActive, taskCount, onClick, sidebarCollapsed
             }}
           />
         )}
-        <div className="flex items-center gap-3 flex-1 min-w-0 relative z-10">
+        <div className={`flex items-center gap-3 flex-1 min-w-0 relative ${Z_INDEX_CLASSES.RELATIVE}`}>
           {icon ? (
             <span className="text-lg">{icon}</span>
           ) : (
@@ -181,7 +183,7 @@ function SortableListItem({ list, isActive, taskCount, onClick, sidebarCollapsed
         {!sidebarCollapsed && taskCount > 0 && (
           <span 
             className={cn(
-              "text-xs px-2 py-1 rounded-full font-medium relative z-10",
+              `text-xs px-2 py-1 rounded-full font-medium relative ${Z_INDEX_CLASSES.RELATIVE}`,
               isActive && list.color
                 ? "text-white shadow-sm"
                 : "bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300"
@@ -210,6 +212,7 @@ export function GroupedListSection({
   const [groupName, setGroupName] = useState(group?.name || '');
   const [showAddListModal, setShowAddListModal] = useState(false);
   const [editingList, setEditingList] = useState<TaskList | null>(null);
+  const [showGroupEditSidebar, setShowGroupEditSidebar] = useState(false);
   
   const { 
     toggleGroupCollapsed, 
@@ -375,10 +378,10 @@ export function GroupedListSection({
                 </button>
                 
                 {showGroupMenu && (
-                  <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-50 min-w-[120px]">
+                  <div className={`absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg ${Z_INDEX_CLASSES.DROPDOWN} min-w-[120px]`}>
                     <button
                       onClick={() => {
-                        setEditingGroup(true);
+                        setShowGroupEditSidebar(true);
                         setShowGroupMenu(false);
                       }}
                       className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
@@ -441,6 +444,16 @@ export function GroupedListSection({
           isOpen={!!editingList}
           mode="edit"
           onClose={() => setEditingList(null)}
+        />
+      )}
+      
+      {/* Group Edit Sidebar */}
+      {group && (
+        <GroupEditSidebar
+          group={group}
+          isOpen={showGroupEditSidebar}
+          onClose={() => setShowGroupEditSidebar(false)}
+          mode="edit"
         />
       )}
     </div>

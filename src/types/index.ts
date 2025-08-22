@@ -45,6 +45,7 @@ export interface ListGroup {
   collapsed: boolean;
   order: number;
   createdAt: Date;
+  overrideListIcons?: boolean;
 }
 
 export interface TaskFilter {

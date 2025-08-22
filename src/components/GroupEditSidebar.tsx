@@ -1,29 +1,30 @@
 import { useState, useEffect } from 'react';
 import { X, Smile, Trash2 } from 'lucide-react';
-import type { TaskList } from '../types/index.ts';
+import type { ListGroup } from '../types/index.ts';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
 import { EmojiPicker } from './EmojiPicker.tsx';
+import { IconOverrideControl } from './ui/IconOverrideControl.tsx';
 import { cn } from '../utils/cn.ts';
-import { getListDisplayInfo, extractFirstEmoji, removeFirstEmoji } from '../utils/emojiUtils.ts';
+import { extractFirstEmoji, removeFirstEmoji } from '../utils/emojiUtils.ts';
 import { Z_INDEX_CLASSES } from '../utils/zIndex.ts';
 
-interface ListEditSidebarProps {
-  list?: TaskList;
+interface GroupEditSidebarProps {
+  group?: ListGroup;
   isOpen: boolean;
   onClose: () => void;
   mode: 'create' | 'edit';
-  groupId?: string | null;
 }
 
-export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEditSidebarProps) {
-  const { addList, updateList, deleteList } = useTaskStore();
+export function GroupEditSidebar({ group, isOpen, onClose, mode }: GroupEditSidebarProps) {
+  const { addGroup, updateGroup, deleteGroup, getListsInGroup } = useTaskStore();
   
   // Form state
-  const [name, setName] = useState(list?.name || '');
-  const [emoji, setEmoji] = useState(list?.emoji || '');
-  const [color, setColor] = useState(list?.color || '#3b82f6');
+  const [name, setName] = useState(group?.name || '');
+  const [emoji, setEmoji] = useState(group?.emoji || '');
+  const [color, setColor] = useState(group?.color || '#3b82f6');
+  const [overrideListIcons, setOverrideListIcons] = useState(group?.overrideListIcons || false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Color options
@@ -81,34 +82,38 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
     '#f472b6', // pink-400
   ];
 
-  // Reset form when list changes or modal opens/closes
+  // Get lists in this group for preview
+  const groupLists = group ? getListsInGroup(group.id) : [];
+
+  // Reset form when group changes or modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      if (list) {
-        // For existing lists, extract emoji from name if no explicit emoji is set
-        const { displayName, icon } = getListDisplayInfo(list);
-        setName(displayName);
-        setEmoji(icon || '');
+      if (group) {
+        setName(group.name);
+        setEmoji(group.emoji || '');
+        setColor(group.color || '#3b82f6');
+        setOverrideListIcons(group.overrideListIcons || false);
       } else {
-        // For new lists
         setName('');
         setEmoji('');
+        setColor('#3b82f6');
+        setOverrideListIcons(false);
       }
-      setColor(list?.color || '#3b82f6');
       setShowEmojiPicker(false);
     }
-  }, [isOpen, list]);
+  }, [isOpen, group]);
 
   const handleSave = () => {
     if (!name.trim()) return;
 
     if (mode === 'create') {
-      addList(name.trim(), color, emoji, groupId);
-    } else if (list) {
-      updateList(list.id, {
+      addGroup(name.trim(), color, emoji, overrideListIcons);
+    } else if (group) {
+      updateGroup(group.id, {
         name: name.trim(),
         emoji,
         color,
+        overrideListIcons,
       });
     }
 
@@ -127,8 +132,8 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
   };
 
   const handleDelete = () => {
-    if (list && confirm('Are you sure you want to delete this list? All tasks in this list will also be deleted.')) {
-      deleteList(list.id);
+    if (group && confirm('Are you sure you want to delete this group? Lists will be moved to ungrouped.')) {
+      deleteGroup(group.id, null);
       onClose();
     }
   };
@@ -173,7 +178,7 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
               />
             )}
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {mode === 'create' ? 'New List' : 'Edit List'}
+              {mode === 'create' ? 'New Group' : 'Edit Group'}
             </h2>
           </div>
           <Button
@@ -188,7 +193,7 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* List Name and Emoji */}
+          {/* Group Name and Emoji */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <div className="relative">
@@ -213,7 +218,7 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
                 <Input
                   value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
-                  placeholder="List name"
+                  placeholder="Group name"
                   className="text-lg font-medium"
                   autoFocus={mode === 'create'}
                 />
@@ -263,6 +268,13 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
             </div>
           </div>
 
+          {/* Icon Override Setting */}
+          <IconOverrideControl
+            value={overrideListIcons}
+            onChange={setOverrideListIcons}
+            emoji={emoji}
+          />
+
           {/* Preview */}
           <div className="space-y-3">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -280,27 +292,64 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
                 className="absolute left-0 top-0 bottom-0 w-1"
                 style={{ backgroundColor: color }}
               />
-              <div className={`flex items-center gap-3 relative ${Z_INDEX_CLASSES.RELATIVE}`}>
-                <div 
-                  className="w-4 h-4 rounded-full shadow-sm"
-                  style={{ 
-                    backgroundColor: color,
-                    boxShadow: `0 2px 8px ${color}40`
-                  }}
-                />
-                {emoji && <span className="text-lg">{emoji}</span>}
-                <span className="font-medium text-gray-900 dark:text-white">
-                  {name || 'List name'}
-                </span>
-                <span 
-                  className="ml-auto text-xs px-2 py-1 rounded-full text-white font-medium shadow-sm"
-                  style={{
-                    backgroundColor: color,
-                    boxShadow: `0 2px 4px ${color}40`
-                  }}
-                >
-                  3
-                </span>
+              <div className={`space-y-3 relative ${Z_INDEX_CLASSES.RELATIVE}`}>
+                {/* Group header */}
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-4 h-4 rounded-full shadow-sm"
+                    style={{ 
+                      backgroundColor: color,
+                      boxShadow: `0 2px 8px ${color}40`
+                    }}
+                  />
+                  {emoji && <span className="text-lg">{emoji}</span>}
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {name || 'Group name'}
+                  </span>
+                </div>
+                
+                {/* Sample lists in group */}
+                {groupLists.length > 0 && (
+                  <div className="ml-7 space-y-2">
+                    {groupLists.slice(0, 3).map((list) => (
+                      <div key={list.id} className="flex items-center gap-2 text-sm">
+                        <span className="text-xs">
+                          {overrideListIcons && emoji ? emoji : (list.emoji || '📝')}
+                        </span>
+                        <span className="text-gray-700 dark:text-gray-300">
+                          {list.name}
+                        </span>
+                      </div>
+                    ))}
+                    {groupLists.length > 3 && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400 ml-4">
+                        +{groupLists.length - 3} more lists
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Show sample lists if creating new group */}
+                {mode === 'create' && (
+                  <div className="ml-7 space-y-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-xs">
+                        {overrideListIcons && emoji ? emoji : '📝'}
+                      </span>
+                      <span className="text-gray-700 dark:text-gray-300">
+                        Sample List 1
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-xs">
+                        {overrideListIcons && emoji ? emoji : '✅'}
+                      </span>
+                      <span className="text-gray-700 dark:text-gray-300">
+                        Sample List 2
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -310,7 +359,7 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
         <div className="p-4 border-t border-gray-200 dark:border-gray-700">
           <div className="flex justify-between items-center">
             <div>
-              {mode === 'edit' && list && !list.isSystem && (
+              {mode === 'edit' && group && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -318,7 +367,7 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
                   className="text-red-500 hover:text-red-700 flex items-center gap-2"
                 >
                   <Trash2 size={16} />
-                  Delete list
+                  Delete group
                 </Button>
               )}
             </div>
@@ -336,7 +385,7 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
                 size="sm"
                 disabled={!name.trim()}
               >
-                {mode === 'create' ? 'Create list' : 'Save'}
+                {mode === 'create' ? 'Create group' : 'Save'}
               </Button>
             </div>
           </div>

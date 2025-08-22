@@ -11,6 +11,7 @@ import { formatDate } from '../utils/dateUtils.ts';
 import { TaskDetailSidebar } from './TaskDetailSidebar.tsx';
 import { useContextMenuHandler } from './ui/useContextMenu.ts';
 import { createTaskContextMenu } from './ui/contextMenus.tsx';
+import { Z_INDEX_CLASSES } from '../utils/zIndex.ts';
 
 interface TaskItemProps {
   task: Task;
@@ -20,7 +21,7 @@ interface TaskItemProps {
 }
 
 export function TaskItem({ task, isDragEnabled = false, isOver = false, isDragging: providedIsDragging = false }: TaskItemProps) {
-  const { toggleTask, toggleImportant, toggleSubTask, lists, deleteTask, addTask, toggleMyDay, togglePin, toggleGlobalPin } = useTaskStore();
+  const { toggleTask, toggleImportant, toggleSubTask, lists, deleteTask, addTask, toggleMyDay, togglePin, toggleGlobalPin, getGroupForList } = useTaskStore();
   
   // Only use sortable hook if drag is enabled
   const sortable = useSortable({ 
@@ -44,6 +45,10 @@ export function TaskItem({ task, isDragEnabled = false, isOver = false, isDraggi
   // Get the list this task belongs to
   const taskList = lists.find(list => list.id === task.listId);
   const listColor = taskList?.color;
+
+  // Check if group has icon override enabled
+  const group = taskList ? getGroupForList(taskList.id) : null;
+  const displayEmoji = (group?.overrideListIcons && group.emoji) ? group.emoji : taskList?.emoji;
 
   const handleToggleComplete = () => {
     toggleTask(task.id);
@@ -144,7 +149,7 @@ export function TaskItem({ task, isDragEnabled = false, isOver = false, isDraggi
           />
         )}
         <div className={cn(
-          "grid gap-3 items-start relative z-10",
+          `grid gap-3 items-start relative ${Z_INDEX_CLASSES.RELATIVE}`,
           isDragEnabled ? "grid-cols-[auto_auto_1fr_120px]" : "grid-cols-[auto_1fr_120px]"
         )}>
           {/* Drag Handle - always show if drag is enabled or the item is being dragged */}
@@ -207,8 +212,8 @@ export function TaskItem({ task, isDragEnabled = false, isOver = false, isDraggi
               {/* Custom list name tag - positioned close to the color border */}
               {taskList && !taskList.isSystem && (
                 <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
-                  {taskList.emoji && (
-                    <span className="text-xs">{taskList.emoji}</span>
+                  {displayEmoji && (
+                    <span className="text-xs">{displayEmoji}</span>
                   )}
                   <span 
                     className="text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap"
