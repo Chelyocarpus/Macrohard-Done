@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Calendar, Star, X, Plus, Trash2, ListChecks } from 'lucide-react';
 import { useTaskStore } from '../stores/taskStore.ts';
+import { useToastStore } from '../stores/toastStore.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
 import { cn } from '../utils/cn.ts';
@@ -18,6 +19,7 @@ interface AddTaskFormProps {
 
 export function AddTaskForm({ onSubmit, onCancel }: AddTaskFormProps) {
   const { addTask, currentView, currentListId } = useTaskStore();
+  const { showError } = useToastStore();
   const [title, setTitle] = useState('');
   const [important, setImportant] = useState(false);
   const [dueDate, setDueDate] = useState<Date | undefined>();
@@ -49,7 +51,17 @@ export function AddTaskForm({ onSubmit, onCancel }: AddTaskFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!title.trim()) return;
+    if (!title.trim()) {
+      // Show an error toast for empty title
+      showError('Invalid input', 'Task title cannot be empty');
+      return;
+    }
+
+    // Validate title length
+    if (title.trim().length > 200) {
+      // Toast will be triggered by useToast hook
+      return;
+    }
 
     // Determine which list to add the task to
     let listId = 'all';
@@ -66,7 +78,7 @@ export function AddTaskForm({ onSubmit, onCancel }: AddTaskFormProps) {
       dueDate,
       steps: steps.length > 0 ? steps : undefined,
     });
-    
+
     onSubmit();
   };
 
