@@ -347,9 +347,8 @@ export function GroupedListSection({
                     </span>
                   )}
                   <span 
-                    className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+                    className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate"
                     title={group.name}
-                    onClick={() => setEditingGroup(true)}
                   >
                     {group.name}
                   </span>
