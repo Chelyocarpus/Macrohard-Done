@@ -1,5 +1,6 @@
 import { Plus, Edit2, Sun, Star, Calendar, CheckSquare } from 'lucide-react';
 import { useTaskStore } from '../stores/taskStore.ts';
+import { useToastStore } from '../stores/toastStore.ts';
 import { TaskList } from './TaskList.tsx';
 import { TaskDetailSidebar } from './TaskDetailSidebar.tsx';
 import { ListEditSidebar } from './ListEditSidebar.tsx';
@@ -7,14 +8,20 @@ import { Button } from './ui/Button.tsx';
 import { HamburgerMenu } from './ui/HamburgerMenu.tsx';
 import { useState, useEffect } from 'react';
 import type { TaskList as TaskListType } from '../types/index.ts';
-import { cn } from '../utils/cn.ts';
+
 import { useContextMenuHandler } from './ui/useContextMenu.ts';
 import { createEmptyAreaContextMenu } from './ui/contextMenus.tsx';
+import { FloatingActionButton } from './FloatingActionButton.tsx';
+import { QuickAddTaskForm } from './QuickAddTaskForm.tsx';
+import { GroupEditSidebar } from './GroupEditSidebar.tsx';
 
 export function TaskView() {
   const { currentView, currentListId, lists } = useTaskStore();
   const [showAddSidebar, setShowAddSidebar] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [quickAddTitle, setQuickAddTitle] = useState('');
   const [showListEditSidebar, setShowListEditSidebar] = useState(false);
+  const [showGroupEditSidebar, setShowGroupEditSidebar] = useState(false);
   const [editingList, setEditingList] = useState<TaskListType | null>(null);
 
   // Add keyboard shortcuts for task creation
@@ -23,22 +30,25 @@ export function TaskView() {
       // Ctrl+N or Cmd+N to create new task
       if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
         e.preventDefault();
-        setShowAddSidebar(true);
+        setShowQuickAdd(true);
       }
       // Escape to close sidebar
       if (e.key === 'Escape' && showAddSidebar) {
         setShowAddSidebar(false);
       }
+      if (e.key === 'Escape' && showQuickAdd) {
+        setShowQuickAdd(false);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showAddSidebar]);
+  }, [showAddSidebar, showQuickAdd]);
 
   // Context menu for empty areas
   const handleEmptyAreaContextMenu = useContextMenuHandler(() => {
     return createEmptyAreaContextMenu({
-      onCreateTask: () => setShowAddSidebar(true),
+      onCreateTask: () => setShowQuickAdd(true),
       onCreateList: () => setShowListEditSidebar(true),
     });
   });
@@ -86,6 +96,50 @@ export function TaskView() {
 
   const currentList = getCurrentList();
   const isCustomList = currentList && !currentList.isSystem;
+
+  // Calculate which sidebar is open and its width
+  const getActiveSidebarWidth = () => {
+    if (showAddSidebar) return 400; // TaskDetailSidebar w-[400px]
+    if (showListEditSidebar || showGroupEditSidebar || editingList) return 384; // w-96 (24rem = 384px)
+    return 0;
+  };
+
+  const activeSidebarWidth = getActiveSidebarWidth();
+  const isAnySidebarOpen = activeSidebarWidth > 0;
+
+  const handleQuickAddToFullForm = () => {
+    setShowQuickAdd(false);
+    setShowAddSidebar(true);
+  };
+
+  const handleQuickAdd = (title?: string) => {
+    if (title) {
+      setQuickAddTitle(title);
+    }
+    setShowQuickAdd(true);
+  };
+
+  const handleInlineTaskCreate = (title: string) => {
+    const { addTask } = useTaskStore.getState();
+    const { showSuccess, showError } = useToastStore.getState();
+    
+    try {
+      // Determine which list to add the task to
+      let listId = 'all';
+      if (currentView === 'list' && currentListId) {
+        listId = currentListId;
+      }
+
+      // Create the task directly
+      addTask(title, listId);
+      
+      // Show success feedback
+      showSuccess('Task created', `"${title}" has been added`);
+    } catch {
+      // Show error feedback
+      showError('Error', 'Failed to create task. Please try again.');
+    }
+  };
 
   return (
     <>
@@ -140,26 +194,15 @@ export function TaskView() {
               )}
             </div>
             <div className="flex items-center gap-3">
+              {/* Minimized header add button */}
               <Button
-                onClick={() => setShowAddSidebar(true)}
+                onClick={() => setShowQuickAdd(true)}
+                variant="ghost"
                 size="sm"
-                className={cn(
-                  "flex items-center gap-2 transition-all duration-200 font-semibold px-4 py-2 h-10",
-                  "shadow-lg hover:shadow-xl transform hover:scale-105",
-                  "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800",
-                  "border-0 text-white relative overflow-hidden",
-                  isCustomList && currentList?.color ? "shadow-md" : ""
-                )}
-                style={isCustomList && currentList?.color ? {
-                  background: `linear-gradient(135deg, ${currentList.color}, ${currentList.color}dd)`,
-                  color: 'white'
-                } : undefined}
-                title="Add Task (Ctrl+N)"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                title="Quick Add Task (Ctrl+N)"
               >
-                <Plus size={18} />
-                <span>Add Task</span>
-                {/* Subtle shine effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300" />
+                <Plus size={20} />
               </Button>
               <HamburgerMenu />
             </div>
@@ -175,7 +218,30 @@ export function TaskView() {
         </div>
       </div>
 
-      {/* Add Task Sidebar */}
+      {/* Floating Action Button */}
+      <FloatingActionButton
+        onQuickAdd={() => handleQuickAdd()}
+        onFullTaskForm={() => setShowAddSidebar(true)}
+        onNewList={() => setShowListEditSidebar(true)}
+        onNewGroup={() => setShowGroupEditSidebar(true)}
+        onInlineTaskCreate={handleInlineTaskCreate}
+        currentListColor={currentList?.color}
+        isAnySidebarOpen={isAnySidebarOpen}
+        rightSidebarWidth={activeSidebarWidth}
+      />
+
+      {/* Quick Add Task Modal */}
+      <QuickAddTaskForm
+        isOpen={showQuickAdd}
+        onClose={() => {
+          setShowQuickAdd(false);
+          setQuickAddTitle('');
+        }}
+        initialTitle={quickAddTitle}
+        onFullFormRequested={handleQuickAddToFullForm}
+      />
+
+      {/* Full Task Form Sidebar */}
       <TaskDetailSidebar
         isOpen={showAddSidebar}
         onClose={() => setShowAddSidebar(false)}
@@ -198,6 +264,13 @@ export function TaskView() {
         isOpen={showListEditSidebar}
         mode="create"
         onClose={() => setShowListEditSidebar(false)}
+      />
+
+      {/* Group Edit Sidebar */}
+      <GroupEditSidebar
+        isOpen={showGroupEditSidebar}
+        onClose={() => setShowGroupEditSidebar(false)}
+        mode="create"
       />
     </>
   );
