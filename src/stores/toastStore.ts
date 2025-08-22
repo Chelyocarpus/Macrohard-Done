@@ -1,6 +1,6 @@
 import { create } from 'zustand';
+import { v4 as uuidv4 } from 'uuid';
 import type { Toast } from '../types/index.ts';
-import { generateId } from '../utils/storage.ts';
 
 interface ToastStore {
   toasts: Toast[];
@@ -22,7 +22,7 @@ export const useToastStore = create<ToastStore>()((set, get) => ({
 
   addToast: (toastData) => {
     const toast: Toast = {
-      id: generateId(),
+      id: uuidv4(),
       createdAt: new Date(),
       duration: toastData.duration ?? (toastData.variant === 'error' ? ERROR_DURATION : DEFAULT_DURATION),
       ...toastData,

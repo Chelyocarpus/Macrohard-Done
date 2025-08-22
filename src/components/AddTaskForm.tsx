@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Calendar, Star, X, Plus, Trash2, ListChecks } from 'lucide-react';
 import { useTaskStore } from '../stores/taskStore.ts';
+import { useToastStore } from '../stores/toastStore.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
 import { cn } from '../utils/cn.ts';
@@ -18,6 +19,7 @@ interface AddTaskFormProps {
 
 export function AddTaskForm({ onSubmit, onCancel }: AddTaskFormProps) {
   const { addTask, currentView, currentListId } = useTaskStore();
+  const { showError } = useToastStore();
   const [title, setTitle] = useState('');
   const [important, setImportant] = useState(false);
   const [dueDate, setDueDate] = useState<Date | undefined>();
@@ -50,7 +52,8 @@ export function AddTaskForm({ onSubmit, onCancel }: AddTaskFormProps) {
     e.preventDefault();
     
     if (!title.trim()) {
-      // Could show an error toast for empty title, but we'll just return silently
+      // Show an error toast for empty title
+      showError('Invalid input', 'Task title cannot be empty');
       return;
     }
 
@@ -69,19 +72,14 @@ export function AddTaskForm({ onSubmit, onCancel }: AddTaskFormProps) {
     // Convert sub tasks to the format expected by addTask
     const steps = subTasks.map(subTask => ({ title: subTask.title }));
 
-    try {
-      // Create the task with sub tasks
-      addTask(title.trim(), listId, {
-        important,
-        dueDate,
-        steps: steps.length > 0 ? steps : undefined,
-      });
-      
-      onSubmit();
-    } catch (error) {
-      console.error('Error adding task:', error);
-      // Error toast would be shown here if we had error handling in addTask
-    }
+    // Create the task with sub tasks
+    addTask(title.trim(), listId, {
+      important,
+      dueDate,
+      steps: steps.length > 0 ? steps : undefined,
+    });
+
+    onSubmit();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

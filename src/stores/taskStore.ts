@@ -182,11 +182,13 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
         return;
       }
       
-      // Check if list exists
-      const listExists = get().lists.some(list => list.id === listId);
-      if (!listExists) {
-        useToastStore.getState().showError('List not found', 'The selected list no longer exists');
-        return;
+      // Check if list exists (allow 'all' as virtual list)
+      if (listId !== 'all') {
+        const listExists = get().lists.some(list => list.id === listId);
+        if (!listExists) {
+          useToastStore.getState().showError('List not found', 'The selected list no longer exists');
+          return;
+        }
       }
       
       try {
@@ -253,10 +255,19 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
         
         // Show toast for significant updates
         if (updates.dueDate !== undefined) {
-          if (updates.dueDate) {
-            useToastStore.getState().showInfo('Due date updated', `"${task.title}" due date was set`);
-          } else {
-            useToastStore.getState().showInfo('Due date removed', `"${task.title}" due date was cleared`);
+          const previousDueDate = task.dueDate;
+          const newDueDate = updates.dueDate;
+          
+          // Check if the due date value has actually changed
+          const dateChanged = (previousDueDate === null || previousDueDate === undefined) !== (newDueDate === null || newDueDate === undefined) ||
+                              (previousDueDate && newDueDate && previousDueDate.getTime() !== newDueDate.getTime());
+          
+          if (dateChanged) {
+            if (newDueDate) {
+              useToastStore.getState().showInfo('Due date updated', `"${task.title}" due date was set`);
+            } else {
+              useToastStore.getState().showInfo('Due date removed', `"${task.title}" due date was cleared`);
+            }
           }
         }
       } catch (error) {
@@ -280,7 +291,10 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
 
     toggleTask: (id: string) => {
       const task = get().tasks.find(t => t.id === id);
-      if (!task) return;
+      if (!task) {
+        useToastStore.getState().showError('Task not found', `Could not find a task with id "${id}"`);
+        return;
+      }
       
       const newCompletedState = !task.completed;
       
@@ -301,7 +315,10 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
 
     toggleImportant: (id: string) => {
       const task = get().tasks.find(t => t.id === id);
-      if (!task) return;
+      if (!task) {
+        useToastStore.getState().showError('Task not found', `Could not find a task with id "${id}"`);
+        return;
+      }
       
       const newImportantState = !task.important;
       
@@ -322,7 +339,10 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
 
     toggleMyDay: (id: string) => {
       const task = get().tasks.find(t => t.id === id);
-      if (!task) return;
+      if (!task) {
+        useToastStore.getState().showError('Task not found', `Could not find a task with id "${id}"`);
+        return;
+      }
       
       const newMyDayState = !task.myDay;
       
