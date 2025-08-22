@@ -15,6 +15,7 @@ import { cn } from '../utils/cn';
 import { useTaskStore } from '../stores/taskStore';
 import type { TaskList, ListGroup } from '../types';
 import { ListEditSidebar } from './ListEditSidebar';
+import { GroupEditSidebar } from './GroupEditSidebar';
 import { getListDisplayInfo, extractFirstEmoji, removeFirstEmoji } from '../utils/emojiUtils';
 import { useContextMenuHandler } from './ui/useContextMenu.ts';
 import { createListContextMenu } from './ui/contextMenus.tsx';
@@ -210,6 +211,7 @@ export function GroupedListSection({
   const [groupName, setGroupName] = useState(group?.name || '');
   const [showAddListModal, setShowAddListModal] = useState(false);
   const [editingList, setEditingList] = useState<TaskList | null>(null);
+  const [showGroupEditSidebar, setShowGroupEditSidebar] = useState(false);
   
   const { 
     toggleGroupCollapsed, 
@@ -375,10 +377,10 @@ export function GroupedListSection({
                 </button>
                 
                 {showGroupMenu && (
-                  <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-50 min-w-[120px]">
+                  <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-40 min-w-[120px]">
                     <button
                       onClick={() => {
-                        setEditingGroup(true);
+                        setShowGroupEditSidebar(true);
                         setShowGroupMenu(false);
                       }}
                       className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
@@ -441,6 +443,16 @@ export function GroupedListSection({
           isOpen={!!editingList}
           mode="edit"
           onClose={() => setEditingList(null)}
+        />
+      )}
+      
+      {/* Group Edit Sidebar */}
+      {group && (
+        <GroupEditSidebar
+          group={group}
+          isOpen={showGroupEditSidebar}
+          onClose={() => setShowGroupEditSidebar(false)}
+          mode="edit"
         />
       )}
     </div>

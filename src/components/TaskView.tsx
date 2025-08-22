@@ -91,7 +91,7 @@ export function TaskView() {
     <>
       <div className="flex flex-col h-full">
         {/* Header */}
-        <header className="p-6 border-b border-gray-200 dark:border-gray-700 relative overflow-hidden">
+        <header className="p-6 border-b border-gray-200 dark:border-gray-700 relative overflow-visible">
           {isCustomList && currentList?.color && (
             <>
               {/* Color accent line */}

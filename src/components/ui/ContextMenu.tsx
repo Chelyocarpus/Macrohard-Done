@@ -150,7 +150,7 @@ const ContextMenu = React.forwardRef<HTMLDivElement, ContextMenuProps>(
       <div
         ref={ref}
         className={cn(
-          "fixed z-50 min-w-[200px] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700",
+          "fixed z-40 min-w-[200px] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700",
           "animate-in fade-in-0 zoom-in-95 duration-100"
         )}
         style={{
