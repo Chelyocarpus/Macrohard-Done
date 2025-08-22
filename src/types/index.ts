@@ -66,6 +66,15 @@ export interface TimePreset {
 
 export type ViewType = 'my-day' | 'important' | 'planned' | 'all' | 'list';
 
+export interface Toast {
+  id: string;
+  title: string;
+  description?: string;
+  variant: 'success' | 'error' | 'warning' | 'info';
+  duration?: number; // Auto-dismiss time in milliseconds, undefined means no auto-dismiss
+  createdAt: Date;
+}
+
 export interface AppState {
   tasks: Task[];
   lists: TaskList[];

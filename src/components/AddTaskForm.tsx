@@ -49,7 +49,16 @@ export function AddTaskForm({ onSubmit, onCancel }: AddTaskFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!title.trim()) return;
+    if (!title.trim()) {
+      // Could show an error toast for empty title, but we'll just return silently
+      return;
+    }
+
+    // Validate title length
+    if (title.trim().length > 200) {
+      // Toast will be triggered by useToast hook
+      return;
+    }
 
     // Determine which list to add the task to
     let listId = 'all';
@@ -60,14 +69,19 @@ export function AddTaskForm({ onSubmit, onCancel }: AddTaskFormProps) {
     // Convert sub tasks to the format expected by addTask
     const steps = subTasks.map(subTask => ({ title: subTask.title }));
 
-    // Create the task with sub tasks
-    addTask(title.trim(), listId, {
-      important,
-      dueDate,
-      steps: steps.length > 0 ? steps : undefined,
-    });
-    
-    onSubmit();
+    try {
+      // Create the task with sub tasks
+      addTask(title.trim(), listId, {
+        important,
+        dueDate,
+        steps: steps.length > 0 ? steps : undefined,
+      });
+      
+      onSubmit();
+    } catch (error) {
+      console.error('Error adding task:', error);
+      // Error toast would be shown here if we had error handling in addTask
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

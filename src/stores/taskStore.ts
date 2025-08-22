@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { isToday, startOfDay, addDays, addWeeks, addMonths, addYears } from 'date-fns';
 import type { Task, TaskList, ListGroup, AppState, ViewType, TaskFilter, TimePreset } from '../types/index.ts';
 import { saveToStorage, loadFromStorage, generateId } from '../utils/storage.ts';
+import { useToastStore } from './toastStore.ts';
 
 interface TaskStore extends AppState {
   // Actions
@@ -170,92 +171,174 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
 
     // Task actions
     addTask: (title: string, listId = 'all', options: { important?: boolean; dueDate?: Date; reminder?: Date; notes?: string; myDay?: boolean; repeat?: string; repeatDays?: number[]; steps?: { title: string }[] } = {}) => {
-      const currentTasks = get().tasks.filter(task => task.listId === listId);
-      const nextOrder = currentTasks.length > 0 ? Math.max(...currentTasks.map(t => t.order)) + 1 : 0;
+      // Validation
+      if (!title.trim()) {
+        useToastStore.getState().showError('Invalid input', 'Task title cannot be empty');
+        return;
+      }
       
-      // Create initial steps if provided
-      const initialSteps = options.steps?.map(step => ({
-        id: generateId(),
-        title: step.title,
-        completed: false,
-        createdAt: new Date(),
-      })) || [];
+      if (title.trim().length > 200) {
+        useToastStore.getState().showError('Invalid input', 'Task title is too long (maximum 200 characters)');
+        return;
+      }
       
-      const newTask: Task = {
-        id: generateId(),
-        title,
-        completed: false,
-        important: options.important || false,
-        myDay: options.myDay || false,
-        pinned: false,
-        pinnedGlobally: false,
-        dueDate: options.dueDate,
-        reminder: options.reminder,
-        notes: options.notes,
-        repeat: (options.repeat as Task['repeat']) || 'none',
-        repeatDays: options.repeatDays,
-        order: nextOrder,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        listId,
-        steps: initialSteps,
-      };
+      // Check if list exists
+      const listExists = get().lists.some(list => list.id === listId);
+      if (!listExists) {
+        useToastStore.getState().showError('List not found', 'The selected list no longer exists');
+        return;
+      }
       
-      set((state) => ({
-        tasks: [...state.tasks, newTask],
-      }));
-      saveState();
+      try {
+        const currentTasks = get().tasks.filter(task => task.listId === listId);
+        const nextOrder = currentTasks.length > 0 ? Math.max(...currentTasks.map(t => t.order)) + 1 : 0;
+        
+        // Create initial steps if provided
+        const initialSteps = options.steps?.map(step => ({
+          id: generateId(),
+          title: step.title,
+          completed: false,
+          createdAt: new Date(),
+        })) || [];
+        
+        const newTask: Task = {
+          id: generateId(),
+          title: title.trim(),
+          completed: false,
+          important: options.important || false,
+          myDay: options.myDay || false,
+          pinned: false,
+          pinnedGlobally: false,
+          dueDate: options.dueDate,
+          reminder: options.reminder,
+          notes: options.notes,
+          repeat: (options.repeat as Task['repeat']) || 'none',
+          repeatDays: options.repeatDays,
+          order: nextOrder,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          listId,
+          steps: initialSteps,
+        };
+        
+        set((state) => ({
+          tasks: [...state.tasks, newTask],
+        }));
+        saveState();
+        
+        // Show success toast
+        useToastStore.getState().showSuccess('Task created', `"${title.trim()}" was added successfully`);
+      } catch (error) {
+        console.error('Error adding task:', error);
+        useToastStore.getState().showError('Error', 'Failed to create task. Please try again.');
+      }
     },
 
     updateTask: (id: string, updates: Partial<Task>) => {
-      set((state) => ({
-        tasks: state.tasks.map((task) =>
-          task.id === id
-            ? { ...task, ...updates, updatedAt: new Date() }
-            : task
-        ),
-      }));
-      saveState();
+      const task = get().tasks.find(t => t.id === id);
+      if (!task) {
+        useToastStore.getState().showError('Task not found', 'The task you are trying to update no longer exists');
+        return;
+      }
+      
+      try {
+        set((state) => ({
+          tasks: state.tasks.map((task) =>
+            task.id === id
+              ? { ...task, ...updates, updatedAt: new Date() }
+              : task
+          ),
+        }));
+        saveState();
+        
+        // Show toast for significant updates
+        if (updates.dueDate !== undefined) {
+          if (updates.dueDate) {
+            useToastStore.getState().showInfo('Due date updated', `"${task.title}" due date was set`);
+          } else {
+            useToastStore.getState().showInfo('Due date removed', `"${task.title}" due date was cleared`);
+          }
+        }
+      } catch (error) {
+        console.error('Error updating task:', error);
+        useToastStore.getState().showError('Error', 'Failed to update task. Please try again.');
+      }
     },
 
     deleteTask: (id: string) => {
+      const task = get().tasks.find(t => t.id === id);
+      const taskTitle = task?.title || 'Task';
+      
       set((state) => ({
         tasks: state.tasks.filter((task) => task.id !== id),
       }));
       saveState();
+      
+      // Show success toast
+      useToastStore.getState().showInfo('Task deleted', `"${taskTitle}" was removed`);
     },
 
     toggleTask: (id: string) => {
+      const task = get().tasks.find(t => t.id === id);
+      if (!task) return;
+      
+      const newCompletedState = !task.completed;
+      
       set((state) => ({
         tasks: state.tasks.map((task) =>
           task.id === id
-            ? { ...task, completed: !task.completed, updatedAt: new Date() }
+            ? { ...task, completed: newCompletedState, updatedAt: new Date() }
             : task
         ),
       }));
       saveState();
+      
+      // Show success toast
+      if (newCompletedState) {
+        useToastStore.getState().showSuccess('Task completed', `"${task.title}" is now complete! 🎉`);
+      }
     },
 
     toggleImportant: (id: string) => {
+      const task = get().tasks.find(t => t.id === id);
+      if (!task) return;
+      
+      const newImportantState = !task.important;
+      
       set((state) => ({
         tasks: state.tasks.map((task) =>
           task.id === id
-            ? { ...task, important: !task.important, updatedAt: new Date() }
+            ? { ...task, important: newImportantState, updatedAt: new Date() }
             : task
         ),
       }));
       saveState();
+      
+      // Show toast only when marking as important
+      if (newImportantState) {
+        useToastStore.getState().showInfo('Marked as important', `"${task.title}" is now important ⭐`);
+      }
     },
 
     toggleMyDay: (id: string) => {
+      const task = get().tasks.find(t => t.id === id);
+      if (!task) return;
+      
+      const newMyDayState = !task.myDay;
+      
       set((state) => ({
         tasks: state.tasks.map((task) =>
           task.id === id
-            ? { ...task, myDay: !task.myDay, updatedAt: new Date() }
+            ? { ...task, myDay: newMyDayState, updatedAt: new Date() }
             : task
         ),
       }));
       saveState();
+      
+      // Show toast only when adding to My Day
+      if (newMyDayState) {
+        useToastStore.getState().showInfo('Added to My Day', `"${task.title}" was added to My Day 📅`);
+      }
     },
 
     togglePin: (id: string) => {
@@ -396,6 +479,9 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
         lists: [...state.lists, newList],
       }));
       saveState();
+      
+      // Show success toast
+      useToastStore.getState().showSuccess('List created', `"${name}" list was created successfully`);
     },
 
     updateList: (id: string, updates: Partial<TaskList>) => {
@@ -408,11 +494,26 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
     },
 
     deleteList: (id: string) => {
+      const list = get().lists.find(l => l.id === id);
+      const listName = list?.name || 'List';
+      const tasksInList = get().tasks.filter(task => task.listId === id);
+      
       set((state) => ({
         lists: state.lists.filter((list) => list.id !== id),
         tasks: state.tasks.filter((task) => task.listId !== id),
       }));
       saveState();
+      
+      // Show warning toast with count of deleted tasks
+      const taskCount = tasksInList.length;
+      if (taskCount > 0) {
+        useToastStore.getState().showWarning(
+          'List deleted', 
+          `"${listName}" and ${taskCount} task${taskCount > 1 ? 's' : ''} were removed`
+        );
+      } else {
+        useToastStore.getState().showInfo('List deleted', `"${listName}" was removed`);
+      }
     },
 
     // View actions
@@ -613,6 +714,9 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
         listGroups: [...state.listGroups, newGroup],
       }));
       saveState();
+      
+      // Show success toast
+      useToastStore.getState().showSuccess('Group created', `"${name}" group was created successfully`);
     },
 
     updateGroup: (id: string, updates: Partial<ListGroup>) => {
@@ -625,6 +729,10 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
     },
 
     deleteGroup: (id: string, moveListsToGroupId?: string | null) => {
+      const group = get().listGroups.find(g => g.id === id);
+      const groupName = group?.name || 'Group';
+      const listsInGroup = get().lists.filter(list => list.groupId === id);
+      
       set((state) => ({
         listGroups: state.listGroups.filter((group) => group.id !== id),
         lists: state.lists.map((list) =>
@@ -632,6 +740,17 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
         ),
       }));
       saveState();
+      
+      // Show info toast
+      const listCount = listsInGroup.length;
+      if (listCount > 0) {
+        useToastStore.getState().showInfo(
+          'Group deleted', 
+          `"${groupName}" was removed. ${listCount} list${listCount > 1 ? 's' : ''} moved`
+        );
+      } else {
+        useToastStore.getState().showInfo('Group deleted', `"${groupName}" was removed`);
+      }
     },
 
     reorderGroups: (groupIds: string[]) => {

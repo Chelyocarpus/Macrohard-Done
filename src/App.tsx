@@ -7,6 +7,7 @@ import { TaskDetailSidebar } from './components/TaskDetailSidebar.tsx';
 import { GroupEditModal } from './components/GroupEditModal.tsx';
 import { Button } from './components/ui/Button.tsx';
 import { ContextMenuProvider } from './components/ui/ContextMenu.tsx';
+import { ToastProvider } from './components/ui/ToastProvider.tsx';
 import { cn } from './utils/cn.ts';
 
 function App() {
@@ -84,6 +85,9 @@ function App() {
           isOpen={showAddGroupModal}
           onClose={() => setShowAddGroupModal(false)}
         />
+        
+        {/* Toast notifications */}
+        <ToastProvider />
       </div>
     </ContextMenuProvider>
   );
