@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../../utils/cn.ts';
 import { ContextMenuContext } from './ContextMenuContext.ts';
+import { Z_INDEX_CLASSES } from '../../utils/zIndex.ts';
 
 // Context Menu Types
 export interface ContextMenuItem {
@@ -150,7 +151,7 @@ const ContextMenu = React.forwardRef<HTMLDivElement, ContextMenuProps>(
       <div
         ref={ref}
         className={cn(
-          "fixed z-40 min-w-[200px] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700",
+          `fixed ${Z_INDEX_CLASSES.DROPDOWN} min-w-[200px] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700`,
           "animate-in fade-in-0 zoom-in-95 duration-100"
         )}
         style={{

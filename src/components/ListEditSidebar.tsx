@@ -7,6 +7,7 @@ import { Input } from './ui/Input.tsx';
 import { EmojiPicker } from './EmojiPicker.tsx';
 import { cn } from '../utils/cn.ts';
 import { getListDisplayInfo, extractFirstEmoji, removeFirstEmoji } from '../utils/emojiUtils.ts';
+import { Z_INDEX_CLASSES } from '../utils/zIndex.ts';
 
 interface ListEditSidebarProps {
   list?: TaskList;
@@ -135,7 +136,7 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex">
+    <div className={`fixed inset-0 ${Z_INDEX_CLASSES.MODAL} flex`}>
       {/* Backdrop */}
       <div 
         className="flex-1 bg-black bg-opacity-25" 
@@ -147,7 +148,7 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
         {/* Color accent line */}
         {color && (
           <div 
-            className="absolute top-0 left-0 right-0 h-1 z-10"
+            className={`absolute top-0 left-0 right-0 h-1 ${Z_INDEX_CLASSES.RELATIVE}`}
             style={{ backgroundColor: color }}
           />
         )}
@@ -161,7 +162,7 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
               }}
             />
           )}
-          <div className="flex items-center gap-3 relative z-10">
+          <div className={`flex items-center gap-3 relative ${Z_INDEX_CLASSES.RELATIVE}`}>
             {color && (
               <div 
                 className="w-3 h-3 rounded-full shadow-sm"
@@ -179,7 +180,7 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="p-2 relative z-10"
+            className={`p-2 relative ${Z_INDEX_CLASSES.RELATIVE}`}
           >
             <X size={20} />
           </Button>
@@ -279,7 +280,7 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
                 className="absolute left-0 top-0 bottom-0 w-1"
                 style={{ backgroundColor: color }}
               />
-              <div className="flex items-center gap-3 relative z-10">
+              <div className={`flex items-center gap-3 relative ${Z_INDEX_CLASSES.RELATIVE}`}>
                 <div 
                   className="w-4 h-4 rounded-full shadow-sm"
                   style={{ 

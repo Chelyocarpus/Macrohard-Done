@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { cn } from '../../utils/cn.ts';
+import { Z_INDEX_CLASSES } from '../../utils/zIndex.ts';
 import type { Toast } from '../../types/index.ts';
 
 interface ToastProps {
@@ -181,7 +182,7 @@ export function ToastContainer({
 
   return (
     <div
-      className="fixed top-4 right-4 z-[60] flex flex-col gap-2 pointer-events-none"
+      className={`fixed top-4 right-4 ${Z_INDEX_CLASSES.TOAST} flex flex-col gap-2 pointer-events-none`}
       aria-live="polite"
       aria-label="Notifications"
     >

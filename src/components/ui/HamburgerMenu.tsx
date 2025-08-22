@@ -3,6 +3,7 @@ import { MoreHorizontal, Sun, Moon } from 'lucide-react';
 import { useTaskStore } from '../../stores/taskStore.ts';
 import { Button } from './Button.tsx';
 import { cn } from '../../utils/cn.ts';
+import { Z_INDEX_CLASSES } from '../../utils/zIndex.ts';
 
 export function HamburgerMenu() {
   const [isOpen, setIsOpen] = useState(false);
@@ -66,7 +67,7 @@ export function HamburgerMenu() {
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-48 z-50">
+        <div className={`absolute right-0 top-full mt-2 w-48 ${Z_INDEX_CLASSES.DROPDOWN}`}>
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
             <div className="p-1">
               <button
