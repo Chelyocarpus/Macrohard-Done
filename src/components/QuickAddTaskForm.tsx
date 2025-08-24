@@ -14,7 +14,7 @@ interface QuickAddTaskFormProps {
 
 export function QuickAddTaskForm({ isOpen, onClose, onFullFormRequested, initialTitle = '' }: QuickAddTaskFormProps) {
   const { addTask, currentView, currentListId } = useTaskStore();
-  const { showError, showSuccess } = useToastStore();
+  const { showError } = useToastStore();
   const [title, setTitle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,7 +54,6 @@ export function QuickAddTaskForm({ isOpen, onClose, onFullFormRequested, initial
       // Create the task with minimal data
       addTask(title.trim(), listId);
       
-      showSuccess('Task created', `"${title.trim()}" has been added`);
       setTitle('');
       onClose();
     } catch {

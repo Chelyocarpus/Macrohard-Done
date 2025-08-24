@@ -123,7 +123,7 @@ export function TaskView() {
 
   const handleInlineTaskCreate = (title: string) => {
     const { addTask } = useTaskStore.getState();
-    const { showSuccess, showError } = useToastStore.getState();
+    const { showError } = useToastStore.getState();
     
     try {
       // Determine which list to add the task to
@@ -135,8 +135,6 @@ export function TaskView() {
       // Create the task directly
       addTask(title, listId);
       
-      // Show success feedback
-      showSuccess('Task created', `"${title}" has been added`);
     } catch {
       // Show error feedback
       showError('Error', 'Failed to create task. Please try again.');
