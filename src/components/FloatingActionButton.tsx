@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { Plus, List, Users, Edit3 } from 'lucide-react';
 import { Button } from './ui/Button.tsx';
 import { cn } from '../utils/cn.ts';
-import { useTaskStore } from '../stores/taskStore.ts';
 
 interface FloatingActionButtonProps {
   onQuickAdd: () => void;
@@ -12,8 +11,8 @@ interface FloatingActionButtonProps {
   onInlineTaskCreate?: (title: string) => void;
   className?: string;
   currentListColor?: string;
-  isAnySidebarOpen?: boolean;
-  rightSidebarWidth?: number; // Width of the right sidebar in pixels (if open)
+  // Immediate state-based positioning (not waiting for DOM)
+  isAnySidebarOpening?: boolean;
 }
 
 interface ActionMenuItem {
@@ -32,14 +31,13 @@ export function FloatingActionButton({
   onInlineTaskCreate,
   className,
   currentListColor,
-  isAnySidebarOpen = false,
-  rightSidebarWidth = 400
+  isAnySidebarOpening = false
 }: FloatingActionButtonProps) {
-  const { sidebarCollapsed } = useTaskStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [quickAddText, setQuickAddText] = useState('');
   const [isQuickAddMode, setIsQuickAddMode] = useState(false);
+  const [rightSidebarWidth, setRightSidebarWidth] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fabContainerRef = useRef<HTMLDivElement>(null);
@@ -229,53 +227,112 @@ export function FloatingActionButton({
 
   const gradientColors = getGradientColors();
 
-  // Calculate responsive positioning
+  // Detect right sidebars by checking DOM
+  useEffect(() => {
+    const checkRightSidebars = () => {
+      // Look for common sidebar selectors in the DOM
+      const rightSidebars = document.querySelectorAll('div[class*="w-96"], div[class*="w-[400px]"]');
+      let maxWidth = 0;
+      
+      rightSidebars.forEach((sidebar) => {
+        const rect = sidebar.getBoundingClientRect();
+        // Check if it's positioned on the right side of the screen
+        if (rect.right > window.innerWidth - 100 && rect.width > maxWidth) {
+          maxWidth = rect.width;
+        }
+      });
+      
+      setRightSidebarWidth(maxWidth);
+    };
+
+    // Initial check
+    checkRightSidebars();
+    
+    // Use MutationObserver for instant detection of DOM changes
+    const observer = new MutationObserver(() => {
+      checkRightSidebars();
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'style']
+    });
+    
+    // Fallback interval for edge cases (much faster)
+    const interval = setInterval(checkRightSidebars, 50); // Very fast: 50ms
+    
+    return () => {
+      observer.disconnect();
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Calculate right margin based on immediate state and detected sidebar width
   const getRightMargin = () => {
-    if (isAnySidebarOpen) {
-      // Add 24px margin to the sidebar width
-      return `${rightSidebarWidth + 24}px`;
+    // Immediate response to sidebar opening (before DOM is updated)
+    if (isAnySidebarOpening) {
+      return 'right-[424px]'; // 400px sidebar + 24px margin for better spacing
     }
-    return '24px'; // Default 6 (1.5rem = 24px)
+    
+    // DOM-based detection for precise sizing when available
+    if (rightSidebarWidth >= 400) {
+      return 'right-[424px]'; // For 400px sidebars + 24px margin
+    }
+    if (rightSidebarWidth >= 384) {
+      return 'right-[408px]'; // For 384px sidebars + 24px margin
+    }
+    if (rightSidebarWidth > 0) {
+      return 'right-24'; // Generic margin for smaller sidebars
+    }
+    return 'right-4'; // Default margin when no sidebar is detected
   };
+
+  // Debug: Log both immediate state and detected width
+  console.log('FAB States:', { 
+    isAnySidebarOpening, 
+    rightSidebarWidth, 
+    rightClass: getRightMargin() 
+  });
 
   return (
     <div 
       ref={fabContainerRef}
       className={cn(
-        "fixed bottom-6 z-50 transition-all duration-150", // Reduced from duration-300 to duration-150 for faster animation that matches instant sidebars
-        // Position FAB to respect left sidebar width with modern spacing
-        sidebarCollapsed ? "left-24" : "left-72", // 24 = 6rem (96px) for collapsed + margin, 72 = 18rem (288px) for expanded + margin
+        "absolute bottom-4 left-4 z-50 transition-all duration-75", // Super fast transition: 75ms
+        getRightMargin(), // Dynamic right positioning based on open sidebars
+        "flex", // Always visible, spans full available width
         className
       )}
-      style={{
-        right: getRightMargin()
-      }}
       onKeyDown={handleKeyDown}
     >
       {/* Menu Items */}
       {isMenuOpen && (
         <div 
           ref={menuRef}
-          className="mb-4 flex justify-center gap-3 animate-in slide-in-from-bottom-2 duration-200"
+          className="mb-4 flex flex-wrap justify-center gap-2 sm:gap-3 animate-in slide-in-from-bottom-2 duration-200 max-w-full"
         >
           {menuItems.map((item, index) => (
             <div
               key={item.id}
-              className="flex flex-col items-center gap-2 animate-in slide-in-from-bottom-2 duration-200"
+              className="flex flex-col items-center gap-1 sm:gap-2 animate-in slide-in-from-bottom-2 duration-200"
               style={{ animationDelay: `${index * 50}ms` }}
             >
               <Button
                 onClick={item.onClick}
                 className={cn(
-                  "h-12 w-12 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200",
+                  "h-10 w-10 sm:h-12 sm:w-12 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200",
                   "transform hover:scale-105 border-0 text-white",
                   `bg-gradient-to-r ${item.color} hover:brightness-110`
                 )}
               >
-                {item.icon}
+                <div className="scale-75 sm:scale-100">
+                  {item.icon}
+                </div>
               </Button>
               
-              <div className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-2 py-1 rounded text-xs font-medium shadow-lg whitespace-nowrap">
+              <div className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-1 sm:px-2 py-1 rounded text-xs font-medium shadow-lg whitespace-nowrap">
                 {item.label}
               </div>
             </div>
@@ -284,16 +341,16 @@ export function FloatingActionButton({
       )}
 
       {/* Main FAB Bar */}
-      <div className="relative">
+      <div className="relative w-full">
         <div
           className={cn(
-            "h-14 rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-150", // Reduced from duration-300 to duration-150
-            "transform hover:scale-[1.02] border-0 text-white relative overflow-hidden cursor-pointer",
-            "flex items-center gap-3 px-6"
+            "h-12 sm:h-14 rounded-xl sm:rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-150",
+            "transform hover:scale-[1.01] border-0 text-white relative overflow-hidden cursor-pointer",
+            "flex items-center gap-2 sm:gap-3 px-3 sm:px-6 w-full" // Full width
           )}
           style={{
             background: gradientColors.background,
-            transition: 'all 0.15s ease' // Reduced from 0.3s to 0.15s
+            transition: 'all 0.15s ease'
           }}
           onMouseEnter={(e) => {
             setIsHovered(true);
@@ -305,7 +362,7 @@ export function FloatingActionButton({
           }}
           onClick={handleMainButtonClick}
         >
-          <div className="flex-1">
+          <div className="flex-1 min-w-0"> {/* Added min-w-0 for proper text truncation */}
             {isQuickAddMode ? (
               <input
                 ref={inputRefCallback}
@@ -313,16 +370,16 @@ export function FloatingActionButton({
                 onChange={(e) => setQuickAddText(e.target.value)}
                 onKeyDown={handleQuickAddKeyDown}
                 placeholder="What needs to be done?"
-                className="w-full bg-transparent text-white placeholder-white/70 border-none outline-none text-lg font-medium"
+                className="w-full bg-transparent text-white placeholder-white/70 border-none outline-none text-sm sm:text-lg font-medium"
               />
             ) : (
-              <div className="w-full text-left text-lg font-medium text-white/90">
+              <div className="w-full text-left text-sm sm:text-lg font-medium text-white/90 truncate">
                 Add a task...
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             {isQuickAddMode && (
               <button
                 onClick={(e) => {
@@ -330,7 +387,7 @@ export function FloatingActionButton({
                   handleQuickAdd();
                 }}
                 disabled={!quickAddText.trim()}
-                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-2 sm:px-4 py-1 sm:py-2 bg-white/20 hover:bg-white/30 rounded-md sm:rounded-lg text-xs sm:text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Add
               </button>
@@ -342,16 +399,16 @@ export function FloatingActionButton({
                 handleMenuToggle(e);
               }}
               className={cn(
-                "h-8 w-8 rounded-lg transition-all duration-200 flex items-center justify-center",
+                "h-6 w-6 sm:h-8 sm:w-8 rounded-md sm:rounded-lg transition-all duration-200 flex items-center justify-center",
                 "bg-white/20 hover:bg-white/30",
                 isMenuOpen && "bg-red-500/80 hover:bg-red-500"
               )}
               title={isMenuOpen ? "Close menu" : "More options"}
             >
               <Plus 
-                size={16} 
+                size={14} 
                 className={cn(
-                  "transition-transform duration-200",
+                  "sm:w-4 sm:h-4 transition-transform duration-200",
                   isMenuOpen ? "rotate-45" : "rotate-0"
                 )}
               />

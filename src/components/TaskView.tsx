@@ -24,6 +24,9 @@ export function TaskView() {
   const [showGroupEditSidebar, setShowGroupEditSidebar] = useState(false);
   const [editingList, setEditingList] = useState<TaskListType | null>(null);
 
+  // Track if any sidebar is opening for immediate FAB response
+  const isAnySidebarOpen = showAddSidebar || showListEditSidebar || showGroupEditSidebar || !!editingList;
+
   // Add keyboard shortcuts for task creation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -97,15 +100,14 @@ export function TaskView() {
   const currentList = getCurrentList();
   const isCustomList = currentList && !currentList.isSystem;
 
-  // Calculate which sidebar is open and its width
-  const getActiveSidebarWidth = () => {
-    if (showAddSidebar) return 400; // TaskDetailSidebar w-[400px]
-    if (showListEditSidebar || showGroupEditSidebar || editingList) return 384; // w-96 (24rem = 384px)
-    return 0;
-  };
-
-  const activeSidebarWidth = getActiveSidebarWidth();
-  const isAnySidebarOpen = activeSidebarWidth > 0;
+  // Debug: Log sidebar states in TaskView
+  console.log('TaskView Sidebar States:', { 
+    showAddSidebar, 
+    showListEditSidebar, 
+    showGroupEditSidebar, 
+    editingList: !!editingList,
+    isAnySidebarOpen
+  });
 
   const handleQuickAddToFullForm = () => {
     setShowQuickAdd(false);
@@ -143,7 +145,7 @@ export function TaskView() {
 
   return (
     <>
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full relative">
         {/* Header */}
         <header className="p-6 border-b border-gray-200 dark:border-gray-700 relative overflow-visible">
           {isCustomList && currentList?.color && (
@@ -226,8 +228,7 @@ export function TaskView() {
         onNewGroup={() => setShowGroupEditSidebar(true)}
         onInlineTaskCreate={handleInlineTaskCreate}
         currentListColor={currentList?.color}
-        isAnySidebarOpen={isAnySidebarOpen}
-        rightSidebarWidth={activeSidebarWidth}
+        isAnySidebarOpening={isAnySidebarOpen}
       />
 
       {/* Quick Add Task Modal */}
