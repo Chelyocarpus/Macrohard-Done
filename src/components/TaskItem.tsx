@@ -15,11 +15,12 @@ import { createTaskContextMenu } from './ui/contextMenus.tsx';
 interface TaskItemProps {
   task: Task;
   isDragEnabled?: boolean;
-  isOver?: boolean;
   isDragging?: boolean;
+  activeTaskId?: string | null;
+  isOverlay?: boolean;
 }
 
-export function TaskItem({ task, isDragEnabled = false, isOver = false, isDragging: providedIsDragging = false }: TaskItemProps) {
+export function TaskItem({ task, isDragEnabled = false, isDragging: providedIsDragging = false, activeTaskId = null, isOverlay = false }: TaskItemProps) {
   const { toggleTask, toggleImportant, toggleSubTask, lists, deleteTask, addTask, toggleMyDay, togglePin, toggleGlobalPin, getGroupForList } = useTaskStore();
   
   // Only use sortable hook if drag is enabled
@@ -133,8 +134,8 @@ export function TaskItem({ task, isDragEnabled = false, isOver = false, isDraggi
           'task-item group p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors relative overflow-hidden',
           task.completed && 'opacity-75',
           task.steps.length > 0 && 'cursor-pointer',
-          !sortable.active && isDragging && 'opacity-30',
-          isOver && 'bg-blue-50 dark:bg-blue-900/20',
+          isDragging && !isOverlay && 'opacity-0',
+          activeTaskId && activeTaskId !== task.id && !isDragging && 'opacity-40',
           task.pinnedGlobally && 'bg-blue-25 dark:bg-blue-950/20 border-l-2 border-blue-400',
           task.pinned && !task.pinnedGlobally && 'bg-gray-25 dark:bg-gray-800/30 border-l-2 border-gray-400'
         )}
