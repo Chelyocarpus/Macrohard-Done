@@ -1,13 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, List, Users, Edit3 } from 'lucide-react';
-import { Button } from './ui/Button.tsx';
 import { cn } from '../utils/cn.ts';
 
 interface FloatingActionButtonProps {
   onQuickAdd: () => void;
-  onFullTaskForm: () => void;
-  onNewList: () => void;
-  onNewGroup: () => void;
   onInlineTaskCreate?: (title: string) => void;
   className?: string;
   currentListColor?: string;
@@ -15,72 +10,25 @@ interface FloatingActionButtonProps {
   isAnySidebarOpening?: boolean;
 }
 
-interface ActionMenuItem {
-  id: string;
-  label: string;
-  icon: React.ReactNode;
-  onClick: () => void;
-  color: string;
-}
-
 export function FloatingActionButton({ 
   onQuickAdd, 
-  onFullTaskForm, 
-  onNewList, 
-  onNewGroup,
   onInlineTaskCreate,
   className,
   currentListColor,
   isAnySidebarOpening = false
 }: FloatingActionButtonProps) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [quickAddText, setQuickAddText] = useState('');
   const [isQuickAddMode, setIsQuickAddMode] = useState(false);
   const [rightSidebarWidth, setRightSidebarWidth] = useState(0);
-  const menuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fabContainerRef = useRef<HTMLDivElement>(null);
-
-  const menuItems: ActionMenuItem[] = [
-    {
-      id: 'task',
-      label: 'Full Task Form',
-      icon: <Edit3 size={18} />,
-      onClick: () => {
-        onFullTaskForm();
-        setIsMenuOpen(false);
-      },
-      color: 'from-blue-500 to-blue-600'
-    },
-    {
-      id: 'list',
-      label: 'New List',
-      icon: <List size={18} />,
-      onClick: () => {
-        onNewList();
-        setIsMenuOpen(false);
-      },
-      color: 'from-green-500 to-green-600'
-    },
-    {
-      id: 'group',
-      label: 'New Group',
-      icon: <Users size={18} />,
-      onClick: () => {
-        onNewGroup();
-        setIsMenuOpen(false);
-      },
-      color: 'from-purple-500 to-purple-600'
-    }
-  ];
 
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       // Use component ref instead of global query selector for robustness
       if (fabContainerRef.current && !fabContainerRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
         setIsQuickAddMode(false);
       }
     };
@@ -101,24 +49,20 @@ export function FloatingActionButton({
   // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
-      setIsMenuOpen(false);
       setIsQuickAddMode(false);
       setQuickAddText('');
     }
   };
 
   const handleMainButtonClick = () => {
+    console.log('Main FAB clicked', { isQuickAddMode });
     if (!isQuickAddMode) {
       setIsQuickAddMode(true);
     }
   };
 
-  const handleMenuToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsMenuOpen(!isMenuOpen);
-  };
-
   const handleQuickAdd = () => {
+    console.log('Quick add clicked', { quickAddText });
     if (quickAddText.trim()) {
       // Create task directly inline if handler is provided
       if (onInlineTaskCreate) {
@@ -307,39 +251,6 @@ export function FloatingActionButton({
       )}
       onKeyDown={handleKeyDown}
     >
-      {/* Menu Items */}
-      {isMenuOpen && (
-        <div 
-          ref={menuRef}
-          className="mb-4 flex flex-wrap justify-center gap-2 sm:gap-3 animate-in slide-in-from-bottom-2 duration-200 max-w-full"
-        >
-          {menuItems.map((item, index) => (
-            <div
-              key={item.id}
-              className="flex flex-col items-center gap-1 sm:gap-2 animate-in slide-in-from-bottom-2 duration-200"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <Button
-                onClick={item.onClick}
-                className={cn(
-                  "h-10 w-10 sm:h-12 sm:w-12 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200",
-                  "transform hover:scale-105 border-0 text-white",
-                  `bg-gradient-to-r ${item.color} hover:brightness-110`
-                )}
-              >
-                <div className="scale-75 sm:scale-100">
-                  {item.icon}
-                </div>
-              </Button>
-              
-              <div className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-1 sm:px-2 py-1 rounded text-xs font-medium shadow-lg whitespace-nowrap">
-                {item.label}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Main FAB Bar */}
       <div className="relative w-full">
         <div
@@ -392,30 +303,9 @@ export function FloatingActionButton({
                 Add
               </button>
             )}
-            
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleMenuToggle(e);
-              }}
-              className={cn(
-                "h-6 w-6 sm:h-8 sm:w-8 rounded-md sm:rounded-lg transition-all duration-200 flex items-center justify-center",
-                "bg-white/20 hover:bg-white/30",
-                isMenuOpen && "bg-red-500/80 hover:bg-red-500"
-              )}
-              title={isMenuOpen ? "Close menu" : "More options"}
-            >
-              <Plus 
-                size={14} 
-                className={cn(
-                  "sm:w-4 sm:h-4 transition-transform duration-200",
-                  isMenuOpen ? "rotate-45" : "rotate-0"
-                )}
-              />
-            </button>
           </div>
 
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-500 transform -skew-x-12" />
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-500 transform -skew-x-12 pointer-events-none" />
         </div>
 
         {isHovered && (
