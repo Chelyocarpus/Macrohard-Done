@@ -223,9 +223,6 @@ export function TaskView() {
       {/* Floating Action Button */}
       <FloatingActionButton
         onQuickAdd={() => handleQuickAdd()}
-        onFullTaskForm={() => setShowAddSidebar(true)}
-        onNewList={() => setShowListEditSidebar(true)}
-        onNewGroup={() => setShowGroupEditSidebar(true)}
         onInlineTaskCreate={handleInlineTaskCreate}
         currentListColor={currentList?.color}
         isAnySidebarOpening={isAnySidebarOpen}
