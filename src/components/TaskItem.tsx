@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Star, Calendar, Edit3, GripVertical, Repeat, CheckSquare, FileText, Sun, Bell, Pin } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -16,12 +16,14 @@ interface TaskItemProps {
   task: Task;
   isDragEnabled?: boolean;
   isDragging?: boolean;
-  activeTaskId?: string | null;
   isOverlay?: boolean;
+  activeTaskId?: string | null;
 }
 
-export function TaskItem({ task, isDragEnabled = false, isDragging: providedIsDragging = false, activeTaskId = null, isOverlay = false }: TaskItemProps) {
+function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIsDragging = false, isOverlay = false, activeTaskId = null }: TaskItemProps) {
   const { toggleTask, toggleImportant, toggleSubTask, lists, deleteTask, addTask, toggleMyDay, togglePin, toggleGlobalPin, getGroupForList } = useTaskStore();
+  
+
   
   // Only use sortable hook if drag is enabled
   const sortable = useSortable({ 
@@ -465,3 +467,29 @@ export function TaskItem({ task, isDragEnabled = false, isDragging: providedIsDr
     </>
   );
 }
+
+// Memoized component with optimized comparison
+export const TaskItem = memo(TaskItemComponent, (prevProps, nextProps) => {
+  // Always re-render if task data changed
+  if (prevProps.task !== nextProps.task) return false;
+  
+  // Always re-render if drag state changed for THIS specific task
+  if (prevProps.isDragEnabled !== nextProps.isDragEnabled) return false;
+  if (prevProps.isDragging !== nextProps.isDragging) return false;
+  if (prevProps.isOverlay !== nextProps.isOverlay) return false;
+  
+  // Only re-render when activeTaskId changes in meaningful ways
+  const prevActive = !!prevProps.activeTaskId;
+  const nextActive = !!nextProps.activeTaskId;
+  const prevIsThisTask = prevProps.activeTaskId === prevProps.task.id;
+  const nextIsThisTask = nextProps.activeTaskId === nextProps.task.id;
+  
+  // Re-render if:
+  // 1. Drag state started/stopped (null to non-null or vice versa)
+  // 2. This task became the dragged task or stopped being the dragged task
+  if (prevActive !== nextActive) return false;
+  if (prevIsThisTask !== nextIsThisTask) return false;
+  
+  // No re-render needed - the visual state is the same
+  return true;
+});

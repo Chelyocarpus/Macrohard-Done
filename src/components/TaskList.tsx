@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { TaskItem } from './TaskItem.tsx';
+
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import {
   DndContext,
@@ -132,53 +133,57 @@ export function TaskList() {
           </div>
         </div>
       ) : isDragEnabled ? (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
 
-          onDragEnd={handleDragEnd}
-        >
-          {/* Active Tasks */}
-          {renderTaskItems(activeTasks, true)}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div>
+              {/* Active Tasks */}
+              {renderTaskItems(activeTasks, true)}
           
-          {/* Completed Tasks Section (if any exist) */}
-          {completedTasks.length > 0 && (
-            <div className="mt-8">
-              <button 
-                className="flex items-center gap-2 text-gray-600 dark:text-gray-300 text-sm font-medium mb-4 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                onClick={() => setShowCompleted(!showCompleted)}
-              >
-                {showCompleted ? (
-                  <ChevronDown className="w-4 h-4" />
-                ) : (
-                  <ChevronUp className="w-4 h-4" />
-                )}
-                <span>Completed ({completedTasks.length})</span>
-              </button>
-              
-              {/* Conditionally render completed tasks */}
-              {showCompleted && (
-                <div className="space-y-2 opacity-80">
-                  {renderTaskItems(completedTasks, false)}
+              {/* Completed Tasks Section (if any exist) */}
+              {completedTasks.length > 0 && (
+                <div className="mt-8">
+                  <button 
+                    className="flex items-center gap-2 text-gray-600 dark:text-gray-300 text-sm font-medium mb-4 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    onClick={() => setShowCompleted(!showCompleted)}
+                  >
+                    {showCompleted ? (
+                      <ChevronDown className="w-4 h-4" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4" />
+                    )}
+                    <span>Completed ({completedTasks.length})</span>
+                  </button>
+                  
+                  {/* Conditionally render completed tasks */}
+                  {showCompleted && (
+                    <div className="space-y-2 opacity-80">
+                      {renderTaskItems(completedTasks, false)}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
           
-          <DragOverlay>
-            {activeId ? (
-              <div className="transform scale-[1.02] transition-transform">
-                <TaskItem 
-                  task={activeTasks.find(task => task.id === activeId)!} 
-                  isDragEnabled={true}
-                  isDragging={true}
-                  isOverlay={true}
-                />
-              </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+            <DragOverlay>
+              {activeId ? (
+                <div className="transform scale-[1.02] transition-transform">
+                  <TaskItem 
+                    task={activeTasks.find(task => task.id === activeId)!} 
+                    isDragEnabled={true}
+                    isDragging={true}
+                    isOverlay={true}
+                    activeTaskId={activeId}
+                  />
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+
       ) : (
         <>
           {/* Active Tasks */}
