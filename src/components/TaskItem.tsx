@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Star, Calendar, Edit3, GripVertical, Repeat, CheckSquare, FileText, Sun, Bell, Pin } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -15,12 +15,15 @@ import { createTaskContextMenu } from './ui/contextMenus.tsx';
 interface TaskItemProps {
   task: Task;
   isDragEnabled?: boolean;
-  isOver?: boolean;
   isDragging?: boolean;
+  isOverlay?: boolean;
+  activeTaskId?: string | null;
 }
 
-export function TaskItem({ task, isDragEnabled = false, isOver = false, isDragging: providedIsDragging = false }: TaskItemProps) {
+function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIsDragging = false, isOverlay = false, activeTaskId = null }: TaskItemProps) {
   const { toggleTask, toggleImportant, toggleSubTask, lists, deleteTask, addTask, toggleMyDay, togglePin, toggleGlobalPin, getGroupForList } = useTaskStore();
+  
+
   
   // Only use sortable hook if drag is enabled
   const sortable = useSortable({ 
@@ -133,8 +136,8 @@ export function TaskItem({ task, isDragEnabled = false, isOver = false, isDraggi
           'task-item group p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors relative overflow-hidden',
           task.completed && 'opacity-75',
           task.steps.length > 0 && 'cursor-pointer',
-          !sortable.active && isDragging && 'opacity-30',
-          isOver && 'bg-blue-50 dark:bg-blue-900/20',
+          isDragging && !isOverlay && 'opacity-0',
+          activeTaskId && activeTaskId !== task.id && !isDragging && 'opacity-40',
           task.pinnedGlobally && 'bg-blue-25 dark:bg-blue-950/20 border-l-2 border-blue-400',
           task.pinned && !task.pinnedGlobally && 'bg-gray-25 dark:bg-gray-800/30 border-l-2 border-gray-400'
         )}
@@ -464,3 +467,29 @@ export function TaskItem({ task, isDragEnabled = false, isOver = false, isDraggi
     </>
   );
 }
+
+// Memoized component with optimized comparison
+export const TaskItem = memo(TaskItemComponent, (prevProps, nextProps) => {
+  // Always re-render if task data changed
+  if (prevProps.task !== nextProps.task) return false;
+  
+  // Always re-render if drag state changed for THIS specific task
+  if (prevProps.isDragEnabled !== nextProps.isDragEnabled) return false;
+  if (prevProps.isDragging !== nextProps.isDragging) return false;
+  if (prevProps.isOverlay !== nextProps.isOverlay) return false;
+  
+  // Only re-render when activeTaskId changes in meaningful ways
+  const prevActive = !!prevProps.activeTaskId;
+  const nextActive = !!nextProps.activeTaskId;
+  const prevIsThisTask = prevProps.activeTaskId === prevProps.task.id;
+  const nextIsThisTask = nextProps.activeTaskId === nextProps.task.id;
+  
+  // Re-render if:
+  // 1. Drag state started/stopped (null to non-null or vice versa)
+  // 2. This task became the dragged task or stopped being the dragged task
+  if (prevActive !== nextActive) return false;
+  if (prevIsThisTask !== nextIsThisTask) return false;
+  
+  // No re-render needed - the visual state is the same
+  return true;
+});
