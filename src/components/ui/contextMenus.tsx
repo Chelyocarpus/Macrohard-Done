@@ -15,7 +15,8 @@ import {
   Palette,
   RotateCcw,
   Pin,
-  Globe
+  Globe,
+  Tag
 } from 'lucide-react';
 import type { Task, TaskList } from '../../types/index.ts';
 import type { ContextMenuData } from '../ui/ContextMenu.tsx';
@@ -34,6 +35,7 @@ export function createTaskContextMenu(
     onDuplicate: () => void;
     onAddToMyDay?: () => void;
     onSetDueDate?: () => void;
+    onManageCategories?: () => void;
   }
 ): ContextMenuData {
   return {
@@ -97,6 +99,16 @@ export function createTaskContextMenu(
             label: task.dueDate ? 'Change due date' : 'Set due date',
             icon: <Calendar size={16} />,
             onClick: actions.onSetDueDate || actions.onEdit,
+          },
+        ],
+      },
+      {
+        items: [
+          {
+            id: 'categories',
+            label: 'Manage categories',
+            icon: <Tag size={16} />,
+            onClick: actions.onManageCategories || actions.onEdit,
           },
         ],
       },

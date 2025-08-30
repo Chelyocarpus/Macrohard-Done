@@ -1,4 +1,4 @@
-import { Sun, Star, Calendar, CheckSquare, List, Plus, Search, Menu } from 'lucide-react';
+import { Sun, Star, Calendar, CheckSquare, List, Plus, Search, Menu, Tag, Settings } from 'lucide-react';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
@@ -6,6 +6,7 @@ import { cn } from '../utils/cn.ts';
 import { getListDisplayInfo } from '../utils/emojiUtils.ts';
 import { GroupedListSection } from './GroupedListSection.tsx';
 import { ListEditSidebar } from './ListEditSidebar.tsx';
+import { CategoryManager } from './CategoryManager.tsx';
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
@@ -19,17 +20,21 @@ interface SidebarProps {
 
 export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddListModal }: SidebarProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
   
   const {
     lists,
     currentView,
     currentListId,
+    currentCategoryId,
     searchQuery,
     sidebarCollapsed,
+    categories,
     setView,
     setSearchQuery,
     toggleSidebar,
     getTaskCountForList,
+    getTaskCountForCategory,
     getGroupedLists,
     moveListToGroup,
     reorderLists,
@@ -209,6 +214,82 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
             })}
           </div>
 
+          {/* Categories Section */}
+          {!sidebarCollapsed && (
+            <div className="p-2 border-t border-gray-200 dark:border-gray-700">
+              <div className="mb-2">
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 px-3 py-2 uppercase tracking-wide">
+                  Categories
+                </h3>
+              </div>
+              
+              {/* Categories List */}
+              <div className="space-y-1 mb-3">
+                {categories.slice(0, 5).map((category) => {
+                  const taskCount = getTaskCountForCategory(category.id);
+                  const isActive = currentView === 'category' && currentCategoryId === category.id;
+                  
+                  return (
+                    <button
+                      key={category.id}
+                      onClick={() => setView('category', undefined, category.id)}
+                      className={cn(
+                        'w-full flex items-center px-3 py-2 rounded-md text-left transition-colors',
+                        isActive
+                          ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      )}
+                    >
+                      <div className="flex items-center mr-3">
+                        {category.emoji && (
+                          <span className="mr-2">{category.emoji}</span>
+                        )}
+                        <div 
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: category.color }}
+                        />
+                      </div>
+                      <span className="flex-1 truncate">{category.name}</span>
+                      {taskCount > 0 && (
+                        <span className="text-xs bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full">
+                          {taskCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+                
+                {categories.length === 0 && (
+                  <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                    No categories yet
+                  </div>
+                )}
+              </div>
+              
+              {/* Manage Categories Button */}
+              <button
+                onClick={() => setShowCategoryManager(true)}
+                className="w-full flex items-center px-3 py-2 rounded-md text-left transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <Settings size={16} className="mr-3" />
+                <span>Manage Categories</span>
+              </button>
+            </div>
+          )}
+
+          {/* Collapsed Categories */}
+          {sidebarCollapsed && categories.length > 0 && (
+            <div className="p-2 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setShowCategoryManager(true)}
+                className="w-full flex items-center justify-center p-3 rounded-md transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                title="Categories"
+              >
+                <Tag size={20} />
+              </button>
+            </div>
+          )}
+
           {/* Custom Lists */}
           {!sidebarCollapsed && (
             <div className="p-2 border-t border-gray-200 dark:border-gray-700">
@@ -310,6 +391,18 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
         onClose={() => setShowAddListModal(false)}
         mode="create"
       />
+      
+      {/* Category Manager Modal */}
+      {showCategoryManager && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="max-w-2xl w-full max-h-[80vh] overflow-hidden">
+            <CategoryManager
+              onClose={() => setShowCategoryManager(false)}
+              className="w-full h-full"
+            />
+          </div>
+        </div>
+      )}
     </aside>
     </>
   );

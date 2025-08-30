@@ -6,6 +6,7 @@ import type { Task } from '../types/index.ts';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { Button } from './ui/Button.tsx';
 import { MarkdownDisplay } from './ui/MarkdownDisplay.tsx';
+import { CategoryBadge } from './CategoryBadge.tsx';
 import { cn } from '../utils/cn.ts';
 import { formatDate } from '../utils/dateUtils.ts';
 import { TaskDetailSidebar } from './TaskDetailSidebar.tsx';
@@ -21,7 +22,7 @@ interface TaskItemProps {
 }
 
 function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIsDragging = false, isOverlay = false, activeTaskId = null }: TaskItemProps) {
-  const { toggleTask, toggleImportant, toggleSubTask, lists, deleteTask, addTask, toggleMyDay, togglePin, toggleGlobalPin, getGroupForList } = useTaskStore();
+  const { toggleTask, toggleImportant, toggleSubTask, lists, deleteTask, addTask, toggleMyDay, togglePin, toggleGlobalPin, getGroupForList, getCategoriesForTask } = useTaskStore();
   
   // Destructure task properties for cleaner code
   const { 
@@ -40,6 +41,9 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
     pinned, 
     pinnedGlobally
   } = task;
+  
+  // Get task categories
+  const taskCategories = getCategoriesForTask(taskId);
   
 
   
@@ -133,6 +137,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
       onToggleGlobalPin: handleToggleGlobalPin,
       onDuplicate: handleDuplicate,
       onSetDueDate: handleEdit, // Opens edit sidebar for now
+      onManageCategories: handleEdit, // Opens edit sidebar where categories can be managed
     });
   });
 
@@ -322,6 +327,16 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                     <span className="whitespace-nowrap text-xs font-medium capitalize">{repeat}</span>
                   </div>
                 )}
+
+                {/* Category badges */}
+                {taskCategories.map((category) => (
+                  <CategoryBadge
+                    key={category.id}
+                    category={category}
+                    size="sm"
+                    variant="subtle"
+                  />
+                ))}
               </div>
 
               {/* Secondary metadata row - Additional info */}
