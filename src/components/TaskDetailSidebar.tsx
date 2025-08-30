@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
-import { X, Star, Calendar, Repeat, FileText, CheckSquare, Sun, Bell } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { X, Star, Calendar, Repeat, FileText, CheckSquare, Sun, Bell, Copy, Pin, Archive, List } from 'lucide-react';
 import type { Task } from '../types/index.ts';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
 import { MarkdownEditor } from './ui/MarkdownEditor.tsx';
 import { DateTimePicker } from './DateTimePicker.tsx';
+import { AutoSaveIndicator } from './ui/AutoSaveIndicator.tsx';
+import { useAutoSave } from '../hooks/useAutoSave.ts';
 import { cn } from '../utils/cn.ts';
 import { formatDate } from '../utils/dateUtils.ts';
 
@@ -18,16 +20,26 @@ interface TaskDetailSidebarProps {
 }
 
 export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }: TaskDetailSidebarProps) {
-  const { addTask, updateTask, toggleTask, deleteTask, addSubTask, toggleSubTask, deleteSubTask } = useTaskStore();
+  const { addTask, updateTask, toggleTask, deleteTask, addSubTask, toggleSubTask, deleteSubTask, togglePin, lists } = useTaskStore();
   
-  // Form state
-  const [title, setTitle] = useState(task?.title || '');
-  const [notes, setNotes] = useState(task?.notes || '');
-  const [important, setImportant] = useState(task?.important || false);
-  const [myDay, setMyDay] = useState(task?.myDay || false);
-  const [dueDate, setDueDate] = useState<Date | undefined>(task?.dueDate);
-  const [repeat, setRepeat] = useState<string>(task?.repeat || 'none');
-  const [repeatDays, setRepeatDays] = useState<number[]>(task?.repeatDays || [1, 2, 3, 4, 5, 6, 0]); // Default to all days
+  // Form state - using object destructuring for cleaner code
+  const { 
+    title: taskTitle = '', 
+    notes: taskNotes = '', 
+    important: taskImportant = false, 
+    myDay: taskMyDay = false, 
+    dueDate: taskDueDate, 
+    repeat: taskRepeat = 'none', 
+    repeatDays: taskRepeatDays = [1, 2, 3, 4, 5, 6, 0] 
+  } = task || {};
+  
+  const [title, setTitle] = useState(taskTitle);
+  const [notes, setNotes] = useState(taskNotes);
+  const [important, setImportant] = useState(taskImportant);
+  const [myDay, setMyDay] = useState(taskMyDay);
+  const [dueDate, setDueDate] = useState<Date | undefined>(taskDueDate);
+  const [repeat, setRepeat] = useState<string>(taskRepeat);
+  const [repeatDays, setRepeatDays] = useState<number[]>(taskRepeatDays);
   const [reminder, setReminder] = useState<Date | undefined>();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showReminderPicker, setShowReminderPicker] = useState(false);
@@ -37,17 +49,66 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
   const [newStepTitle, setNewStepTitle] = useState('');
   const [showAddStep, setShowAddStep] = useState(false);
   const [tempSteps, setTempSteps] = useState<Array<{ id: string; title: string; completed: boolean }>>([]);
+  const [showListSelector, setShowListSelector] = useState(false);
+
+  // Auto-save setup for edit mode
+  const autoSaveFunction = useCallback(() => {
+    if (mode === 'edit' && task) {
+      updateTask(task.id, {
+        title: title.trim(),
+        notes: notes.trim() || undefined,
+        important,
+        myDay,
+        dueDate,
+        reminder,
+        repeat: repeat as Task['repeat'],
+        repeatDays: repeat === 'daily' ? repeatDays : undefined,
+      });
+    }
+  }, [mode, task, updateTask, title, notes, important, myDay, dueDate, reminder, repeat, repeatDays]);
+
+  // Current form values for auto-save comparison
+  const currentValues = {
+    title,
+    notes,
+    important,
+    myDay,
+    dueDate,
+    reminder,
+    repeat,
+    repeatDays: repeat === 'daily' ? repeatDays : undefined,
+  };
+
+  // Original values from the task for comparison
+  const originalValues = {
+    title: taskTitle,
+    notes: taskNotes,
+    important: taskImportant,
+    myDay: taskMyDay,
+    dueDate: taskDueDate,
+    reminder: task?.reminder,
+    repeat: taskRepeat,
+    repeatDays: taskRepeat === 'daily' ? taskRepeatDays : undefined,
+  };
+
+  // Auto-save hook - only enabled in edit mode
+  const { saveStatus } = useAutoSave(
+    autoSaveFunction,
+    currentValues,
+    originalValues,
+    { enabled: mode === 'edit' && isOpen }
+  );
 
   // Reset form when task changes or modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setTitle(task?.title || '');
-      setNotes(task?.notes || '');
-      setImportant(task?.important || false);
-      setMyDay(task?.myDay || false);
-      setDueDate(task?.dueDate ? new Date(task.dueDate) : undefined);
-      setRepeat(task?.repeat || 'none');
-      setRepeatDays(task?.repeatDays || [1, 2, 3, 4, 5, 6, 0]); // Default to all days
+      setTitle(taskTitle);
+      setNotes(taskNotes);
+      setImportant(taskImportant);
+      setMyDay(taskMyDay);
+      setDueDate(taskDueDate ? new Date(taskDueDate) : undefined);
+      setRepeat(taskRepeat);
+      setRepeatDays(taskRepeatDays);
       setReminder(task?.reminder ? new Date(task.reminder) : undefined);
       setShowDatePicker(false);
       setShowReminderPicker(false);
@@ -59,9 +120,9 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
         setTempSteps([]);
       }
     }
-  }, [isOpen, task, mode]);
+  }, [isOpen, task, mode, taskTitle, taskNotes, taskImportant, taskMyDay, taskDueDate, taskRepeat, taskRepeatDays]);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (!title.trim()) return;
 
     if (mode === 'create') {
@@ -92,20 +153,58 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
     }
 
     onClose();
-  };
+  }, [mode, title, tempSteps, addTask, initialListId, important, myDay, dueDate, reminder, notes, repeat, repeatDays, task, updateTask, onClose]);
 
-  const handleToggleComplete = () => {
+  const handleToggleComplete = useCallback(() => {
     if (task) {
       toggleTask(task.id);
     }
-  };
+  }, [task, toggleTask]);
 
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     if (task && confirm('Are you sure you want to delete this task?')) {
       deleteTask(task.id);
       onClose();
     }
-  };
+  }, [task, deleteTask, onClose]);
+
+  const handleDuplicate = useCallback(() => {
+    if (task) {
+      const { title, listId, important, dueDate, notes, repeat, repeatDays, steps } = task;
+      addTask(title + ' (Copy)', listId || 'all', {
+        important,
+        myDay: false, // Don't add duplicate to My Day automatically
+        dueDate,
+        reminder: undefined, // Don't duplicate reminders
+        notes,
+        repeat,
+        repeatDays,
+        steps: steps.map(step => ({ title: step.title }))
+      });
+      onClose();
+    }
+  }, [task, addTask, onClose]);
+
+  const handleTogglePin = useCallback(() => {
+    if (task) {
+      togglePin(task.id);
+    }
+  }, [task, togglePin]);
+
+  const handleArchive = useCallback(() => {
+    if (task) {
+      toggleTask(task.id); // Complete the task to archive it
+      onClose();
+    }
+  }, [task, toggleTask, onClose]);
+
+  const handleMoveToList = useCallback((targetListId: string) => {
+    if (task) {
+      updateTask(task.id, { listId: targetListId });
+      setShowListSelector(false);
+      onClose();
+    }
+  }, [task, updateTask, onClose]);
 
   const handleDateSelect = (date: Date | null) => {
     setDueDate(date || undefined);
@@ -166,6 +265,62 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
       handleAddStep();
     }
   };
+
+  // Enhanced keyboard shortcuts
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (!isOpen) return;
+    
+    // Only handle shortcuts when not in input fields
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      return;
+    }
+
+    if (e.ctrlKey || e.metaKey) {
+      switch (e.key) {
+        case 's':
+          e.preventDefault();
+          if (mode === 'create' || !task) {
+            handleSave();
+          }
+          break;
+        case 'd':
+          e.preventDefault();
+          if (mode === 'edit' && task) {
+            handleDuplicate();
+          }
+          break;
+        case 'Delete':
+        case 'Backspace':
+          e.preventDefault();
+          if (mode === 'edit' && task) {
+            handleDelete();
+          }
+          break;
+      }
+    }
+
+    // Non-modifier shortcuts
+    switch (e.key) {
+      case 'Escape':
+        e.preventDefault();
+        onClose();
+        break;
+      case ' ':
+        if (e.target === document.body && task) {
+          e.preventDefault();
+          handleToggleComplete();
+        }
+        break;
+    }
+  }, [isOpen, mode, task, handleSave, handleDuplicate, handleDelete, handleToggleComplete, onClose]);
+
+  // Add keyboard event listener
+  useEffect(() => {
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, handleKeyDown]);
 
   if (!isOpen) return null;
 
@@ -697,41 +852,190 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
           </div>
         </div>
 
+        {/* List Selector Modal */}
+        {showListSelector && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-sm w-full mx-4">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Move to List
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Select a list to move this task to:
+                </p>
+              </div>
+              <div className="p-4 max-h-60 overflow-y-auto">
+                {lists.filter(list => list.id !== task?.listId && !list.isSystem).map(list => (
+                  <button
+                    key={list.id}
+                    onClick={() => handleMoveToList(list.id)}
+                    className="w-full text-left p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      {list.emoji && <span className="text-lg">{list.emoji}</span>}
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {list.name}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+                {lists.filter(list => list.id !== task?.listId && !list.isSystem).length === 0 && (
+                  <p className="text-center text-gray-500 dark:text-gray-400 py-4">
+                    No other lists available. Create a new list first.
+                  </p>
+                )}
+              </div>
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowListSelector(false)}
+                  className="w-full"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50">
-          <div className="flex justify-between items-center">
-            <div className="flex gap-3">
-              {mode === 'edit' && (
+          {/* Enhanced CRUD Actions for Edit Mode */}
+          {mode === 'edit' && task && (
+            <div className="space-y-4">
+              {/* Quick Actions Row */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Quick Actions:
+                  </span>
+                </div>
+                <AutoSaveIndicator status={saveStatus} />
+              </div>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {/* Duplicate Task */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDuplicate}
+                  className="flex items-center gap-2 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg transition-colors"
+                  title="Duplicate task (Ctrl+D)"
+                >
+                  <Copy size={16} />
+                  <span className="hidden sm:inline">Duplicate</span>
+                </Button>
+
+                {/* Pin Toggle */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleTogglePin}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors",
+                    task.pinned
+                      ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                      : "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-600"
+                  )}
+                  title={task.pinned ? "Unpin from list" : "Pin to list"}
+                >
+                  <Pin size={16} className={task.pinned ? 'fill-current' : ''} />
+                  <span className="hidden sm:inline">{task.pinned ? 'Unpin' : 'Pin'}</span>
+                </Button>
+
+                {/* Archive/Complete Toggle */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleArchive}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors",
+                    task.completed
+                      ? "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700 hover:bg-green-100 dark:hover:bg-green-900/30"
+                      : "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-600"
+                  )}
+                  title={task.completed ? "Mark as incomplete" : "Mark as complete"}
+                >
+                  <Archive size={16} />
+                  <span className="hidden sm:inline">{task.completed ? 'Restore' : 'Complete'}</span>
+                </Button>
+
+                {/* Move to List */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowListSelector(true)}
+                  className="flex items-center gap-2 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg transition-colors"
+                  title="Move to different list"
+                >
+                  <List size={16} />
+                  <span className="hidden sm:inline">Move</span>
+                </Button>
+              </div>
+
+              {/* Main Action Buttons */}
+              <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleDelete}
                   className="px-4 py-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg transition-colors"
+                  title="Delete task (Ctrl+Backspace)"
                 >
                   Delete task
                 </Button>
-              )}
+                
+                <div className="flex gap-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onClose}
+                    className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                    title="Close (Esc)"
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    onClick={handleSave}
+                    size="sm"
+                    variant="ghost"
+                    disabled={!title.trim()}
+                    className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-200 dark:border-gray-600"
+                    title="Save manually (Ctrl+S)"
+                  >
+                    Save manually
+                  </Button>
+                </div>
+              </div>
             </div>
-            
-            <div className="flex gap-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onClose}
-                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSave}
-                size="sm"
-                disabled={!title.trim()}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors shadow-sm"
-              >
-                {mode === 'create' ? 'Add task' : 'Save changes'}
-              </Button>
+          )}
+
+          {/* Create Mode Footer */}
+          {mode === 'create' && (
+            <div className="flex justify-between items-center">
+              <div></div>
+              <div className="flex gap-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onClose}
+                  className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                  title="Cancel (Esc)"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  size="sm"
+                  disabled={!title.trim()}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors shadow-sm"
+                  title="Add task (Ctrl+S)"
+                >
+                  Add task
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 

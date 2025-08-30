@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Smile, Trash2 } from 'lucide-react';
 import type { TaskList } from '../types/index.ts';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
 import { EmojiPicker } from './EmojiPicker.tsx';
+import { AutoSaveIndicator } from './ui/AutoSaveIndicator.tsx';
+import { useAutoSave } from '../hooks/useAutoSave.ts';
 import { cn } from '../utils/cn.ts';
 import { getListDisplayInfo, extractFirstEmoji, removeFirstEmoji } from '../utils/emojiUtils.ts';
 
@@ -19,10 +21,16 @@ interface ListEditSidebarProps {
 export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEditSidebarProps) {
   const { addList, updateList, deleteList } = useTaskStore();
   
-  // Form state
-  const [name, setName] = useState(list?.name || '');
-  const [emoji, setEmoji] = useState(list?.emoji || '');
-  const [color, setColor] = useState(list?.color || '#3b82f6');
+  // Form state - using object destructuring for cleaner code
+  const { 
+    name: listName = '', 
+    emoji: listEmoji = '', 
+    color: listColor = '#3b82f6' 
+  } = list || {};
+  
+  const [name, setName] = useState(listName);
+  const [emoji, setEmoji] = useState(listEmoji);
+  const [color, setColor] = useState(listColor);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Color options
@@ -80,6 +88,39 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
     '#f472b6', // pink-400
   ];
 
+  // Auto-save setup for edit mode
+  const autoSaveFunction = useCallback(() => {
+    if (mode === 'edit' && list && name.trim()) {
+      updateList(list.id, {
+        name: name.trim(),
+        emoji,
+        color,
+      });
+    }
+  }, [mode, list, updateList, name, emoji, color]);
+
+  // Current form values for auto-save comparison
+  const currentValues = {
+    name: name.trim(),
+    emoji,
+    color,
+  };
+
+  // Original values from the list for comparison
+  const originalValues = {
+    name: listName,
+    emoji: listEmoji,
+    color: listColor,
+  };
+
+  // Auto-save hook - only enabled in edit mode
+  const { saveStatus } = useAutoSave(
+    autoSaveFunction,
+    currentValues,
+    originalValues,
+    { enabled: mode === 'edit' && isOpen }
+  );
+
   // Reset form when list changes or modal opens/closes
   useEffect(() => {
     if (isOpen) {
@@ -93,10 +134,10 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
         setName('');
         setEmoji('');
       }
-      setColor(list?.color || '#3b82f6');
+      setColor(listColor);
       setShowEmojiPicker(false);
     }
-  }, [isOpen, list]);
+  }, [isOpen, list, listColor]);
 
   const handleSave = () => {
     if (!name.trim()) return;
@@ -308,7 +349,7 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
         {/* Footer */}
         <div className="p-4 border-t border-gray-200 dark:border-gray-700">
           <div className="flex justify-between items-center">
-            <div>
+            <div className="flex items-center gap-3">
               {mode === 'edit' && list && !list.isSystem && (
                 <Button
                   variant="ghost"
@@ -320,6 +361,11 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
                   Delete list
                 </Button>
               )}
+              
+              {/* Auto-save indicator for edit mode */}
+              {mode === 'edit' && list && (
+                <AutoSaveIndicator status={saveStatus} />
+              )}
             </div>
             
             <div className="flex gap-2">
@@ -330,13 +376,24 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
               >
                 Cancel
               </Button>
-              <Button
-                onClick={handleSave}
-                size="sm"
-                disabled={!name.trim()}
-              >
-                {mode === 'create' ? 'Create list' : 'Save'}
-              </Button>
+              {mode === 'create' ? (
+                <Button
+                  onClick={handleSave}
+                  size="sm"
+                  disabled={!name.trim()}
+                >
+                  Create list
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleSave}
+                  size="sm"
+                  variant="secondary"
+                  disabled={!name.trim()}
+                >
+                  Save manually
+                </Button>
+              )}
             </div>
           </div>
         </div>

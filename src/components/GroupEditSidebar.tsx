@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Smile, Trash2 } from 'lucide-react';
 import type { ListGroup } from '../types/index.ts';
 import { useTaskStore } from '../stores/taskStore.ts';
@@ -6,6 +6,8 @@ import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
 import { EmojiPicker } from './EmojiPicker.tsx';
 import { IconOverrideControl } from './ui/IconOverrideControl.tsx';
+import { AutoSaveIndicator } from './ui/AutoSaveIndicator.tsx';
+import { useAutoSave } from '../hooks/useAutoSave.ts';
 import { cn } from '../utils/cn.ts';
 import { extractFirstEmoji, removeFirstEmoji } from '../utils/emojiUtils.ts';
 
@@ -19,11 +21,18 @@ interface GroupEditSidebarProps {
 export function GroupEditSidebar({ group, isOpen, onClose, mode }: GroupEditSidebarProps) {
   const { addGroup, updateGroup, deleteGroup, getListsInGroup } = useTaskStore();
   
-  // Form state
-  const [name, setName] = useState(group?.name || '');
-  const [emoji, setEmoji] = useState(group?.emoji || '');
-  const [color, setColor] = useState(group?.color || '#3b82f6');
-  const [overrideListIcons, setOverrideListIcons] = useState(group?.overrideListIcons || false);
+  // Form state - using object destructuring for cleaner code
+  const { 
+    name: groupName = '', 
+    emoji: groupEmoji = '', 
+    color: groupColor = '#3b82f6', 
+    overrideListIcons: groupOverrideListIcons = false 
+  } = group || {};
+  
+  const [name, setName] = useState(groupName);
+  const [emoji, setEmoji] = useState(groupEmoji);
+  const [color, setColor] = useState(groupColor);
+  const [overrideListIcons, setOverrideListIcons] = useState(groupOverrideListIcons);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Color options
@@ -84,14 +93,50 @@ export function GroupEditSidebar({ group, isOpen, onClose, mode }: GroupEditSide
   // Get lists in this group for preview
   const groupLists = group ? getListsInGroup(group.id) : [];
 
+  // Auto-save setup for edit mode
+  const autoSaveFunction = useCallback(() => {
+    if (mode === 'edit' && group && name.trim()) {
+      updateGroup(group.id, {
+        name: name.trim(),
+        emoji,
+        color,
+        overrideListIcons,
+      });
+    }
+  }, [mode, group, updateGroup, name, emoji, color, overrideListIcons]);
+
+  // Current form values for auto-save comparison
+  const currentValues = {
+    name: name.trim(),
+    emoji,
+    color,
+    overrideListIcons,
+  };
+
+  // Original values from the group for comparison
+  const originalValues = {
+    name: groupName,
+    emoji: groupEmoji,
+    color: groupColor,
+    overrideListIcons: groupOverrideListIcons,
+  };
+
+  // Auto-save hook - only enabled in edit mode
+  const { saveStatus } = useAutoSave(
+    autoSaveFunction,
+    currentValues,
+    originalValues,
+    { enabled: mode === 'edit' && isOpen }
+  );
+
   // Reset form when group changes or modal opens/closes
   useEffect(() => {
     if (isOpen) {
       if (group) {
-        setName(group.name);
-        setEmoji(group.emoji || '');
-        setColor(group.color || '#3b82f6');
-        setOverrideListIcons(group.overrideListIcons || false);
+        setName(groupName);
+        setEmoji(groupEmoji);
+        setColor(groupColor);
+        setOverrideListIcons(groupOverrideListIcons);
       } else {
         setName('');
         setEmoji('');
@@ -100,7 +145,7 @@ export function GroupEditSidebar({ group, isOpen, onClose, mode }: GroupEditSide
       }
       setShowEmojiPicker(false);
     }
-  }, [isOpen, group]);
+  }, [isOpen, group, groupName, groupEmoji, groupColor, groupOverrideListIcons]);
 
   const handleSave = () => {
     if (!name.trim()) return;
@@ -357,7 +402,7 @@ export function GroupEditSidebar({ group, isOpen, onClose, mode }: GroupEditSide
         {/* Footer */}
         <div className="p-4 border-t border-gray-200 dark:border-gray-700">
           <div className="flex justify-between items-center">
-            <div>
+            <div className="flex items-center gap-3">
               {mode === 'edit' && group && (
                 <Button
                   variant="ghost"
@@ -369,6 +414,11 @@ export function GroupEditSidebar({ group, isOpen, onClose, mode }: GroupEditSide
                   Delete group
                 </Button>
               )}
+              
+              {/* Auto-save indicator for edit mode */}
+              {mode === 'edit' && group && (
+                <AutoSaveIndicator status={saveStatus} />
+              )}
             </div>
             
             <div className="flex gap-2">
@@ -379,13 +429,24 @@ export function GroupEditSidebar({ group, isOpen, onClose, mode }: GroupEditSide
               >
                 Cancel
               </Button>
-              <Button
-                onClick={handleSave}
-                size="sm"
-                disabled={!name.trim()}
-              >
-                {mode === 'create' ? 'Create group' : 'Save'}
-              </Button>
+              {mode === 'create' ? (
+                <Button
+                  onClick={handleSave}
+                  size="sm"
+                  disabled={!name.trim()}
+                >
+                  Create group
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleSave}
+                  size="sm"
+                  variant="secondary"
+                  disabled={!name.trim()}
+                >
+                  Save manually
+                </Button>
+              )}
             </div>
           </div>
         </div>
