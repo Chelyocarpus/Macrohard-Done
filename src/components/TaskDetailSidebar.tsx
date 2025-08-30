@@ -20,16 +20,26 @@ interface TaskDetailSidebarProps {
 }
 
 export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }: TaskDetailSidebarProps) {
-  const { addTask, updateTask, toggleTask, deleteTask, addSubTask, toggleSubTask, deleteSubTask, togglePin } = useTaskStore();
+  const { addTask, updateTask, toggleTask, deleteTask, addSubTask, toggleSubTask, deleteSubTask, togglePin, lists } = useTaskStore();
   
-  // Form state
-  const [title, setTitle] = useState(task?.title || '');
-  const [notes, setNotes] = useState(task?.notes || '');
-  const [important, setImportant] = useState(task?.important || false);
-  const [myDay, setMyDay] = useState(task?.myDay || false);
-  const [dueDate, setDueDate] = useState<Date | undefined>(task?.dueDate);
-  const [repeat, setRepeat] = useState<string>(task?.repeat || 'none');
-  const [repeatDays, setRepeatDays] = useState<number[]>(task?.repeatDays || [1, 2, 3, 4, 5, 6, 0]); // Default to all days
+  // Form state - using object destructuring for cleaner code
+  const { 
+    title: taskTitle = '', 
+    notes: taskNotes = '', 
+    important: taskImportant = false, 
+    myDay: taskMyDay = false, 
+    dueDate: taskDueDate, 
+    repeat: taskRepeat = 'none', 
+    repeatDays: taskRepeatDays = [1, 2, 3, 4, 5, 6, 0] 
+  } = task || {};
+  
+  const [title, setTitle] = useState(taskTitle);
+  const [notes, setNotes] = useState(taskNotes);
+  const [important, setImportant] = useState(taskImportant);
+  const [myDay, setMyDay] = useState(taskMyDay);
+  const [dueDate, setDueDate] = useState<Date | undefined>(taskDueDate);
+  const [repeat, setRepeat] = useState<string>(taskRepeat);
+  const [repeatDays, setRepeatDays] = useState<number[]>(taskRepeatDays);
   const [reminder, setReminder] = useState<Date | undefined>();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showReminderPicker, setShowReminderPicker] = useState(false);
@@ -39,6 +49,7 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
   const [newStepTitle, setNewStepTitle] = useState('');
   const [showAddStep, setShowAddStep] = useState(false);
   const [tempSteps, setTempSteps] = useState<Array<{ id: string; title: string; completed: boolean }>>([]);
+  const [showListSelector, setShowListSelector] = useState(false);
 
   // Auto-save setup for edit mode
   const autoSaveFunction = useCallback(() => {
@@ -70,14 +81,14 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
 
   // Original values from the task for comparison
   const originalValues = {
-    title: task?.title || '',
-    notes: task?.notes || '',
-    important: task?.important || false,
-    myDay: task?.myDay || false,
-    dueDate: task?.dueDate,
+    title: taskTitle,
+    notes: taskNotes,
+    important: taskImportant,
+    myDay: taskMyDay,
+    dueDate: taskDueDate,
     reminder: task?.reminder,
-    repeat: task?.repeat || 'none',
-    repeatDays: task?.repeat === 'daily' ? task?.repeatDays : undefined,
+    repeat: taskRepeat,
+    repeatDays: taskRepeat === 'daily' ? taskRepeatDays : undefined,
   };
 
   // Auto-save hook - only enabled in edit mode
@@ -91,13 +102,13 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
   // Reset form when task changes or modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setTitle(task?.title || '');
-      setNotes(task?.notes || '');
-      setImportant(task?.important || false);
-      setMyDay(task?.myDay || false);
-      setDueDate(task?.dueDate ? new Date(task.dueDate) : undefined);
-      setRepeat(task?.repeat || 'none');
-      setRepeatDays(task?.repeatDays || [1, 2, 3, 4, 5, 6, 0]); // Default to all days
+      setTitle(taskTitle);
+      setNotes(taskNotes);
+      setImportant(taskImportant);
+      setMyDay(taskMyDay);
+      setDueDate(taskDueDate ? new Date(taskDueDate) : undefined);
+      setRepeat(taskRepeat);
+      setRepeatDays(taskRepeatDays);
       setReminder(task?.reminder ? new Date(task.reminder) : undefined);
       setShowDatePicker(false);
       setShowReminderPicker(false);
@@ -109,7 +120,7 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
         setTempSteps([]);
       }
     }
-  }, [isOpen, task, mode]);
+  }, [isOpen, task, mode, taskTitle, taskNotes, taskImportant, taskMyDay, taskDueDate, taskRepeat, taskRepeatDays]);
 
   const handleSave = useCallback(() => {
     if (!title.trim()) return;
@@ -159,15 +170,16 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
 
   const handleDuplicate = useCallback(() => {
     if (task) {
-      addTask(task.title + ' (Copy)', task.listId || 'all', {
-        important: task.important,
+      const { title, listId, important, dueDate, notes, repeat, repeatDays, steps } = task;
+      addTask(title + ' (Copy)', listId || 'all', {
+        important,
         myDay: false, // Don't add duplicate to My Day automatically
-        dueDate: task.dueDate,
+        dueDate,
         reminder: undefined, // Don't duplicate reminders
-        notes: task.notes,
-        repeat: task.repeat,
-        repeatDays: task.repeatDays,
-        steps: task.steps.map(step => ({ title: step.title }))
+        notes,
+        repeat,
+        repeatDays,
+        steps: steps.map(step => ({ title: step.title }))
       });
       onClose();
     }
@@ -185,6 +197,14 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
       onClose();
     }
   }, [task, toggleTask, onClose]);
+
+  const handleMoveToList = useCallback((targetListId: string) => {
+    if (task) {
+      updateTask(task.id, { listId: targetListId });
+      setShowListSelector(false);
+      onClose();
+    }
+  }, [task, updateTask, onClose]);
 
   const handleDateSelect = (date: Date | null) => {
     setDueDate(date || undefined);
@@ -832,6 +852,52 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
           </div>
         </div>
 
+        {/* List Selector Modal */}
+        {showListSelector && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-sm w-full mx-4">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Move to List
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Select a list to move this task to:
+                </p>
+              </div>
+              <div className="p-4 max-h-60 overflow-y-auto">
+                {lists.filter(list => list.id !== task?.listId && !list.isSystem).map(list => (
+                  <button
+                    key={list.id}
+                    onClick={() => handleMoveToList(list.id)}
+                    className="w-full text-left p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      {list.emoji && <span className="text-lg">{list.emoji}</span>}
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {list.name}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+                {lists.filter(list => list.id !== task?.listId && !list.isSystem).length === 0 && (
+                  <p className="text-center text-gray-500 dark:text-gray-400 py-4">
+                    No other lists available. Create a new list first.
+                  </p>
+                )}
+              </div>
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowListSelector(false)}
+                  className="w-full"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50">
           {/* Enhanced CRUD Actions for Edit Mode */}
@@ -898,7 +964,7 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => {/* TODO: Implement list selector */}}
+                  onClick={() => setShowListSelector(true)}
                   className="flex items-center gap-2 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg transition-colors"
                   title="Move to different list"
                 >

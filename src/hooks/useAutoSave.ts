@@ -6,6 +6,7 @@ interface UseAutoSaveOptions {
   enabled?: boolean;
   debounceMs?: number;
   showSavedDuration?: number;
+  customValidator?: (values: Record<string, unknown>) => boolean;
 }
 
 interface UseAutoSaveReturn {
@@ -26,7 +27,8 @@ export function useAutoSave(
   const {
     enabled = true,
     debounceMs = 500,
-    showSavedDuration = 2000
+    showSavedDuration = 2000,
+    customValidator
   } = options;
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
@@ -66,7 +68,7 @@ export function useAutoSave(
 
       // Handle arrays (for repeatDays)
       if (Array.isArray(currentValue) && Array.isArray(originalValue)) {
-        return JSON.stringify(currentValue.sort()) !== JSON.stringify(originalValue.sort());
+        return JSON.stringify([...currentValue].sort()) !== JSON.stringify([...originalValue].sort());
       }
 
       // Handle basic value comparison
@@ -78,14 +80,20 @@ export function useAutoSave(
   const isValid = useCallback(() => {
     const current = valuesRef.current;
     
-    // Don't save if title is empty or only whitespace
+    // Use custom validator if provided
+    if (customValidator) {
+      return customValidator(current);
+    }
+    
+    // Default validation: Don't save if title field exists and is empty/whitespace
+    // This preserves backward compatibility while being more flexible
     if (current.title !== undefined && typeof current.title === 'string' && (!current.title || !current.title.trim())) {
       return false;
     }
 
-    // Add other validation rules as needed
+    // Allow forms without a title field to be saved by default
     return true;
-  }, []);
+  }, [customValidator]);
 
   // Trigger save function
   const triggerSave = useCallback(async () => {

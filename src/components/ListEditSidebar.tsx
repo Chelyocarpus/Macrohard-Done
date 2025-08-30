@@ -21,10 +21,16 @@ interface ListEditSidebarProps {
 export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEditSidebarProps) {
   const { addList, updateList, deleteList } = useTaskStore();
   
-  // Form state
-  const [name, setName] = useState(list?.name || '');
-  const [emoji, setEmoji] = useState(list?.emoji || '');
-  const [color, setColor] = useState(list?.color || '#3b82f6');
+  // Form state - using object destructuring for cleaner code
+  const { 
+    name: listName = '', 
+    emoji: listEmoji = '', 
+    color: listColor = '#3b82f6' 
+  } = list || {};
+  
+  const [name, setName] = useState(listName);
+  const [emoji, setEmoji] = useState(listEmoji);
+  const [color, setColor] = useState(listColor);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Color options
@@ -102,9 +108,9 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
 
   // Original values from the list for comparison
   const originalValues = {
-    name: list?.name || '',
-    emoji: list?.emoji || '',
-    color: list?.color || '#3b82f6',
+    name: listName,
+    emoji: listEmoji,
+    color: listColor,
   };
 
   // Auto-save hook - only enabled in edit mode
@@ -128,10 +134,10 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
         setName('');
         setEmoji('');
       }
-      setColor(list?.color || '#3b82f6');
+      setColor(listColor);
       setShowEmojiPicker(false);
     }
-  }, [isOpen, list]);
+  }, [isOpen, list, listColor]);
 
   const handleSave = () => {
     if (!name.trim()) return;
@@ -357,7 +363,7 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
               )}
               
               {/* Auto-save indicator for edit mode */}
-              {mode === 'edit' && (
+              {mode === 'edit' && list && (
                 <AutoSaveIndicator status={saveStatus} />
               )}
             </div>

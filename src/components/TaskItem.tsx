@@ -23,11 +23,29 @@ interface TaskItemProps {
 function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIsDragging = false, isOverlay = false, activeTaskId = null }: TaskItemProps) {
   const { toggleTask, toggleImportant, toggleSubTask, lists, deleteTask, addTask, toggleMyDay, togglePin, toggleGlobalPin, getGroupForList } = useTaskStore();
   
+  // Destructure task properties for cleaner code
+  const { 
+    id: taskId, 
+    title, 
+    listId, 
+    completed, 
+    important, 
+    myDay, 
+    dueDate, 
+    reminder, 
+    notes, 
+    repeat, 
+    repeatDays, 
+    steps, 
+    pinned, 
+    pinnedGlobally
+  } = task;
+  
 
   
   // Only use sortable hook if drag is enabled
   const sortable = useSortable({ 
-    id: task.id,
+    id: taskId,
     disabled: !isDragEnabled
   });
   const {
@@ -45,7 +63,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
   const [showSteps, setShowSteps] = useState(false);
 
   // Get the list this task belongs to
-  const taskList = lists.find(list => list.id === task.listId);
+  const taskList = lists.find(list => list.id === listId);
   const listColor = taskList?.color;
 
   // Check if group has icon override enabled
@@ -53,11 +71,11 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
   const displayEmoji = (group?.overrideListIcons && group.emoji) ? group.emoji : taskList?.emoji;
 
   const handleToggleComplete = () => {
-    toggleTask(task.id);
+    toggleTask(taskId);
   };
 
   const handleToggleImportant = () => {
-    toggleImportant(task.id);
+    toggleImportant(taskId);
   };
 
   const handleEdit = () => {
@@ -65,40 +83,40 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
   };
 
   const handleDelete = () => {
-    deleteTask(task.id);
+    deleteTask(taskId);
   };
 
   const handleDuplicate = () => {
-    addTask(task.title, task.listId, {
-      important: task.important,
-      dueDate: task.dueDate,
-      reminder: task.reminder,
-      notes: task.notes,
-      myDay: task.myDay,
-      repeat: task.repeat,
-      repeatDays: task.repeatDays,
+    addTask(title, listId, {
+      important,
+      dueDate,
+      reminder,
+      notes,
+      myDay,
+      repeat,
+      repeatDays,
     });
   };
 
   const handleToggleMyDay = () => {
-    toggleMyDay(task.id);
+    toggleMyDay(taskId);
   };
 
   const handleTogglePin = () => {
-    togglePin(task.id);
+    togglePin(taskId);
   };
 
   const handleToggleGlobalPin = () => {
-    toggleGlobalPin(task.id);
+    toggleGlobalPin(taskId);
   };
 
   const handleToggleStep = (stepId: string) => {
-    toggleSubTask(task.id, stepId);
+    toggleSubTask(taskId, stepId);
   };
 
   const handleTaskClick = () => {
     // Only toggle steps if the task has steps
-    if (task.steps.length > 0) {
+    if (steps.length > 0) {
       setShowSteps(!showSteps);
     }
   };
@@ -134,12 +152,12 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
         style={style}
         className={cn(
           'task-item group p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors relative overflow-hidden',
-          task.completed && 'opacity-75',
-          task.steps.length > 0 && 'cursor-pointer',
+          completed && 'opacity-75',
+          steps.length > 0 && 'cursor-pointer',
           isDragging && !isOverlay && 'opacity-0',
-          activeTaskId && activeTaskId !== task.id && !isDragging && 'opacity-40',
-          task.pinnedGlobally && 'bg-blue-25 dark:bg-blue-950/20 border-l-2 border-blue-400',
-          task.pinned && !task.pinnedGlobally && 'bg-gray-25 dark:bg-gray-800/30 border-l-2 border-gray-400'
+          activeTaskId && activeTaskId !== taskId && !isDragging && 'opacity-40',
+          pinnedGlobally && 'bg-blue-25 dark:bg-blue-950/20 border-l-2 border-blue-400',
+          pinned && !pinnedGlobally && 'bg-gray-25 dark:bg-gray-800/30 border-l-2 border-gray-400'
         )}
         onClick={handleTaskClick}
         onContextMenu={handleContextMenu}
@@ -176,12 +194,12 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
             }}
             className={cn(
               'mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0',
-              task.completed
+              completed
                 ? 'bg-primary-600 border-primary-600 text-white'
                 : 'border-gray-300 dark:border-gray-600 hover:border-primary-500'
             )}
           >
-            {task.completed && (
+            {completed && (
               <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                 <path
                   fillRule="evenodd"
@@ -197,7 +215,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
             <div className="flex items-start gap-2">
               <div className={cn(
                 'text-gray-900 dark:text-white font-medium leading-normal flex-1',
-                task.completed && 'line-through'
+                completed && 'line-through'
               )}
               style={{ 
                 wordWrap: 'break-word',
@@ -208,7 +226,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                 minHeight: 'auto'
               }}
               >
-                {task.title}
+                {title}
               </div>
               
               {/* Custom list name tag - positioned close to the color border */}
@@ -240,18 +258,18 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
               {/* Primary metadata row - High priority items */}
               <div className="flex items-center gap-3 text-sm flex-wrap min-w-0 overflow-hidden">
                 {/* Due Date with enhanced visual hierarchy */}
-                {task.dueDate && (
+                {dueDate && (
                   <div className={cn(
                     "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
                     "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
                   )}>
                     <Calendar size={14} className="flex-shrink-0" />
-                    <span className="whitespace-nowrap text-xs font-medium">{formatDate(task.dueDate)}</span>
+                    <span className="whitespace-nowrap text-xs font-medium">{formatDate(dueDate)}</span>
                   </div>
                 )}
 
                 {/* Reminder indicator */}
-                {task.reminder && (
+                {reminder && (
                   <div className={cn(
                     "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
                     "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300"
@@ -262,7 +280,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                 )}
 
                 {/* My Day indicator with enhanced styling */}
-                {task.myDay && (
+                {myDay && (
                   <div className={cn(
                     "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
                     "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-300"
@@ -273,7 +291,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                 )}
 
                 {/* Global Pin indicator */}
-                {task.pinnedGlobally && (
+                {pinnedGlobally && (
                   <div className={cn(
                     "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
                     "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
@@ -284,7 +302,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                 )}
 
                 {/* List Pin indicator (only show if not globally pinned) */}
-                {task.pinned && !task.pinnedGlobally && (
+                {pinned && !pinnedGlobally && (
                   <div className={cn(
                     "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
                     "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300"
@@ -295,13 +313,13 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                 )}
 
                 {/* Repeat indicator with icon */}
-                {task.repeat && task.repeat !== 'none' && (
+                {repeat && repeat !== 'none' && (
                   <div className={cn(
                     "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
                     "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300"
                   )}>
                     <Repeat size={14} className="flex-shrink-0" />
-                    <span className="whitespace-nowrap text-xs font-medium capitalize">{task.repeat}</span>
+                    <span className="whitespace-nowrap text-xs font-medium capitalize">{repeat}</span>
                   </div>
                 )}
               </div>
@@ -309,7 +327,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
               {/* Secondary metadata row - Additional info */}
               <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 flex-wrap min-w-0 overflow-hidden">
                 {/* Steps indicator with enhanced styling */}
-                {task.steps.length > 0 && (
+                {steps.length > 0 && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -323,7 +341,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                   >
                     <CheckSquare size={14} className="flex-shrink-0" />
                     <span className="whitespace-nowrap text-xs font-medium">
-                      {task.steps.filter((step) => step.completed).length} of {task.steps.length} steps
+                      {steps.filter((step) => step.completed).length} of {steps.length} steps
                     </span>
                     <svg 
                       className={cn("w-3 h-3 transition-transform", showSteps && "rotate-180")} 
@@ -336,7 +354,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                 )}
 
                 {/* Notes indicator */}
-                {task.notes && (
+                {notes && (
                   <div className={cn(
                     "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
                     "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300"
@@ -348,10 +366,10 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
               </div>
 
               {/* Notes - Always visible if they exist */}
-              {task.notes && (
+              {notes && (
                 <div className="bg-gray-50 dark:bg-gray-800/30 p-3 rounded border border-gray-100 dark:border-gray-700">
                   <MarkdownDisplay 
-                    content={task.notes} 
+                    content={notes} 
                     inline={true}
                     className="text-sm"
                   />
@@ -359,10 +377,10 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
               )}
               
               {/* Steps - Expandable if they exist */}
-              {task.steps.length > 0 && showSteps && (
+              {steps.length > 0 && showSteps && (
                 <div className="w-full min-w-0 overflow-hidden">
                   <div className="space-y-2">
-                    {task.steps.map((step) => (
+                    {steps.map((step) => (
                       <div 
                         key={step.id} 
                         className="flex items-start gap-2 p-2 bg-gray-50 dark:bg-gray-800/30 rounded border border-gray-100 dark:border-gray-700 w-full min-h-fit" 
@@ -415,12 +433,12 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
               }}
               className={cn(
                 'p-1.5 h-7 w-7 rounded-full transition-all duration-200 flex-shrink-0',
-                task.important 
+                important 
                   ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 shadow-sm' 
                   : 'text-gray-400 dark:text-gray-500 hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
               )}
             >
-              <Star size={14} className={task.important ? 'fill-current' : ''} />
+              <Star size={14} className={important ? 'fill-current' : ''} />
             </Button>
 
             {/* Pin - always visible when pinned, hover visible when not */}
@@ -433,12 +451,12 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
               }}
               className={cn(
                 'p-1.5 h-7 w-7 rounded-full transition-all duration-200 flex-shrink-0',
-                task.pinned || task.pinnedGlobally
+                pinned || pinnedGlobally
                   ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 shadow-sm' 
                   : 'text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'
               )}
             >
-              <Pin size={14} className={(task.pinned || task.pinnedGlobally) ? 'fill-current' : ''} />
+              <Pin size={14} className={(pinned || pinnedGlobally) ? 'fill-current' : ''} />
             </Button>
 
             {/* Edit - only visible on hover */}
