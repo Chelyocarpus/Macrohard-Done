@@ -4,6 +4,16 @@ import { CategoryBadge } from './CategoryBadge.tsx';
 import { cn } from '../utils/cn.ts';
 import { Plus } from 'lucide-react';
 
+// Utility function to deduplicate category IDs
+const deduplicateCategoryIds = (categoryIds: string[]): string[] => {
+  return Array.from(new Set(categoryIds.filter(id => id && id.trim() !== '')));
+};
+
+// Utility function to normalize category names for comparison
+const normalizeCategoryName = (name: string): string => {
+  return name.trim().toLowerCase().replace(/\s+/g, ' ');
+};
+
 interface CategorySelectorProps {
   selectedCategoryIds: string[];
   onChange: (categoryIds: string[]) => void;
@@ -28,6 +38,15 @@ export function CategorySelector({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Ensure selectedCategoryIds are deduplicated
+  useEffect(() => {
+    const deduplicated = deduplicateCategoryIds(selectedCategoryIds);
+    if (deduplicated.length !== selectedCategoryIds.length || 
+        deduplicated.some((id, index) => id !== selectedCategoryIds[index])) {
+      onChange(deduplicated);
+    }
+  }, [selectedCategoryIds, onChange]);
+
   const selectedCategories = useMemo(() => 
     categories.filter(cat => selectedCategoryIds.includes(cat.id)), 
     [categories, selectedCategoryIds]
@@ -42,11 +61,13 @@ export function CategorySelector({
     [categories, searchQuery, selectedCategoryIds]
   );
 
-  const canCreateNew = useMemo(() => 
-    searchQuery.trim() && 
-    !categories.some(cat => cat.name.toLowerCase() === searchQuery.toLowerCase()),
-    [searchQuery, categories]
-  );
+  const canCreateNew = useMemo(() => {
+    const trimmedQuery = searchQuery.trim();
+    if (!trimmedQuery) return false;
+    
+    const normalizedQuery = normalizeCategoryName(trimmedQuery);
+    return !categories.some(cat => normalizeCategoryName(cat.name) === normalizedQuery);
+  }, [searchQuery, categories]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -106,7 +127,8 @@ export function CategorySelector({
   };
 
   const handleSelectCategory = useCallback((categoryId: string) => {
-    onChange([...selectedCategoryIds, categoryId]);
+    const newCategoryIds = deduplicateCategoryIds([...selectedCategoryIds, categoryId]);
+    onChange(newCategoryIds);
     setSearchQuery('');
     setHoveredIndex(-1);
   }, [onChange, selectedCategoryIds]);
@@ -122,13 +144,19 @@ export function CategorySelector({
     if (onCreateCategory) {
       onCreateCategory(categoryName);
     } else {
-      // Create the category and automatically select it
-      const newCategory = addCategory(categoryName);
-      
-      // Use setTimeout to prevent conflicts between state updates
-      setTimeout(() => {
-        onChange([...selectedCategoryIds, newCategory.id]);
-      }, 0);
+      try {
+        // Create the category and automatically select it
+        const newCategory = addCategory(categoryName);
+        
+        // Use setTimeout to prevent conflicts between state updates
+        setTimeout(() => {
+          const newCategoryIds = deduplicateCategoryIds([...selectedCategoryIds, newCategory.id]);
+          onChange(newCategoryIds);
+        }, 0);
+      } catch (error) {
+        // Error is already handled by the addCategory function with toast messages
+        console.warn('Failed to create category:', error);
+      }
     }
     setSearchQuery('');
     setHoveredIndex(-1);

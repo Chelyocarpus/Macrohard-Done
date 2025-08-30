@@ -251,7 +251,7 @@ export function GroupedListSection({
   };
 
   const handleDeleteGroup = () => {
-    if (group && confirm(`Delete group "${group.name}"? Lists will be moved to ungrouped.`)) {
+    if (group && confirm(`Remove group "${group.name}"? Lists will be moved to ungrouped.`)) {
       deleteGroup(group.id, null);
     }
     setShowGroupMenu(false);

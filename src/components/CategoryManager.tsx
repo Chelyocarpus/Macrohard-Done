@@ -131,10 +131,10 @@ export function CategoryManager({ onClose, className }: CategoryManagerProps) {
         {modal.type === 'delete' && modal.category && (
           <div className="mb-6 p-4 border border-red-200 dark:border-red-800 rounded-lg bg-red-50 dark:bg-red-900/20">
             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-              Delete Category
+              Remove Category
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Are you sure you want to delete "{modal.category.name}"? This action will remove the category from all tasks and cannot be undone.
+              Are you sure you want to remove "{modal.category.name}"? This action will remove the category from all tasks and cannot be undone.
             </p>
             <div className="flex gap-2">
               <Button
@@ -143,7 +143,7 @@ export function CategoryManager({ onClose, className }: CategoryManagerProps) {
                 onClick={handleDeleteCategory}
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Deleting...' : 'Delete Category'}
+                {isSubmitting ? 'Removing...' : 'Remove Category'}
               </Button>
               <Button
                 variant="secondary"

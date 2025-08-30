@@ -116,7 +116,7 @@ export function createTaskContextMenu(
         items: [
           {
             id: 'delete',
-            label: 'Delete task',
+            label: 'Remove task',
             icon: <Trash2 size={16} />,
             onClick: actions.onDelete,
             destructive: true,
@@ -192,7 +192,7 @@ export function createListContextMenu(
             },
             {
               id: 'delete',
-              label: 'Delete list',
+              label: 'Remove list',
               icon: <Trash2 size={16} />,
               onClick: actions.onDelete,
               destructive: true,

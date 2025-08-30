@@ -4,6 +4,16 @@ import type { Task, TaskList, ListGroup, AppState, ViewType, TaskFilter, TimePre
 import { saveToStorage, loadFromStorage, generateId } from '../utils/storage.ts';
 import { useToastStore } from './toastStore.ts';
 
+// Utility function to deduplicate category IDs
+const deduplicateCategoryIds = (categoryIds: string[]): string[] => {
+  return Array.from(new Set(categoryIds.filter(id => id && id.trim() !== '')));
+};
+
+// Utility function to normalize category names for comparison
+const normalizeCategoryName = (name: string): string => {
+  return name.trim().toLowerCase().replace(/\s+/g, ' ');
+};
+
 interface TaskStore extends AppState {
   // Actions
   addTask: (title: string, listId?: string, options?: { important?: boolean; dueDate?: Date; reminder?: Date; notes?: string; myDay?: boolean; repeat?: string; repeatDays?: number[]; steps?: { title: string }[]; categoryIds?: string[] }) => void;
@@ -111,15 +121,38 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
     order: task.order !== undefined ? task.order : index,
     pinned: task.pinned !== undefined ? task.pinned : false,
     pinnedGlobally: task.pinnedGlobally !== undefined ? task.pinnedGlobally : false,
-    categoryIds: Array.isArray(task.categoryIds) ? task.categoryIds : [],
+    categoryIds: Array.isArray(task.categoryIds) ? deduplicateCategoryIds(task.categoryIds) : [],
     steps: task.steps || [],
   } as Task)) || [];
+
+  // Migrate categories to remove near-duplicates
+  const migratedCategories = (() => {
+    if (!savedState?.categories) return [];
+    
+    const categories = savedState.categories as Category[];
+    const deduplicatedCategories: Category[] = [];
+    const seenNormalizedNames = new Set<string>();
+    
+    for (const category of categories) {
+      const normalizedName = normalizeCategoryName(category.name);
+      if (!seenNormalizedNames.has(normalizedName)) {
+        // Trim the name to clean up any extra whitespace
+        deduplicatedCategories.push({
+          ...category,
+          name: category.name.trim()
+        });
+        seenNormalizedNames.add(normalizedName);
+      }
+    }
+    
+    return deduplicatedCategories;
+  })();
   
   const initialState: AppState = {
     tasks: migratedTasks,
     lists: defaultLists,
     listGroups: [],
-    categories: [],
+    categories: migratedCategories,
     currentView: 'my-day',
     currentListId: undefined,
     currentCategoryId: undefined,
@@ -237,7 +270,7 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
           createdAt: new Date(),
           updatedAt: new Date(),
           listId,
-          categoryIds: options.categoryIds || [],
+          categoryIds: deduplicateCategoryIds(options.categoryIds || []),
           steps: initialSteps,
         };
         
@@ -262,10 +295,16 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
       }
       
       try {
+        // Deduplicate categoryIds if they are being updated
+        const processedUpdates = { ...updates };
+        if (updates.categoryIds) {
+          processedUpdates.categoryIds = deduplicateCategoryIds(updates.categoryIds);
+        }
+
         set((state) => ({
           tasks: state.tasks.map((task) =>
             task.id === id
-              ? { ...task, ...updates, updatedAt: new Date() }
+              ? { ...task, ...processedUpdates, updatedAt: new Date() }
               : task
           ),
         }));
@@ -872,9 +911,26 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
 
     // Category actions
     addCategory: (name: string, color?: string, emoji?: string, description?: string) => {
+      const trimmedName = name.trim();
+      
+      if (!trimmedName) {
+        useToastStore.getState().showError('Invalid category name', 'Category name cannot be empty');
+        throw new Error('Category name cannot be empty');
+      }
+
+      const normalizedName = normalizeCategoryName(trimmedName);
+      const existingCategory = get().categories.find(cat => 
+        normalizeCategoryName(cat.name) === normalizedName
+      );
+
+      if (existingCategory) {
+        useToastStore.getState().showError('Category already exists', `A category named "${existingCategory.name}" already exists`);
+        throw new Error(`Category "${existingCategory.name}" already exists`);
+      }
+
       const newCategory: Category = {
         id: generateId(),
-        name,
+        name: trimmedName,
         color,
         emoji,
         description,
@@ -888,7 +944,7 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
       saveState();
       
       // Show success toast
-      useToastStore.getState().showSuccess('Category created', `"${name}" category was created successfully`);
+      useToastStore.getState().showSuccess('Category created', `"${trimmedName}" category was created successfully`);
       
       return newCategory;
     },
@@ -898,6 +954,28 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
       if (!category) {
         useToastStore.getState().showError('Category not found', 'The category you are trying to update no longer exists');
         return;
+      }
+      
+      // If name is being updated, check for duplicates
+      if (updates.name) {
+        const trimmedName = updates.name.trim();
+        
+        if (!trimmedName) {
+          useToastStore.getState().showError('Invalid category name', 'Category name cannot be empty');
+          throw new Error('Category name cannot be empty');
+        }
+
+        const normalizedName = normalizeCategoryName(trimmedName);
+        const existingCategory = get().categories.find(cat => 
+          cat.id !== id && normalizeCategoryName(cat.name) === normalizedName
+        );
+
+        if (existingCategory) {
+          useToastStore.getState().showError('Category already exists', `A category named "${existingCategory.name}" already exists`);
+          throw new Error(`Category "${existingCategory.name}" already exists`);
+        }
+
+        updates.name = trimmedName;
       }
       
       set((state) => ({
@@ -960,7 +1038,7 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
       set((state) => ({
         tasks: state.tasks.map((task) =>
           task.id === taskId
-            ? { ...task, categoryIds: [...(task.categoryIds || []), categoryId], updatedAt: new Date() }
+            ? { ...task, categoryIds: deduplicateCategoryIds([...(task.categoryIds || []), categoryId]), updatedAt: new Date() }
             : task
         ),
       }));
@@ -997,10 +1075,12 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
         return;
       }
 
+      const uniqueCategoryIds = deduplicateCategoryIds(categoryIds);
+
       set((state) => ({
         tasks: state.tasks.map((task) =>
           task.id === taskId
-            ? { ...task, categoryIds: [...categoryIds], updatedAt: new Date() }
+            ? { ...task, categoryIds: uniqueCategoryIds, updatedAt: new Date() }
             : task
         ),
       }));

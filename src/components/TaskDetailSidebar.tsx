@@ -1025,9 +1025,9 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
                   size="sm"
                   onClick={handleDelete}
                   className="px-4 py-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg transition-colors"
-                  title="Delete task (Ctrl+Backspace)"
+                  title="Remove task (Ctrl+Backspace)"
                 >
-                  Delete task
+                  Remove task
                 </Button>
                 
                 <div className="flex gap-3">
