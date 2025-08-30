@@ -15,7 +15,8 @@ import {
   Palette,
   RotateCcw,
   Pin,
-  Globe
+  Globe,
+  Tag
 } from 'lucide-react';
 import type { Task, TaskList } from '../../types/index.ts';
 import type { ContextMenuData } from '../ui/ContextMenu.tsx';
@@ -34,6 +35,7 @@ export function createTaskContextMenu(
     onDuplicate: () => void;
     onAddToMyDay?: () => void;
     onSetDueDate?: () => void;
+    onManageCategories?: () => void;
   }
 ): ContextMenuData {
   return {
@@ -103,8 +105,18 @@ export function createTaskContextMenu(
       {
         items: [
           {
+            id: 'categories',
+            label: 'Manage categories',
+            icon: <Tag size={16} />,
+            onClick: actions.onManageCategories || actions.onEdit,
+          },
+        ],
+      },
+      {
+        items: [
+          {
             id: 'delete',
-            label: 'Delete task',
+            label: 'Remove task',
             icon: <Trash2 size={16} />,
             onClick: actions.onDelete,
             destructive: true,
@@ -180,7 +192,7 @@ export function createListContextMenu(
             },
             {
               id: 'delete',
-              label: 'Delete list',
+              label: 'Remove list',
               icon: <Trash2 size={16} />,
               onClick: actions.onDelete,
               destructive: true,

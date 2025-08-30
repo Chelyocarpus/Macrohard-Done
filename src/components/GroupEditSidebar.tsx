@@ -411,7 +411,7 @@ export function GroupEditSidebar({ group, isOpen, onClose, mode }: GroupEditSide
                   className="text-red-500 hover:text-red-700 flex items-center gap-2"
                 >
                   <Trash2 size={16} />
-                  Delete group
+                  Remove group
                 </Button>
               )}
               

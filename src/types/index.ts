@@ -15,6 +15,7 @@ export interface Task {
   createdAt: Date;
   updatedAt: Date;
   listId: string;
+  categoryIds: string[]; // Array of category IDs assigned to this task
   steps: SubTask[];
 }
 
@@ -48,12 +49,23 @@ export interface ListGroup {
   overrideListIcons?: boolean;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  color?: string;
+  emoji?: string;
+  description?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface TaskFilter {
   listId?: string;
   completed?: boolean;
   important?: boolean;
   dueDate?: 'today' | 'tomorrow' | 'week' | 'overdue';
   search?: string;
+  categoryIds?: string[]; // Filter by specific categories
 }
 
 export interface TimePreset {
@@ -65,7 +77,7 @@ export interface TimePreset {
   createdAt: Date;
 }
 
-export type ViewType = 'my-day' | 'important' | 'planned' | 'all' | 'list';
+export type ViewType = 'my-day' | 'important' | 'planned' | 'all' | 'list' | 'category';
 
 export interface Toast {
   id: string;
@@ -80,8 +92,10 @@ export interface AppState {
   tasks: Task[];
   lists: TaskList[];
   listGroups: ListGroup[];
+  categories: Category[];
   currentView: ViewType;
   currentListId?: string;
+  currentCategoryId?: string; // For category view filtering
   searchQuery: string;
   darkMode: boolean;
   sidebarCollapsed: boolean;

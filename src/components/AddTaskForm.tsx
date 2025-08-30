@@ -4,6 +4,7 @@ import { useTaskStore } from '../stores/taskStore.ts';
 import { useToastStore } from '../stores/toastStore.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
+import { CategorySelector } from './CategorySelector.tsx';
 import { cn } from '../utils/cn.ts';
 import { formatDate } from '../utils/dateUtils.ts';
 
@@ -23,6 +24,7 @@ export function AddTaskForm({ onSubmit, onCancel }: AddTaskFormProps) {
   const [title, setTitle] = useState('');
   const [important, setImportant] = useState(false);
   const [dueDate, setDueDate] = useState<Date | undefined>();
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showSubTasks, setShowSubTasks] = useState(false);
   const [subTasks, setSubTasks] = useState<SubTaskItem[]>([]);
@@ -72,11 +74,12 @@ export function AddTaskForm({ onSubmit, onCancel }: AddTaskFormProps) {
     // Convert sub tasks to the format expected by addTask
     const steps = subTasks.map(subTask => ({ title: subTask.title }));
 
-    // Create the task with sub tasks
+    // Create the task with sub tasks and categories
     addTask(title.trim(), listId, {
       important,
       dueDate,
       steps: steps.length > 0 ? steps : undefined,
+      categoryIds: selectedCategoryIds,
     });
 
     onSubmit();
@@ -171,6 +174,20 @@ export function AddTaskForm({ onSubmit, onCancel }: AddTaskFormProps) {
               </Button>
             )}
           </div>
+
+          {/* Category Selection */}
+          {selectedCategoryIds.length > 0 || title.trim() !== '' ? (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Categories
+              </label>
+              <CategorySelector
+                selectedCategoryIds={selectedCategoryIds}
+                onChange={setSelectedCategoryIds}
+                placeholder="Add categories..."
+              />
+            </div>
+          ) : null}
           
           {/* Sub Tasks Section */}
           {showSubTasks && (

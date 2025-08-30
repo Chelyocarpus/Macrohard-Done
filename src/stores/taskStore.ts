@@ -1,12 +1,22 @@
 import { create } from 'zustand';
 import { isToday, startOfDay, addDays, addWeeks, addMonths, addYears } from 'date-fns';
-import type { Task, TaskList, ListGroup, AppState, ViewType, TaskFilter, TimePreset } from '../types/index.ts';
+import type { Task, TaskList, ListGroup, AppState, ViewType, TaskFilter, TimePreset, Category } from '../types/index.ts';
 import { saveToStorage, loadFromStorage, generateId } from '../utils/storage.ts';
 import { useToastStore } from './toastStore.ts';
 
+// Utility function to deduplicate category IDs
+const deduplicateCategoryIds = (categoryIds: string[]): string[] => {
+  return Array.from(new Set(categoryIds.filter(id => id && id.trim() !== '')));
+};
+
+// Utility function to normalize category names for comparison
+const normalizeCategoryName = (name: string): string => {
+  return name.trim().toLowerCase().replace(/\s+/g, ' ');
+};
+
 interface TaskStore extends AppState {
   // Actions
-  addTask: (title: string, listId?: string, options?: { important?: boolean; dueDate?: Date; reminder?: Date; notes?: string; myDay?: boolean; repeat?: string; repeatDays?: number[]; steps?: { title: string }[] }) => void;
+  addTask: (title: string, listId?: string, options?: { important?: boolean; dueDate?: Date; reminder?: Date; notes?: string; myDay?: boolean; repeat?: string; repeatDays?: number[]; steps?: { title: string }[]; categoryIds?: string[] }) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   toggleTask: (id: string) => void;
@@ -34,6 +44,14 @@ interface TaskStore extends AppState {
   reorderGroups: (groupIds: string[]) => void;
   toggleGroupCollapsed: (id: string) => void;
   
+  // Category actions
+  addCategory: (name: string, color?: string, emoji?: string, description?: string) => Category;
+  updateCategory: (id: string, updates: Partial<Category>) => void;
+  deleteCategory: (id: string) => void;
+  assignTaskToCategory: (taskId: string, categoryId: string) => void;
+  removeTaskFromCategory: (taskId: string, categoryId: string) => void;
+  assignTaskToCategories: (taskId: string, categoryIds: string[]) => void;
+  
   // Time preset actions
   addCustomTimePreset: (label: string, hour: number, minute: number) => void;
   removeCustomTimePreset: (id: string) => void;
@@ -41,7 +59,7 @@ interface TaskStore extends AppState {
   restoreBuiltInPreset: (id: string) => void;
   
   // View actions
-  setView: (view: ViewType, listId?: string) => void;
+  setView: (view: ViewType, listId?: string, categoryId?: string) => void;
   setSearchQuery: (query: string) => void;
   toggleDarkMode: () => void;
   toggleSidebar: () => void;
@@ -53,6 +71,8 @@ interface TaskStore extends AppState {
   getListsInGroup: (groupId: string | null) => TaskList[];
   getGroupedLists: () => { group: ListGroup | null; lists: TaskList[] }[];
   getGroupForList: (listId: string) => ListGroup | null;
+  getTaskCountForCategory: (categoryId: string) => number;
+  getCategoriesForTask: (taskId: string) => Category[];
 }
 
 // Default system lists
@@ -96,19 +116,46 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
   const savedState = loadFromStorage();
 
   // Migrate tasks to include order property and pinned properties if not present
-  const migratedTasks = savedState?.tasks?.map((task: Task, index: number) => ({
+  const migratedTasks = savedState?.tasks?.map((task: Partial<Task> & { id: string; title: string; completed: boolean; createdAt: Date; updatedAt: Date; listId: string }, index: number) => ({
     ...task,
     order: task.order !== undefined ? task.order : index,
     pinned: task.pinned !== undefined ? task.pinned : false,
-    pinnedGlobally: task.pinnedGlobally !== undefined ? task.pinnedGlobally : false
-  })) || [];
+    pinnedGlobally: task.pinnedGlobally !== undefined ? task.pinnedGlobally : false,
+    categoryIds: Array.isArray(task.categoryIds) ? deduplicateCategoryIds(task.categoryIds) : [],
+    steps: task.steps || [],
+  } as Task)) || [];
+
+  // Migrate categories to remove near-duplicates
+  const migratedCategories = (() => {
+    if (!savedState?.categories) return [];
+    
+    const categories = savedState.categories as Category[];
+    const deduplicatedCategories: Category[] = [];
+    const seenNormalizedNames = new Set<string>();
+    
+    for (const category of categories) {
+      const normalizedName = normalizeCategoryName(category.name);
+      if (!seenNormalizedNames.has(normalizedName)) {
+        // Trim the name to clean up any extra whitespace
+        deduplicatedCategories.push({
+          ...category,
+          name: category.name.trim()
+        });
+        seenNormalizedNames.add(normalizedName);
+      }
+    }
+    
+    return deduplicatedCategories;
+  })();
   
   const initialState: AppState = {
     tasks: migratedTasks,
     lists: defaultLists,
     listGroups: [],
+    categories: migratedCategories,
     currentView: 'my-day',
     currentListId: undefined,
+    currentCategoryId: undefined,
     searchQuery: '',
     darkMode: false,
     sidebarCollapsed: false,
@@ -124,8 +171,10 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
       tasks: state.tasks,
       lists: state.lists.filter(list => !list.isSystem).concat(defaultLists),
       listGroups: state.listGroups,
+      categories: state.categories,
       currentView: state.currentView,
       currentListId: state.currentListId,
+      currentCategoryId: state.currentCategoryId,
       searchQuery: state.searchQuery,
       darkMode: state.darkMode,
       sidebarCollapsed: state.sidebarCollapsed,
@@ -171,7 +220,7 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
     ...initialState,
 
     // Task actions
-    addTask: (title: string, listId = 'all', options: { important?: boolean; dueDate?: Date; reminder?: Date; notes?: string; myDay?: boolean; repeat?: string; repeatDays?: number[]; steps?: { title: string }[] } = {}) => {
+    addTask: (title: string, listId = 'all', options: { important?: boolean; dueDate?: Date; reminder?: Date; notes?: string; myDay?: boolean; repeat?: string; repeatDays?: number[]; steps?: { title: string }[]; categoryIds?: string[] } = {}) => {
       // Validation
       if (!title.trim()) {
         useToastStore.getState().showError('Invalid input', 'Task title cannot be empty');
@@ -221,6 +270,7 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
           createdAt: new Date(),
           updatedAt: new Date(),
           listId,
+          categoryIds: deduplicateCategoryIds(options.categoryIds || []),
           steps: initialSteps,
         };
         
@@ -245,10 +295,16 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
       }
       
       try {
+        // Deduplicate categoryIds if they are being updated
+        const processedUpdates = { ...updates };
+        if (updates.categoryIds) {
+          processedUpdates.categoryIds = deduplicateCategoryIds(updates.categoryIds);
+        }
+
         set((state) => ({
           tasks: state.tasks.map((task) =>
             task.id === id
-              ? { ...task, ...updates, updatedAt: new Date() }
+              ? { ...task, ...processedUpdates, updatedAt: new Date() }
               : task
           ),
         }));
@@ -538,8 +594,12 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
     },
 
     // View actions
-    setView: (view: ViewType, listId?: string) => {
-      set({ currentView: view, currentListId: listId });
+    setView: (view: ViewType, listId?: string, categoryId?: string) => {
+      set({ 
+        currentView: view, 
+        currentListId: listId, 
+        currentCategoryId: view === 'category' ? categoryId : undefined 
+      });
       saveState();
     },
 
@@ -572,6 +632,13 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
             return false;
           }
         }
+        if (filter.categoryIds && filter.categoryIds.length > 0) {
+          // Check if task has any of the specified categories
+          const hasMatchingCategory = filter.categoryIds.some(categoryId => 
+            task.categoryIds?.includes(categoryId) || false
+          );
+          if (!hasMatchingCategory) return false;
+        }
         if (filter.dueDate) {
           if (!task.dueDate) return false;
           const dueDate = startOfDay(task.dueDate);
@@ -601,7 +668,7 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
     },
 
     getTasksForCurrentView: () => {
-      const { currentView, currentListId, searchQuery } = get();
+      const { currentView, currentListId, currentCategoryId, searchQuery } = get();
       const filter: TaskFilter = { search: searchQuery };
       
       switch (currentView) {
@@ -617,6 +684,13 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
         case 'planned':
           // Show tasks with due dates
           return get().getFilteredTasks(filter).filter(task => task.dueDate && !task.completed);
+        case 'category':
+          // Show tasks with specific category
+          if (currentCategoryId) {
+            filter.categoryIds = [currentCategoryId];
+          }
+          filter.completed = false;
+          break;
         case 'list':
           filter.listId = currentListId;
           // Don't filter by completion status for list view - show all tasks
@@ -833,6 +907,198 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
       const list = lists.find(l => l.id === listId);
       if (!list || !list.groupId) return null;
       return listGroups.find(g => g.id === list.groupId) || null;
+    },
+
+    // Category actions
+    addCategory: (name: string, color?: string, emoji?: string, description?: string) => {
+      const trimmedName = name.trim();
+      
+      if (!trimmedName) {
+        useToastStore.getState().showError('Invalid category name', 'Category name cannot be empty');
+        throw new Error('Category name cannot be empty');
+      }
+
+      const normalizedName = normalizeCategoryName(trimmedName);
+      const existingCategory = get().categories.find(cat => 
+        normalizeCategoryName(cat.name) === normalizedName
+      );
+
+      if (existingCategory) {
+        useToastStore.getState().showError('Category already exists', `A category named "${existingCategory.name}" already exists`);
+        throw new Error(`Category "${existingCategory.name}" already exists`);
+      }
+
+      const newCategory: Category = {
+        id: generateId(),
+        name: trimmedName,
+        color,
+        emoji,
+        description,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      set((state) => ({
+        categories: [...state.categories, newCategory],
+      }));
+      saveState();
+      
+      // Show success toast
+      useToastStore.getState().showSuccess('Category created', `"${trimmedName}" category was created successfully`);
+      
+      return newCategory;
+    },
+
+    updateCategory: (id: string, updates: Partial<Category>) => {
+      const category = get().categories.find(c => c.id === id);
+      if (!category) {
+        useToastStore.getState().showError('Category not found', 'The category you are trying to update no longer exists');
+        return;
+      }
+      
+      // If name is being updated, check for duplicates
+      if (updates.name) {
+        const trimmedName = updates.name.trim();
+        
+        if (!trimmedName) {
+          useToastStore.getState().showError('Invalid category name', 'Category name cannot be empty');
+          throw new Error('Category name cannot be empty');
+        }
+
+        const normalizedName = normalizeCategoryName(trimmedName);
+        const existingCategory = get().categories.find(cat => 
+          cat.id !== id && normalizeCategoryName(cat.name) === normalizedName
+        );
+
+        if (existingCategory) {
+          useToastStore.getState().showError('Category already exists', `A category named "${existingCategory.name}" already exists`);
+          throw new Error(`Category "${existingCategory.name}" already exists`);
+        }
+
+        updates.name = trimmedName;
+      }
+      
+      set((state) => ({
+        categories: state.categories.map((category) =>
+          category.id === id
+            ? { ...category, ...updates, updatedAt: new Date() }
+            : category
+        ),
+      }));
+      saveState();
+    },
+
+    deleteCategory: (id: string) => {
+      const category = get().categories.find(c => c.id === id);
+      const categoryName = category?.name || 'Category';
+      const tasksWithCategory = get().tasks.filter(task => task.categoryIds?.includes(id) || false);
+      
+      // Remove category from all tasks
+      set((state) => ({
+        categories: state.categories.filter((category) => category.id !== id),
+        tasks: state.tasks.map((task) => ({
+          ...task,
+          categoryIds: (task.categoryIds || []).filter(categoryId => categoryId !== id),
+          updatedAt: (task.categoryIds?.includes(id)) ? new Date() : task.updatedAt,
+        })),
+      }));
+      saveState();
+      
+      // Show warning toast with count of affected tasks
+      const taskCount = tasksWithCategory.length;
+      if (taskCount > 0) {
+        useToastStore.getState().showWarning(
+          'Category deleted', 
+          `"${categoryName}" was removed from ${taskCount} task${taskCount > 1 ? 's' : ''}`
+        );
+      } else {
+        useToastStore.getState().showInfo('Category deleted', `"${categoryName}" was removed`);
+      }
+    },
+
+    assignTaskToCategory: (taskId: string, categoryId: string) => {
+      const task = get().tasks.find(t => t.id === taskId);
+      const category = get().categories.find(c => c.id === categoryId);
+      
+      if (!task) {
+        useToastStore.getState().showError('Task not found', 'The task no longer exists');
+        return;
+      }
+      
+      if (!category) {
+        useToastStore.getState().showError('Category not found', 'The category no longer exists');
+        return;
+      }
+
+      // Check if task already has this category
+      if (task.categoryIds?.includes(categoryId)) {
+        return;
+      }
+
+      set((state) => ({
+        tasks: state.tasks.map((task) =>
+          task.id === taskId
+            ? { ...task, categoryIds: deduplicateCategoryIds([...(task.categoryIds || []), categoryId]), updatedAt: new Date() }
+            : task
+        ),
+      }));
+      saveState();
+    },
+
+    removeTaskFromCategory: (taskId: string, categoryId: string) => {
+      const task = get().tasks.find(t => t.id === taskId);
+      
+      if (!task) {
+        useToastStore.getState().showError('Task not found', 'The task no longer exists');
+        return;
+      }
+
+      set((state) => ({
+        tasks: state.tasks.map((task) =>
+          task.id === taskId
+            ? { 
+                ...task, 
+                categoryIds: (task.categoryIds || []).filter(id => id !== categoryId), 
+                updatedAt: new Date() 
+              }
+            : task
+        ),
+      }));
+      saveState();
+    },
+
+    assignTaskToCategories: (taskId: string, categoryIds: string[]) => {
+      const task = get().tasks.find(t => t.id === taskId);
+      
+      if (!task) {
+        useToastStore.getState().showError('Task not found', 'The task no longer exists');
+        return;
+      }
+
+      const uniqueCategoryIds = deduplicateCategoryIds(categoryIds);
+
+      set((state) => ({
+        tasks: state.tasks.map((task) =>
+          task.id === taskId
+            ? { ...task, categoryIds: uniqueCategoryIds, updatedAt: new Date() }
+            : task
+        ),
+      }));
+      saveState();
+    },
+
+    // Category getters
+    getTaskCountForCategory: (categoryId: string) => {
+      const { tasks } = get();
+      return tasks.filter(task => (task.categoryIds?.includes(categoryId)) && !task.completed).length;
+    },
+
+    getCategoriesForTask: (taskId: string) => {
+      const { tasks, categories } = get();
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return [];
+      
+      return categories.filter(category => task.categoryIds?.includes(category.id) || false);
     },
   };
 

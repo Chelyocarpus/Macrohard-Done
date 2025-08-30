@@ -1,4 +1,4 @@
-import { Plus, Edit2, Sun, Star, Calendar, CheckSquare } from 'lucide-react';
+import { Plus, Edit2, Sun, Star, Calendar, CheckSquare, Tag } from 'lucide-react';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { useToastStore } from '../stores/toastStore.ts';
 import { TaskList } from './TaskList.tsx';
@@ -16,7 +16,7 @@ import { QuickAddTaskForm } from './QuickAddTaskForm.tsx';
 import { GroupEditSidebar } from './GroupEditSidebar.tsx';
 
 export function TaskView() {
-  const { currentView, currentListId, lists } = useTaskStore();
+  const { currentView, currentListId, currentCategoryId, lists, categories } = useTaskStore();
   const [showAddSidebar, setShowAddSidebar] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [quickAddTitle, setQuickAddTitle] = useState('');
@@ -70,6 +70,10 @@ export function TaskView() {
         const list = lists.find(l => l.id === currentListId);
         return list?.name || 'List';
       }
+      case 'category': {
+        const category = categories.find(c => c.id === currentCategoryId);
+        return category?.name || 'Category';
+      }
       default:
         return 'Tasks';
     }
@@ -85,6 +89,8 @@ export function TaskView() {
         return Calendar;
       case 'all':
         return CheckSquare;
+      case 'category':
+        return Tag;
       default:
         return null;
     }
@@ -173,11 +179,30 @@ export function TaskView() {
                   }}
                 />
               )}
-              {isCustomList && currentList?.emoji ? (
-                <span className="text-2xl">{currentList.emoji}</span>
-              ) : !isCustomList && (() => {
-                const Icon = getViewIcon();
-                return Icon ? <Icon size={24} className="text-gray-600 dark:text-gray-400" /> : null;
+              {(() => {
+                if (isCustomList && currentList?.emoji) {
+                  return <span className="text-2xl">{currentList.emoji}</span>;
+                } else if (currentView === 'category') {
+                  const currentCategory = categories.find(c => c.id === currentCategoryId);
+                  if (currentCategory) {
+                    return (
+                      <div className="flex items-center gap-2">
+                        {currentCategory.emoji && (
+                          <span className="text-2xl">{currentCategory.emoji}</span>
+                        )}
+                        <div 
+                          className="w-6 h-6 rounded-full"
+                          style={{ backgroundColor: currentCategory.color }}
+                        />
+                      </div>
+                    );
+                  }
+                  return <Tag size={24} className="text-gray-600 dark:text-gray-400" />;
+                } else if (!isCustomList) {
+                  const Icon = getViewIcon();
+                  return Icon ? <Icon size={24} className="text-gray-600 dark:text-gray-400" /> : null;
+                }
+                return null;
               })()}
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                 {getViewTitle()}

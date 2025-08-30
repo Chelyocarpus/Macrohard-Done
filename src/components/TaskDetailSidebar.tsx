@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Star, Calendar, Repeat, FileText, CheckSquare, Sun, Bell, Copy, Pin, Archive, List } from 'lucide-react';
 import type { Task } from '../types/index.ts';
 import { useTaskStore } from '../stores/taskStore.ts';
@@ -6,6 +6,7 @@ import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
 import { MarkdownEditor } from './ui/MarkdownEditor.tsx';
 import { DateTimePicker } from './DateTimePicker.tsx';
+import { CategorySelector } from './CategorySelector.tsx';
 import { AutoSaveIndicator } from './ui/AutoSaveIndicator.tsx';
 import { useAutoSave } from '../hooks/useAutoSave.ts';
 import { cn } from '../utils/cn.ts';
@@ -30,7 +31,8 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
     myDay: taskMyDay = false, 
     dueDate: taskDueDate, 
     repeat: taskRepeat = 'none', 
-    repeatDays: taskRepeatDays = [1, 2, 3, 4, 5, 6, 0] 
+    repeatDays: taskRepeatDays = [1, 2, 3, 4, 5, 6, 0],
+    categoryIds: taskCategoryIds = []
   } = task || {};
   
   const [title, setTitle] = useState(taskTitle);
@@ -40,6 +42,7 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
   const [dueDate, setDueDate] = useState<Date | undefined>(taskDueDate);
   const [repeat, setRepeat] = useState<string>(taskRepeat);
   const [repeatDays, setRepeatDays] = useState<number[]>(taskRepeatDays);
+  const [categoryIds, setCategoryIds] = useState<string[]>(taskCategoryIds);
   const [reminder, setReminder] = useState<Date | undefined>();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showReminderPicker, setShowReminderPicker] = useState(false);
@@ -51,9 +54,12 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
   const [tempSteps, setTempSteps] = useState<Array<{ id: string; title: string; completed: boolean }>>([]);
   const [showListSelector, setShowListSelector] = useState(false);
 
+  // Ref to track initialization to prevent infinite loops
+  const initializingRef = useRef<string | boolean>(false);
+
   // Auto-save setup for edit mode
   const autoSaveFunction = useCallback(() => {
-    if (mode === 'edit' && task) {
+    if (mode === 'edit' && task?.id) {
       updateTask(task.id, {
         title: title.trim(),
         notes: notes.trim() || undefined,
@@ -63,9 +69,10 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
         reminder,
         repeat: repeat as Task['repeat'],
         repeatDays: repeat === 'daily' ? repeatDays : undefined,
+        categoryIds,
       });
     }
-  }, [mode, task, updateTask, title, notes, important, myDay, dueDate, reminder, repeat, repeatDays]);
+  }, [mode, task?.id, updateTask, title, notes, important, myDay, dueDate, reminder, repeat, repeatDays, categoryIds]);
 
   // Current form values for auto-save comparison
   const currentValues = {
@@ -77,6 +84,7 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
     reminder,
     repeat,
     repeatDays: repeat === 'daily' ? repeatDays : undefined,
+    categoryIds,
   };
 
   // Original values from the task for comparison
@@ -89,6 +97,7 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
     reminder: task?.reminder,
     repeat: taskRepeat,
     repeatDays: taskRepeat === 'daily' ? taskRepeatDays : undefined,
+    categoryIds: taskCategoryIds,
   };
 
   // Auto-save hook - only enabled in edit mode
@@ -102,25 +111,43 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
   // Reset form when task changes or modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setTitle(taskTitle);
-      setNotes(taskNotes);
-      setImportant(taskImportant);
-      setMyDay(taskMyDay);
-      setDueDate(taskDueDate ? new Date(taskDueDate) : undefined);
-      setRepeat(taskRepeat);
-      setRepeatDays(taskRepeatDays);
-      setReminder(task?.reminder ? new Date(task.reminder) : undefined);
-      setShowDatePicker(false);
-      setShowReminderPicker(false);
-      setShowRepeatOptions(false);
-      setNewStepTitle('');
-      setShowAddStep(false);
-      // Initialize tempSteps for create mode
-      if (mode === 'create') {
-        setTempSteps([]);
+      const taskKey = mode === 'create' ? 'create' : (task?.id || 'no-task');
+      
+      if (!initializingRef.current || initializingRef.current !== taskKey) {
+        initializingRef.current = taskKey;
+        
+        setTitle(taskTitle);
+        setNotes(taskNotes);
+        setImportant(taskImportant);
+        setMyDay(taskMyDay);
+        setDueDate(taskDueDate ? new Date(taskDueDate) : undefined);
+        setRepeat(taskRepeat);
+        setRepeatDays(taskRepeatDays);
+        setReminder(task?.reminder ? new Date(task.reminder) : undefined);
+        setShowDatePicker(false);
+        setShowReminderPicker(false);
+        setShowRepeatOptions(false);
+        setNewStepTitle('');
+        setShowAddStep(false);
+        
+        // Set category IDs directly from task
+        const currentCategoryIds = task?.categoryIds || [];
+        setCategoryIds(currentCategoryIds);
+        
+        // Initialize tempSteps for create mode
+        if (mode === 'create') {
+          setTempSteps([]);
+        }
       }
     }
-  }, [isOpen, task, mode, taskTitle, taskNotes, taskImportant, taskMyDay, taskDueDate, taskRepeat, taskRepeatDays]);
+  }, [isOpen, task?.id, mode, taskTitle, taskNotes, taskImportant, taskMyDay, taskDueDate, taskRepeat, taskRepeatDays, task?.reminder, task?.categoryIds]);
+
+  // Reset initialization flag when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      initializingRef.current = false;
+    }
+  }, [isOpen]);
 
   const handleSave = useCallback(() => {
     if (!title.trim()) return;
@@ -138,6 +165,7 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
         repeat,
         repeatDays: repeat === 'daily' ? repeatDays : undefined,
         steps: steps.length > 0 ? steps : undefined,
+        categoryIds,
       });
     } else if (task) {
       updateTask(task.id, {
@@ -149,11 +177,12 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
         reminder,
         repeat: repeat as Task['repeat'],
         repeatDays: repeat === 'daily' ? repeatDays : undefined,
+        categoryIds,
       });
     }
 
     onClose();
-  }, [mode, title, tempSteps, addTask, initialListId, important, myDay, dueDate, reminder, notes, repeat, repeatDays, task, updateTask, onClose]);
+  }, [mode, title, tempSteps, addTask, initialListId, important, myDay, dueDate, reminder, notes, repeat, repeatDays, categoryIds, task, updateTask, onClose]);
 
   const handleToggleComplete = useCallback(() => {
     if (task) {
@@ -170,7 +199,7 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
 
   const handleDuplicate = useCallback(() => {
     if (task) {
-      const { title, listId, important, dueDate, notes, repeat, repeatDays, steps } = task;
+      const { title, listId, important, dueDate, notes, repeat, repeatDays, steps, categoryIds } = task;
       addTask(title + ' (Copy)', listId || 'all', {
         important,
         myDay: false, // Don't add duplicate to My Day automatically
@@ -179,7 +208,8 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
         notes,
         repeat,
         repeatDays,
-        steps: steps.map(step => ({ title: step.title }))
+        steps: steps.map(step => ({ title: step.title })),
+        categoryIds
       });
       onClose();
     }
@@ -829,6 +859,21 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
             </div>
           )}
 
+          {/* Categories */}
+          <div className="space-y-2 mb-8">
+            <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-4 tracking-wide uppercase">Categories</h3>
+            
+            <div className="rounded-xl border bg-white dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200 hover:shadow-sm">
+              <div className="p-5">
+                <CategorySelector
+                  selectedCategoryIds={categoryIds}
+                  onChange={setCategoryIds}
+                  placeholder="Add categories..."
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Additional Details */}
           <div className="space-y-4">
             <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-4 tracking-wide uppercase">Notes</h3>
@@ -980,9 +1025,9 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
                   size="sm"
                   onClick={handleDelete}
                   className="px-4 py-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg transition-colors"
-                  title="Delete task (Ctrl+Backspace)"
+                  title="Remove task (Ctrl+Backspace)"
                 >
-                  Delete task
+                  Remove task
                 </Button>
                 
                 <div className="flex gap-3">

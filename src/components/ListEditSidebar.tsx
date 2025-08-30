@@ -358,7 +358,7 @@ export function ListEditSidebar({ list, isOpen, onClose, mode, groupId }: ListEd
                   className="text-red-500 hover:text-red-700 flex items-center gap-2"
                 >
                   <Trash2 size={16} />
-                  Delete list
+                  Remove list
                 </Button>
               )}
               
