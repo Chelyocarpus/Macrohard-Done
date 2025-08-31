@@ -45,8 +45,6 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
   // Get task categories
   const taskCategories = getCategoriesForTask(taskId);
   
-
-  
   // Only use sortable hook if drag is enabled
   const sortable = useSortable({ 
     id: taskId,
@@ -64,7 +62,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
   // Use provided isDragging or sortable.isDragging
   const isDragging = providedIsDragging || sortableIsDragging;
   const [showEditSidebar, setShowEditSidebar] = useState(false);
-  const [showSteps, setShowSteps] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   // Get the list this task belongs to
   const taskList = lists.find(list => list.id === listId);
@@ -73,6 +71,10 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
   // Check if group has icon override enabled
   const group = taskList ? getGroupForList(taskList.id) : null;
   const displayEmoji = (group?.overrideListIcons && group.emoji) ? group.emoji : taskList?.emoji;
+
+  // Check if task is overdue
+  const isOverdue = dueDate && !completed && new Date(dueDate) < new Date();
+  const isDueSoon = dueDate && !completed && !isOverdue && new Date(dueDate) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
   const handleToggleComplete = () => {
     toggleTask(taskId);
@@ -119,9 +121,9 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
   };
 
   const handleTaskClick = () => {
-    // Only toggle steps if the task has steps
-    if (steps.length > 0) {
-      setShowSteps(!showSteps);
+    // Toggle details if the task has additional information
+    if (steps.length > 0 || notes || taskCategories.length > 0) {
+      setShowDetails(!showDetails);
     }
   };
 
@@ -136,55 +138,56 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
       onTogglePin: handleTogglePin,
       onToggleGlobalPin: handleToggleGlobalPin,
       onDuplicate: handleDuplicate,
-      onSetDueDate: handleEdit, // Opens edit sidebar for now
-      onManageCategories: handleEdit, // Opens edit sidebar where categories can be managed
+      onSetDueDate: handleEdit,
+      onManageCategories: handleEdit,
     });
   });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    ...(listColor ? {
-      borderLeft: `3px solid ${listColor}`,
-      backgroundColor: `${listColor}05`
-    } : {})
   };
+
+  // Determine task item style classes
+  const taskItemClasses = cn(
+    'task-item group',
+    completed && 'task-item-completed',
+    important && !completed && 'task-item-important',
+    pinnedGlobally && !completed && 'task-item-pinned',
+    isOverdue && 'task-item-overdue',
+    (steps.length > 0 || notes || taskCategories.length > 0) && 'cursor-pointer',
+    isDragging && !isOverlay && 'opacity-50',
+    activeTaskId && activeTaskId !== taskId && !isDragging && 'opacity-40'
+  );
 
   return (
     <>
       <div 
         ref={setNodeRef}
         style={style}
-        className={cn(
-          'task-item group p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors relative overflow-hidden',
-          completed && 'opacity-75',
-          steps.length > 0 && 'cursor-pointer',
-          isDragging && !isOverlay && 'opacity-0',
-          activeTaskId && activeTaskId !== taskId && !isDragging && 'opacity-40',
-          pinnedGlobally && 'bg-blue-25 dark:bg-blue-950/20 border-l-2 border-blue-400',
-          pinned && !pinnedGlobally && 'bg-gray-25 dark:bg-gray-800/30 border-l-2 border-gray-400'
-        )}
+        className={taskItemClasses}
         onClick={handleTaskClick}
         onContextMenu={handleContextMenu}
       >
+        {/* Left border accent for list color */}
         {listColor && (
           <div 
-            className="absolute top-0 left-0 bottom-0 w-1 opacity-60"
+            className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg"
             style={{ backgroundColor: listColor }}
           />
         )}
+        
         <div className={cn(
-          `grid gap-3 items-start relative z-10`,
-          isDragEnabled ? "grid-cols-[auto_auto_1fr_120px]" : "grid-cols-[auto_1fr_120px]"
+          'grid gap-3 items-start',
+          isDragEnabled ? "grid-cols-[auto_auto_1fr_auto]" : "grid-cols-[auto_1fr_auto]"
         )}>
-          {/* Drag Handle - always show if drag is enabled or the item is being dragged */}
+          {/* Drag Handle */}
           {isDragEnabled && (
             <div
               {...(isDragging && sortable.active ? {} : { ...attributes, ...listeners })}
               className={cn(
-                "mt-0.5 p-1 rounded flex-shrink-0 text-gray-400",
-                isDragging ? "opacity-100 cursor-grabbing text-blue-600 dark:text-blue-400" : "cursor-grab opacity-60 group-hover:opacity-100 hover:text-gray-600 dark:hover:text-gray-300",
-                "transition-opacity"
+                "mt-0.5 p-1 rounded flex-shrink-0 transition-all duration-200",
+                isDragging ? "text-primary-600 dark:text-primary-400 cursor-grabbing" : "text-gray-400 dark:text-gray-500 cursor-grab opacity-0 group-hover:opacity-100 hover:text-gray-600 dark:hover:text-gray-300"
               )}
             >
               <GripVertical size={16} />
@@ -198,10 +201,12 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
               handleToggleComplete();
             }}
             className={cn(
-              'mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0',
+              'mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 flex-shrink-0 focus-visible',
               completed
-                ? 'bg-primary-600 border-primary-600 text-white'
-                : 'border-gray-300 dark:border-gray-600 hover:border-primary-500'
+                ? 'bg-success-600 border-success-600 text-white shadow-sm'
+                : important
+                ? 'border-warning-400 hover:border-warning-500 hover:bg-warning-50 dark:hover:bg-warning-950'
+                : 'border-gray-300 dark:border-gray-600 hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950'
             )}
           >
             {completed && (
@@ -215,42 +220,29 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
             )}
           </button>
 
-          {/* Task Content - grid column */}
-          <div className="task-content min-w-0">
-            <div className="flex items-start gap-2">
-              <div className={cn(
-                'text-gray-900 dark:text-white font-medium leading-normal flex-1',
-                completed && 'line-through'
-              )}
-              style={{ 
-                wordWrap: 'break-word',
-                overflowWrap: 'anywhere',
-                wordBreak: 'break-word',
-                whiteSpace: 'pre-wrap',
-                width: '100%',
-                minHeight: 'auto'
-              }}
-              >
+          {/* Task Content */}
+          <div className="task-content min-w-0 flex-1">
+            {/* Title and List Badge Row */}
+            <div className="flex items-start gap-2 mb-2">
+              <h3 className={cn(
+                'text-sm font-medium leading-5 flex-1 min-w-0',
+                completed ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'
+              )}>
                 {title}
-              </div>
+              </h3>
               
-              {/* Custom list name tag - positioned close to the color border */}
+              {/* Custom list badge - only for non-system lists */}
               {taskList && !taskList.isSystem && (
-                <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+                <div className="flex items-center gap-1 flex-shrink-0">
                   {displayEmoji && (
                     <span className="text-xs">{displayEmoji}</span>
                   )}
                   <span 
-                    className="text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap"
+                    className="badge badge-subtle text-2xs px-1.5 py-0.5"
                     style={taskList.color ? {
-                      borderColor: taskList.color,
                       color: taskList.color,
-                      backgroundColor: `${taskList.color}10`
-                    } : {
-                      borderColor: '#d1d5db',
-                      color: '#6b7280',
-                      backgroundColor: '#f9fafb'
-                    }}
+                      backgroundColor: `${taskList.color}15`
+                    } : undefined}
                   >
                     {taskList.name}
                   </span>
@@ -258,187 +250,170 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
               )}
             </div>
 
-            {/* Task metadata - Always visible */}
-            <div className="mt-2 space-y-2 min-w-0 overflow-hidden">
-              {/* Primary metadata row - High priority items */}
-              <div className="flex items-center gap-3 text-sm flex-wrap min-w-0 overflow-hidden">
-                {/* Due Date with enhanced visual hierarchy */}
-                {dueDate && (
-                  <div className={cn(
-                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
-                    "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
-                  )}>
-                    <Calendar size={14} className="flex-shrink-0" />
-                    <span className="whitespace-nowrap text-xs font-medium">{formatDate(dueDate)}</span>
-                  </div>
-                )}
-
-                {/* Reminder indicator */}
-                {reminder && (
-                  <div className={cn(
-                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
-                    "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300"
-                  )}>
-                    <Bell size={14} className="flex-shrink-0" />
-                    <span className="whitespace-nowrap text-xs font-medium">Reminder</span>
-                  </div>
-                )}
-
-                {/* My Day indicator with enhanced styling */}
-                {myDay && (
-                  <div className={cn(
-                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
-                    "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-300"
-                  )}>
-                    <Sun size={14} className="flex-shrink-0" />
-                    <span className="whitespace-nowrap text-xs font-medium">My Day</span>
-                  </div>
-                )}
-
-                {/* Global Pin indicator */}
-                {pinnedGlobally && (
-                  <div className={cn(
-                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
-                    "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
-                  )}>
-                    <Pin size={14} className="flex-shrink-0 fill-current" />
-                    <span className="whitespace-nowrap text-xs font-medium">Pinned Globally</span>
-                  </div>
-                )}
-
-                {/* List Pin indicator (only show if not globally pinned) */}
-                {pinned && !pinnedGlobally && (
-                  <div className={cn(
-                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
-                    "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300"
-                  )}>
-                    <Pin size={14} className="flex-shrink-0 fill-current" />
-                    <span className="whitespace-nowrap text-xs font-medium">Pinned</span>
-                  </div>
-                )}
-
-                {/* Repeat indicator with icon */}
-                {repeat && repeat !== 'none' && (
-                  <div className={cn(
-                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
-                    "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300"
-                  )}>
-                    <Repeat size={14} className="flex-shrink-0" />
-                    <span className="whitespace-nowrap text-xs font-medium capitalize">{repeat}</span>
-                  </div>
-                )}
-
-                {/* Category badges */}
-                {taskCategories.map((category) => (
-                  <CategoryBadge
-                    key={category.id}
-                    category={category}
-                    size="sm"
-                    variant="subtle"
-                  />
-                ))}
-              </div>
-
-              {/* Secondary metadata row - Additional info */}
-              <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 flex-wrap min-w-0 overflow-hidden">
-                {/* Steps indicator with enhanced styling */}
-                {steps.length > 0 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowSteps(!showSteps);
-                    }}
-                    className={cn(
-                      "flex items-center gap-1.5 px-2 py-1 rounded-md border transition-all duration-200 flex-shrink-0",
-                      "hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-600",
-                      "text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
-                    )}
-                  >
-                    <CheckSquare size={14} className="flex-shrink-0" />
-                    <span className="whitespace-nowrap text-xs font-medium">
-                      {steps.filter((step) => step.completed).length} of {steps.length} steps
-                    </span>
-                    <svg 
-                      className={cn("w-3 h-3 transition-transform", showSteps && "rotate-180")} 
-                      fill="currentColor" 
-                      viewBox="0 0 20 20"
-                    >
-                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                )}
-
-                {/* Notes indicator */}
-                {notes && (
-                  <div className={cn(
-                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
-                    "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300"
-                  )}>
-                    <FileText size={14} className="flex-shrink-0" />
-                    <span className="whitespace-nowrap text-xs font-medium">Notes</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Notes - Always visible if they exist */}
-              {notes && (
-                <div className="bg-gray-50 dark:bg-gray-800/30 p-3 rounded border border-gray-100 dark:border-gray-700">
-                  <MarkdownDisplay 
-                    content={notes} 
-                    inline={true}
-                    className="text-sm"
-                  />
+            {/* Primary Metadata - Always visible for important info */}
+            <div className="flex items-center gap-2 flex-wrap metadata-row">
+              {/* Due Date */}
+              {dueDate && (
+                <div className={cn(
+                  "badge",
+                  isOverdue ? "badge-danger" : isDueSoon ? "badge-warning" : "badge-primary"
+                )}>
+                  <Calendar size={12} />
+                  <span>{formatDate(dueDate)}</span>
                 </div>
               )}
-              
-              {/* Steps - Expandable if they exist */}
-              {steps.length > 0 && showSteps && (
-                <div className="w-full min-w-0 overflow-hidden">
-                  <div className="space-y-2">
-                    {steps.map((step) => (
-                      <div 
-                        key={step.id} 
-                        className="flex items-start gap-2 p-2 bg-gray-50 dark:bg-gray-800/30 rounded border border-gray-100 dark:border-gray-700 w-full min-h-fit" 
-                        style={{ maxWidth: '100%' }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={step.completed}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            handleToggleStep(step.id);
-                          }}
-                          className="rounded text-blue-600 focus:ring-blue-500 w-3 h-3 flex-shrink-0 mt-1"
-                        />
-                        <div className={cn(
-                          "text-xs flex-1 leading-relaxed",
-                          step.completed 
-                            ? 'line-through text-gray-500 dark:text-gray-400' 
-                            : 'text-gray-700 dark:text-gray-300'
-                        )}
-                        style={{ 
-                          wordWrap: 'break-word',
-                          overflowWrap: 'anywhere',
-                          wordBreak: 'break-word',
-                          whiteSpace: 'pre-wrap',
-                          minHeight: 'auto',
-                          width: '100%'
-                        }}
-                        >
-                          {step.title}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+
+              {/* Important Star - always visible when set */}
+              {important && (
+                <div className="badge badge-warning">
+                  <Star size={12} className="fill-current" />
+                  <span>Important</span>
+                </div>
+              )}
+
+              {/* My Day */}
+              {myDay && (
+                <div className="badge badge-warning">
+                  <Sun size={12} />
+                  <span>My Day</span>
+                </div>
+              )}
+
+              {/* Reminder - only if today or overdue */}
+              {reminder && new Date(reminder) <= new Date(Date.now() + 24 * 60 * 60 * 1000) && (
+                <div className="badge badge-warning">
+                  <Bell size={12} />
+                  <span>Reminder</span>
+                </div>
+              )}
+
+              {/* Global Pin */}
+              {pinnedGlobally && (
+                <div className="badge badge-primary">
+                  <Pin size={12} className="fill-current" />
+                  <span>Pinned</span>
+                </div>
+              )}
+
+              {/* Repeat indicator - simplified */}
+              {repeat && repeat !== 'none' && (
+                <div className="badge badge-neutral">
+                  <Repeat size={12} />
+                  <span className="capitalize">{repeat}</span>
                 </div>
               )}
             </div>
+
+            {/* Secondary Metadata - Shown when details are expanded */}
+            {showDetails && (
+              <div className="mt-3 space-y-3 animate-fade-in">
+                {/* Categories */}
+                {taskCategories.length > 0 && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {taskCategories.map((category) => (
+                      <CategoryBadge
+                        key={category.id}
+                        category={category}
+                        size="sm"
+                        variant="subtle"
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Notes */}
+                {notes && (
+                  <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-md border border-gray-200 dark:border-gray-700">
+                    <MarkdownDisplay 
+                      content={notes} 
+                      inline={true}
+                      className="text-sm text-gray-700 dark:text-gray-300"
+                    />
+                  </div>
+                )}
+                
+                {/* Steps */}
+                {steps.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                      <CheckSquare size={12} />
+                      <span>{steps.filter(s => s.completed).length} of {steps.length} steps completed</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {steps.map((step) => (
+                        <div 
+                          key={step.id} 
+                          className="flex items-start gap-2 p-2 bg-gray-50 dark:bg-gray-800/30 rounded border border-gray-200 dark:border-gray-700"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={step.completed}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleToggleStep(step.id);
+                            }}
+                            className="mt-0.5 w-3 h-3 rounded text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600 flex-shrink-0"
+                          />
+                          <span className={cn(
+                            "text-xs leading-relaxed flex-1",
+                            step.completed 
+                              ? 'line-through text-gray-500 dark:text-gray-400' 
+                              : 'text-gray-700 dark:text-gray-300'
+                          )}>
+                            {step.title}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Additional metadata indicators */}
+                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                  {reminder && new Date(reminder) > new Date(Date.now() + 24 * 60 * 60 * 1000) && (
+                    <div className="flex items-center gap-1">
+                      <Bell size={12} />
+                      <span>Reminder set</span>
+                    </div>
+                  )}
+                  {pinned && !pinnedGlobally && (
+                    <div className="flex items-center gap-1">
+                      <Pin size={12} />
+                      <span>Pinned to list</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Quick Info Indicators - shown when not expanded */}
+            {!showDetails && (steps.length > 0 || notes || taskCategories.length > 0) && (
+              <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                {steps.length > 0 && (
+                  <div className="flex items-center gap-1">
+                    <CheckSquare size={12} />
+                    <span>{steps.filter(s => s.completed).length}/{steps.length}</span>
+                  </div>
+                )}
+                {notes && (
+                  <div className="flex items-center gap-1">
+                    <FileText size={12} />
+                    <span>Notes</span>
+                  </div>
+                )}
+                {taskCategories.length > 0 && (
+                  <div className="flex items-center gap-1">
+                    <span>{taskCategories.length} categories</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Actions - grid column, never overlaps */}
-          <div className="flex items-center gap-0.5">
-            {/* Star - always visible and more prominent */}
+          {/* Actions */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {/* Important Star - always visible */}
             <Button
               variant="ghost"
               size="sm"
@@ -447,34 +422,16 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                 handleToggleImportant();
               }}
               className={cn(
-                'p-1.5 h-7 w-7 rounded-full transition-all duration-200 flex-shrink-0',
+                'p-1.5 w-7 h-7 rounded-md transition-all duration-200',
                 important 
-                  ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 shadow-sm' 
-                  : 'text-gray-400 dark:text-gray-500 hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
+                  ? 'text-warning-600 bg-warning-50 dark:bg-warning-950/30 shadow-sm' 
+                  : 'text-gray-400 dark:text-gray-500 hover:text-warning-500 hover:bg-warning-50 dark:hover:bg-warning-950/30'
               )}
             >
               <Star size={14} className={important ? 'fill-current' : ''} />
             </Button>
 
-            {/* Pin - always visible when pinned, hover visible when not */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleTogglePin();
-              }}
-              className={cn(
-                'p-1.5 h-7 w-7 rounded-full transition-all duration-200 flex-shrink-0',
-                pinned || pinnedGlobally
-                  ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 shadow-sm' 
-                  : 'text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'
-              )}
-            >
-              <Pin size={14} className={(pinned || pinnedGlobally) ? 'fill-current' : ''} />
-            </Button>
-
-            {/* Edit - only visible on hover */}
+            {/* Edit - visible on hover */}
             <Button
               variant="ghost"
               size="sm"
@@ -482,7 +439,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                 e.stopPropagation();
                 handleEdit();
               }}
-              className="p-1.5 h-7 w-7 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+              className="p-1.5 w-7 h-7 text-gray-400 dark:text-gray-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/30 opacity-0 group-hover:opacity-100 transition-all duration-200"
             >
               <Edit3 size={14} />
             </Button>
@@ -517,12 +474,10 @@ export const TaskItem = memo(TaskItemComponent, (prevProps, nextProps) => {
   const prevIsThisTask = prevProps.activeTaskId === prevProps.task.id;
   const nextIsThisTask = nextProps.activeTaskId === nextProps.task.id;
   
-  // Re-render if:
-  // 1. Drag state started/stopped (null to non-null or vice versa)
-  // 2. This task became the dragged task or stopped being the dragged task
+  // Re-render if drag state or active task state changed
   if (prevActive !== nextActive) return false;
   if (prevIsThisTask !== nextIsThisTask) return false;
   
-  // No re-render needed - the visual state is the same
+  // No re-render needed
   return true;
 });

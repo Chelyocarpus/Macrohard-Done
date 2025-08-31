@@ -23,7 +23,7 @@ function App() {
 
   return (
     <ContextMenuProvider>
-      <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="flex h-screen bg-gray-50 dark:bg-gray-950 antialiased">
         <Sidebar 
           setShowAddGroupModal={setShowAddGroupModal}
           showAddListModal={showAddListModal}
@@ -33,7 +33,9 @@ function App() {
           'flex-1 flex flex-col transition-all duration-300 min-w-0 relative',
           sidebarCollapsed ? 'ml-16' : 'ml-64'
         )}>
-          <TaskView />
+          <div className="flex-1 overflow-hidden">
+            <TaskView />
+          </div>
         </main>
 
         {/* Group Modal - rendered at root level for proper z-index */}

@@ -43,7 +43,7 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5, // Reduced from 8 for more responsive dragging
+        distance: 5,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -51,8 +51,8 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 200, // Reduced from 250 for better responsiveness
-        tolerance: 8, // Increased for better touch handling
+        delay: 200,
+        tolerance: 8,
       },
     })
   );
@@ -141,269 +141,267 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
   return (
     <>
       <aside className={cn(
-      `fixed left-0 top-0 h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 z-20`,
-      sidebarCollapsed ? 'w-16' : 'w-64'
-    )}>
-      <div className="flex flex-col h-full">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            {!sidebarCollapsed && (
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                To Do
-              </h1>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleSidebar}
-              className="p-2"
-            >
-              <Menu size={20} />
-            </Button>
-          </div>
-          
-          {!sidebarCollapsed && (
-            <div className="mt-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                <Input
-                  placeholder="Search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+        'sidebar',
+        sidebarCollapsed ? 'w-16' : 'w-64'
+      )}>
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="sidebar-header">
+            <div className="flex items-center justify-between">
+              {!sidebarCollapsed && (
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                  To Do
+                </h1>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleSidebar}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible"
+              >
+                <Menu size={20} />
+              </Button>
             </div>
-          )}
-        </div>
-
-        {/* System Lists */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-2">
-            {systemLists.map((listItem) => {
-              const Icon = listItem.icon;
-              const isActive = currentView === listItem.view;
-              const taskCount = getTaskCountForList(listItem.id);
-
-              return (
-                <button
-                  key={listItem.id}
-                  onClick={() => setView(listItem.view)}
-                  className={cn(
-                    'w-full flex items-center px-3 py-2 rounded-md text-left transition-colors',
-                    isActive
-                      ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700',
-                    sidebarCollapsed && 'justify-center'
-                  )}
-                >
-                  <Icon size={20} className={cn(!sidebarCollapsed && 'mr-3')} />
-                  {!sidebarCollapsed && (
-                    <>
-                      <span className="flex-1">{listItem.name}</span>
-                      {taskCount > 0 && (
-                        <span className="text-xs bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full">
-                          {taskCount}
-                        </span>
-                      )}
-                    </>
-                  )}
-                </button>
-              );
-            })}
+            
+            {!sidebarCollapsed && (
+              <div className="mt-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" size={16} />
+                  <Input
+                    placeholder="Search tasks..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 input"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Categories Section */}
-          {!sidebarCollapsed && (
-            <div className="p-2 border-t border-gray-200 dark:border-gray-700">
-              <div className="mb-2">
-                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 px-3 py-2 uppercase tracking-wide">
-                  Categories
-                </h3>
-              </div>
-              
-              {/* Categories List */}
-              <div className="space-y-1 mb-3">
-                {categories.slice(0, 5).map((category) => {
-                  const taskCount = getTaskCountForCategory(category.id);
-                  const isActive = currentView === 'category' && currentCategoryId === category.id;
-                  
+          {/* System Lists */}
+          <div className="sidebar-content">
+            <div className="sidebar-section">
+              <div className="space-y-1">
+                {systemLists.map((listItem) => {
+                  const Icon = listItem.icon;
+                  const isActive = currentView === listItem.view;
+                  const taskCount = getTaskCountForList(listItem.id);
+
                   return (
                     <button
-                      key={category.id}
-                      onClick={() => setView('category', undefined, category.id)}
+                      key={listItem.id}
+                      onClick={() => setView(listItem.view)}
                       className={cn(
-                        'w-full flex items-center px-3 py-2 rounded-md text-left transition-colors',
-                        isActive
-                          ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        'nav-item w-full group',
+                        isActive ? 'nav-item-active' : 'nav-item-inactive',
+                        sidebarCollapsed && 'justify-center px-2'
                       )}
                     >
-                      <div className="flex items-center mr-3">
-                        {category.emoji && (
-                          <span className="mr-2">{category.emoji}</span>
-                        )}
-                        <div 
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: category.color }}
-                        />
-                      </div>
-                      <span className="flex-1 truncate">{category.name}</span>
-                      {taskCount > 0 && (
-                        <span className="text-xs bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full">
-                          {taskCount}
-                        </span>
+                      <Icon size={20} className={cn(!sidebarCollapsed && 'mr-3')} />
+                      {!sidebarCollapsed && (
+                        <>
+                          <span className="flex-1 text-left font-medium">{listItem.name}</span>
+                          {taskCount > 0 && (
+                            <span className="badge badge-neutral text-2xs px-2 py-0.5 ml-2">
+                              {taskCount}
+                            </span>
+                          )}
+                        </>
                       )}
                     </button>
                   );
                 })}
-                
-                {categories.length === 0 && (
-                  <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
-                    No categories yet
-                  </div>
-                )}
               </div>
-              
-              {/* Manage Categories Button */}
-              <button
-                onClick={() => setShowCategoryManager(true)}
-                className="w-full flex items-center px-3 py-2 rounded-md text-left transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                <Settings size={16} className="mr-3" />
-                <span>Manage Categories</span>
-              </button>
             </div>
-          )}
 
-          {/* Collapsed Categories */}
-          {sidebarCollapsed && categories.length > 0 && (
-            <div className="p-2 border-t border-gray-200 dark:border-gray-700">
-              <button
-                onClick={() => setShowCategoryManager(true)}
-                className="w-full flex items-center justify-center p-3 rounded-md transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                title="Categories"
-              >
-                <Tag size={20} />
-              </button>
-            </div>
-          )}
+            {/* Categories Section */}
+            {!sidebarCollapsed && categories.length > 0 && (
+              <div className="sidebar-section">
+                <h3 className="sidebar-section-title">Categories</h3>
+                
+                <div className="space-y-1 mb-3">
+                  {categories.slice(0, 5).map((category) => {
+                    const taskCount = getTaskCountForCategory(category.id);
+                    const isActive = currentView === 'category' && currentCategoryId === category.id;
+                    
+                    return (
+                      <button
+                        key={category.id}
+                        onClick={() => setView('category', undefined, category.id)}
+                        className={cn(
+                          'nav-item w-full group',
+                          isActive ? 'nav-item-active' : 'nav-item-inactive'
+                        )}
+                      >
+                        <div className="flex items-center mr-3">
+                          {category.emoji && (
+                            <span className="mr-2 text-sm">{category.emoji}</span>
+                          )}
+                          <div 
+                            className="w-3 h-3 rounded-full border border-gray-200 dark:border-gray-600"
+                            style={{ backgroundColor: category.color }}
+                          />
+                        </div>
+                        <span className="flex-1 text-left font-medium truncate">{category.name}</span>
+                        {taskCount > 0 && (
+                          <span className="badge badge-neutral text-2xs px-2 py-0.5 ml-2">
+                            {taskCount}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowCategoryManager(true)}
+                  className="w-full justify-start px-3 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 font-medium"
+                >
+                  <Settings size={16} className="mr-3" />
+                  <span>Manage Categories</span>
+                </Button>
+              </div>
+            )}
 
-          {/* Custom Lists */}
-          {!sidebarCollapsed && (
-            <div className="p-2 border-t border-gray-200 dark:border-gray-700">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-              >
-                {groupedLists.map((section) => (
-                  <GroupedListSection
-                    key={section.group?.id || 'ungrouped'}
-                    group={section.group}
-                    lists={section.lists}
-                    currentView={currentView}
-                    currentListId={currentListId}
-                    onSetView={setView}
-                    sidebarCollapsed={sidebarCollapsed}
-                    activeId={activeId}
-                  />
-                ))}
-              </DndContext>
-            </div>
-          )}
+            {/* Collapsed Categories */}
+            {sidebarCollapsed && categories.length > 0 && (
+              <div className="sidebar-section">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowCategoryManager(true)}
+                  className="w-full justify-center p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  title="Categories"
+                >
+                  <Tag size={20} />
+                </Button>
+              </div>
+            )}
 
-          {/* Collapsed Custom Lists */}
-          {sidebarCollapsed && customLists.length > 0 && (
-            <div className="p-2 border-t border-gray-200 dark:border-gray-700">
-              {customLists.map((list) => {
-                const isActive = currentView === 'list' && currentListId === list.id;
-                const { icon } = getListDisplayInfo(list);
+            {/* Custom Lists */}
+            {!sidebarCollapsed && customLists.length > 0 && (
+              <div className="sidebar-section">
+                <h3 className="sidebar-section-title">My Lists</h3>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                >
+                  {groupedLists.map((section) => (
+                    <GroupedListSection
+                      key={section.group?.id || 'ungrouped'}
+                      group={section.group}
+                      lists={section.lists}
+                      currentView={currentView}
+                      currentListId={currentListId}
+                      onSetView={setView}
+                      sidebarCollapsed={sidebarCollapsed}
+                      activeId={activeId}
+                    />
+                  ))}
+                </DndContext>
+              </div>
+            )}
 
-                return (
-                  <button
-                    key={list.id}
-                    onClick={() => setView('list', list.id)}
-                    className={cn(
-                      'w-full flex items-center justify-center p-3 rounded-md transition-colors',
-                      isActive
-                        ? 'bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-gray-100'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    )}
-                  >
-                    {icon ? (
-                      <span className="text-lg">{icon}</span>
-                    ) : (
-                      <List size={20} />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+            {/* Collapsed Custom Lists */}
+            {sidebarCollapsed && customLists.length > 0 && (
+              <div className="sidebar-section">
+                {customLists.slice(0, 6).map((list) => {
+                  const isActive = currentView === 'list' && currentListId === list.id;
+                  const { icon } = getListDisplayInfo(list);
 
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-          {!sidebarCollapsed ? (
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={handleAddList}
-                className="flex flex-col items-center justify-center p-3 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all duration-200 group"
-              >
-                <Plus size={20} className="mb-1 text-blue-500 dark:text-blue-400 group-hover:scale-110 transition-transform duration-200" />
-                <span>Neue Liste</span>
-              </button>
-              <button
-                onClick={handleAddGroup}
-                className="flex flex-col items-center justify-center p-3 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all duration-200 group"
-              >
-                <Plus size={20} className="mb-1 text-green-500 dark:text-green-400 group-hover:scale-110 transition-transform duration-200" />
-                <span>New Group</span>
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={handleAddList}
-                className="flex items-center justify-center p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all duration-200 group"
-                title="Neue Liste"
-              >
-                <Plus size={20} className="text-blue-500 dark:text-blue-400 group-hover:scale-110 transition-transform duration-200" />
-              </button>
-              <button
-                onClick={handleAddGroup}
-                className="flex items-center justify-center p-2 text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all duration-200 group"
-                title="New Group"
-              >
-                <Plus size={20} className="text-green-500 dark:text-green-400 group-hover:scale-110 transition-transform duration-200" />
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {/* Add List Modal */}
-      <ListEditSidebar
-        isOpen={showAddListModal}
-        onClose={() => setShowAddListModal(false)}
-        mode="create"
-      />
-      
-      {/* Category Manager Modal */}
-      {showCategoryManager && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="max-w-2xl w-full max-h-[80vh] overflow-hidden">
-            <CategoryManager
-              onClose={() => setShowCategoryManager(false)}
-              className="w-full h-full"
-            />
+                  return (
+                    <Button
+                      key={list.id}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setView('list', list.id)}
+                      className={cn(
+                        'w-full justify-center p-3 mb-1',
+                        isActive
+                          ? 'bg-primary-50 dark:bg-primary-950/50 text-primary-700 dark:text-primary-300'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      )}
+                      title={list.name}
+                    >
+                      {icon ? (
+                        <span className="text-lg">{icon}</span>
+                      ) : (
+                        <List size={20} />
+                      )}
+                    </Button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="sidebar-footer">
+            {!sidebarCollapsed ? (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={handleAddList}
+                  className="btn-ghost flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200 group hover:bg-primary-50 dark:hover:bg-primary-950/30"
+                >
+                  <Plus size={18} className="mb-1.5 text-primary-600 dark:text-primary-400 group-hover:scale-110 transition-transform duration-200" />
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300 group-hover:text-primary-700 dark:group-hover:text-primary-300">New List</span>
+                </button>
+                <button
+                  onClick={handleAddGroup}
+                  className="btn-ghost flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200 group hover:bg-success-50 dark:hover:bg-success-950/30"
+                >
+                  <Plus size={18} className="mb-1.5 text-success-600 dark:text-success-400 group-hover:scale-110 transition-transform duration-200" />
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300 group-hover:text-success-700 dark:group-hover:text-success-300">New Group</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleAddList}
+                  className="p-3 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/30 group"
+                  title="New List"
+                >
+                  <Plus size={20} className="group-hover:scale-110 transition-transform duration-200" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleAddGroup}
+                  className="p-3 text-success-600 dark:text-success-400 hover:bg-success-50 dark:hover:bg-success-950/30 group"
+                  title="New Group"
+                >
+                  <Plus size={20} className="group-hover:scale-110 transition-transform duration-200" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
-      )}
-    </aside>
+        
+        {/* Add List Modal */}
+        <ListEditSidebar
+          isOpen={showAddListModal}
+          onClose={() => setShowAddListModal(false)}
+          mode="create"
+        />
+        
+        {/* Category Manager Modal */}
+        {showCategoryManager && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+            <div className="card max-w-2xl w-full max-h-[80vh] overflow-hidden animate-scale-in">
+              <CategoryManager
+                onClose={() => setShowCategoryManager(false)}
+                className="w-full h-full"
+              />
+            </div>
+          </div>
+        )}
+      </aside>
     </>
   );
 }
