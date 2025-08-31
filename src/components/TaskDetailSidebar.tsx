@@ -1,10 +1,17 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Star, Calendar, Repeat, FileText, CheckSquare, Sun, Bell, Copy, Pin, Archive, List } from 'lucide-react';
 import type { Task } from '../types/index.ts';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
-import { MarkdownEditor } from './ui/MarkdownEditor.tsx';
+// Create lazy component for MarkdownEditor
+const LazyMarkdownEditor = React.lazy(() => 
+  import('./ui/MarkdownEditor.tsx').then(module => ({ 
+    default: module.MarkdownEditor 
+  }))
+);
+import { LazyWrapper } from './ui/ErrorBoundary.tsx';
+import { EditorLoadingWithTimeout } from './ui/LoadingWithTimeout.tsx';
 import { DateTimePicker } from './DateTimePicker.tsx';
 import { CategorySelector } from './CategorySelector.tsx';
 import { AutoSaveIndicator } from './ui/AutoSaveIndicator.tsx';
@@ -887,11 +894,16 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
                   </div>
                   <span className="font-medium text-base text-gray-900 dark:text-white">Add note</span>
                 </div>
-                <MarkdownEditor
-                  value={notes}
-                  onChange={(value) => setNotes(value)}
-                  placeholder="Add a detailed description or note about this task..."
-                />
+                <LazyWrapper
+                  fallback={<EditorLoadingWithTimeout />}
+                  context="markdown editor"
+                >
+                  <LazyMarkdownEditor
+                    value={notes}
+                    onChange={(value) => setNotes(value)}
+                    placeholder="Add a detailed description or note about this task..."
+                  />
+                </LazyWrapper>
               </div>
             </div>
           </div>
