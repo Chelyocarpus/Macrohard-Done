@@ -167,9 +167,4 @@ export function GroupEditModal({ isOpen, onClose }: GroupEditModalProps) {
   );
 }
 
-// Lazy-loaded wrapper component
-export const LazyGroupEditModal = React.lazy(() => 
-  import('./GroupEditModal.tsx').then(module => ({ 
-    default: module.GroupEditModal 
-  }))
-);
+

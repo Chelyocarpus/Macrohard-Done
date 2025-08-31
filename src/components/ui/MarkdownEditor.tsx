@@ -238,9 +238,4 @@ export function MarkdownEditor({
   );
 }
 
-// Lazy-loaded wrapper component
-export const LazyMarkdownEditor = React.lazy(() => 
-  import('./MarkdownEditor.tsx').then(module => ({ 
-    default: module.MarkdownEditor 
-  }))
-);
+

@@ -1,8 +1,15 @@
-import { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTaskStore } from './stores/taskStore.ts';
 import { Sidebar } from './components/Sidebar.tsx';
 import { TaskView } from './components/TaskView.tsx';
-import { LazyGroupEditModal } from './components/GroupEditModal.tsx';
+// Create lazy component for GroupEditModal
+const LazyGroupEditModal = React.lazy(() => 
+  import('./components/GroupEditModal.tsx').then(module => ({ 
+    default: module.GroupEditModal 
+  }))
+);
+import { LazyWrapper } from './components/ui/ErrorBoundary.tsx';
+import { ModalLoadingWithTimeout } from './components/ui/LoadingWithTimeout.tsx';
 import { ContextMenuProvider } from './components/ui/ContextMenu.tsx';
 import { ToastProvider } from './components/ui/ToastProvider.tsx';
 import { cn } from './utils/cn.ts';
@@ -37,12 +44,15 @@ function App() {
         </main>
 
         {/* Group Modal - rendered at root level for proper z-index */}
-        <Suspense fallback={null}>
+        <LazyWrapper
+          fallback={showAddGroupModal ? <ModalLoadingWithTimeout message="Loading modal..." /> : null}
+          context="group edit modal"
+        >
           <LazyGroupEditModal
             isOpen={showAddGroupModal}
             onClose={() => setShowAddGroupModal(false)}
           />
-        </Suspense>
+        </LazyWrapper>
         
         {/* Toast notifications */}
         <ToastProvider />
