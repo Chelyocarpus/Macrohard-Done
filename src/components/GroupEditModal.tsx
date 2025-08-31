@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Smile } from 'lucide-react';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { Button } from './ui/Button.tsx';
@@ -166,3 +166,10 @@ export function GroupEditModal({ isOpen, onClose }: GroupEditModalProps) {
     </div>
   );
 }
+
+// Lazy-loaded wrapper component
+export const LazyGroupEditModal = React.lazy(() => 
+  import('./GroupEditModal.tsx').then(module => ({ 
+    default: module.GroupEditModal 
+  }))
+);

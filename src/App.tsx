@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useTaskStore } from './stores/taskStore.ts';
 import { Sidebar } from './components/Sidebar.tsx';
 import { TaskView } from './components/TaskView.tsx';
-import { GroupEditModal } from './components/GroupEditModal.tsx';
+import { LazyGroupEditModal } from './components/GroupEditModal.tsx';
 import { ContextMenuProvider } from './components/ui/ContextMenu.tsx';
 import { ToastProvider } from './components/ui/ToastProvider.tsx';
 import { cn } from './utils/cn.ts';
@@ -37,10 +37,12 @@ function App() {
         </main>
 
         {/* Group Modal - rendered at root level for proper z-index */}
-        <GroupEditModal
-          isOpen={showAddGroupModal}
-          onClose={() => setShowAddGroupModal(false)}
-        />
+        <Suspense fallback={null}>
+          <LazyGroupEditModal
+            isOpen={showAddGroupModal}
+            onClose={() => setShowAddGroupModal(false)}
+          />
+        </Suspense>
         
         {/* Toast notifications */}
         <ToastProvider />

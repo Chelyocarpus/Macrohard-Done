@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { X, Star, Calendar, Repeat, FileText, CheckSquare, Sun, Bell, Copy, Pin, Archive, List } from 'lucide-react';
 import type { Task } from '../types/index.ts';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
-import { MarkdownEditor } from './ui/MarkdownEditor.tsx';
+import { LazyMarkdownEditor } from './ui/MarkdownEditor.tsx';
 import { DateTimePicker } from './DateTimePicker.tsx';
 import { CategorySelector } from './CategorySelector.tsx';
 import { AutoSaveIndicator } from './ui/AutoSaveIndicator.tsx';
@@ -887,11 +887,17 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId }
                   </div>
                   <span className="font-medium text-base text-gray-900 dark:text-white">Add note</span>
                 </div>
-                <MarkdownEditor
-                  value={notes}
-                  onChange={(value) => setNotes(value)}
-                  placeholder="Add a detailed description or note about this task..."
-                />
+                <Suspense fallback={
+                  <div className="animate-pulse bg-gray-100 dark:bg-gray-700 rounded-lg h-32 w-full flex items-center justify-center">
+                    <span className="text-gray-500 dark:text-gray-400 text-sm">Loading editor...</span>
+                  </div>
+                }>
+                  <LazyMarkdownEditor
+                    value={notes}
+                    onChange={(value) => setNotes(value)}
+                    placeholder="Add a detailed description or note about this task..."
+                  />
+                </Suspense>
               </div>
             </div>
           </div>
