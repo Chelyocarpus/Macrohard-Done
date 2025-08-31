@@ -14,6 +14,7 @@ import { createEmptyAreaContextMenu } from './ui/contextMenus.tsx';
 import { FloatingActionButton } from './FloatingActionButton.tsx';
 import { QuickAddTaskForm } from './QuickAddTaskForm.tsx';
 import { GroupEditSidebar } from './GroupEditSidebar.tsx';
+import { StatCards } from './StatCards.tsx';
 
 export function TaskView() {
   const { currentView, currentListId, currentCategoryId, lists, categories } = useTaskStore();
@@ -233,6 +234,9 @@ export function TaskView() {
             </div>
           </div>
         </header>
+
+        {/* Statistics Cards */}
+        <StatCards />
 
         {/* Task List */}
         <div 
