@@ -54,15 +54,13 @@ function DroppableGroupHeader({ group, children }: DroppableGroupHeaderProps) {
     <div
       ref={setNodeRef}
       className={cn(
-        'transition-colors duration-200 relative',
-        isOver && 'bg-blue-100 dark:bg-blue-900/30 rounded-lg border border-blue-300 dark:border-blue-600'
+        'transition-colors duration-200',
+        isOver && 'bg-gray-50 dark:bg-gray-800 rounded'
       )}
     >
       {isOver && (
-        <div className={`absolute inset-0 flex items-center justify-center pointer-events-none z-10`}>
-          <div className="bg-blue-600 dark:bg-blue-500 text-white px-3 py-1 rounded text-sm font-medium">
-            📂 Drop to add to group
-          </div>
+        <div className="text-xs text-gray-500 dark:text-gray-400 px-3 py-1 mb-1">
+          Drop to add to group
         </div>
       )}
       {children}
@@ -83,15 +81,13 @@ function DroppableUngroupedArea({ children, activeId, lists }: { children: React
     <div
       ref={setNodeRef}
       className={cn(
-        'transition-all duration-200 ease-in-out relative',
-        isOver && 'bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-lg border-2 border-dashed border-emerald-400 dark:border-emerald-500 p-2 shadow-lg scale-[1.01] transform'
+        'transition-colors duration-200',
+        isOver && 'bg-gray-50 dark:bg-gray-800 rounded'
       )}
     >
       {isOver && isMovingFromGroup && (
-        <div className={`absolute inset-0 flex items-center justify-center pointer-events-none z-10`}>
-          <div className="bg-emerald-600 dark:bg-emerald-500 text-white px-3 py-2 rounded-full text-sm font-medium shadow-lg">
-            🏠 Drop to ungroup
-          </div>
+        <div className="text-xs text-gray-500 dark:text-gray-400 px-3 py-1 mb-1">
+          Drop to ungroup
         </div>
       )}
       {children}
@@ -138,7 +134,7 @@ function SortableListItem({ list, isActive, taskCount, onClick, sidebarCollapsed
       {...attributes}
       {...listeners}
       className={cn(
-        'cursor-grab active:cursor-grabbing transition-opacity duration-200',
+        'transition-opacity duration-200',
         isDragging && 'opacity-50'
       )}
     >
@@ -146,54 +142,31 @@ function SortableListItem({ list, isActive, taskCount, onClick, sidebarCollapsed
         onClick={onClick}
         onContextMenu={handleContextMenu}
         className={cn(
-          'w-full flex items-center px-3 py-2 rounded-lg text-left transition-all duration-200 relative overflow-hidden group shadow-sm border-l-2',
+          'w-full flex items-center px-3 py-1.5 text-left transition-colors text-sm relative',
           isActive
-            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-md border-r border-t border-b border-gray-200 dark:border-gray-600'
-            : 'bg-gray-50/80 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300 hover:bg-white hover:shadow-md dark:hover:bg-gray-700 border-r border-t border-b border-gray-100 dark:border-gray-700/50',
-          isDragging && 'bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-500 shadow-lg scale-105'
+            ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium'
+            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800',
+          isDragging && 'bg-gray-100 dark:bg-gray-700'
         )}
-        style={list.color ? {
-          borderLeftColor: list.color,
-          borderRightColor: isActive ? list.color + '30' : 'transparent',
-          borderTopColor: isActive ? list.color + '30' : 'transparent', 
-          borderBottomColor: isActive ? list.color + '30' : 'transparent',
-          backgroundImage: isActive 
-            ? `linear-gradient(90deg, ${list.color}15 0%, ${list.color}05 50%, transparent 100%)`
-            : `linear-gradient(90deg, ${list.color}08 0%, transparent 100%)`
-        } : {
-          borderLeftColor: '#E5E7EB'
-        }}
       >
         {list.color && (
           <div 
-            className="absolute left-0 top-0 bottom-0 w-1 transition-all duration-200"
-            style={{ 
-              backgroundColor: list.color,
-              opacity: isActive ? 1 : 0.6,
-              width: isActive ? '4px' : '2px'
-            }}
+            className="absolute left-0 top-0 bottom-0 w-0.5"
+            style={{ backgroundColor: list.color }}
           />
         )}
-        <div className={`flex items-center gap-2.5 flex-1 min-w-0 relative z-10`}>
+        <div className={`flex items-center gap-2 flex-1 min-w-0 ${list.color ? 'ml-2' : ''}`}>
           {icon ? (
-            <span className="text-base">{icon}</span>
+            <span className="text-sm">{icon}</span>
           ) : (
-            <List size={18} />
+            <List size={14} />
           )}
           {!sidebarCollapsed && (
             <span className="flex-1 truncate">{displayName}</span>
           )}
         </div>
         {!sidebarCollapsed && taskCount > 0 && (
-          <span 
-            className={cn(
-              `text-xs px-2 py-1 rounded-full font-medium relative z-10`,
-              isActive && list.color
-                ? "text-white shadow-sm"
-                : "bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300"
-            )}
-            style={isActive && list.color ? { backgroundColor: list.color } : undefined}
-          >
+          <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">
             {taskCount}
           </span>
         )}
@@ -259,7 +232,7 @@ export function GroupedListSection({
 
   if (sidebarCollapsed) {
     return (
-      <div className="space-y-1">
+      <div className="">
         {lists.map((list) => {
           const isActive = currentView === 'list' && currentListId === list.id;
           const taskCount = getTaskCountForList(list.id);
@@ -284,10 +257,10 @@ export function GroupedListSection({
   if (!group) {
     // Ungrouped lists
     return (
-      <div className="mb-7">
+      <div className="mb-4">
         <SortableContext items={lists.map(l => l.id)} strategy={verticalListSortingStrategy}>
           <DroppableUngroupedArea activeId={activeId} lists={lists}>
-            <div className="space-y-1.5">
+            <div className="">
               {lists.map((list) => {
                 const isActive = currentView === 'list' && currentListId === list.id;
                 const taskCount = getTaskCountForList(list.id);
@@ -313,152 +286,126 @@ export function GroupedListSection({
   }
 
   return (
-    <div className="mb-5">
-      {/* Group Container with Cohesive Design */}
-      <div 
-        className="relative bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-800 dark:to-gray-800/50 rounded-xl border-l-4 border-r border-t border-b border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden"
-        style={group.color ? {
-          borderLeftColor: group.color,
-          borderRightColor: `${group.color}30`,
-          borderTopColor: `${group.color}30`,
-          borderBottomColor: `${group.color}30`,
-          backgroundColor: `${group.color}03`
-        } : undefined}
-      >
-        {/* Group Header */}
-        <DroppableGroupHeader group={group}>
-          <div 
-            className="relative bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-750 border-b border-gray-200 dark:border-gray-700"
-            style={group.color ? {
-              borderBottomColor: `${group.color}30`,
-              background: `linear-gradient(135deg, ${group.color}08 0%, ${group.color}03 100%)`
-            } : undefined}
+    <div className="mb-4">
+      {/* Group Header */}
+      <DroppableGroupHeader group={group}>
+        <div className="px-3 py-1 flex items-center">
+          {/* Collapse Button */}
+          <button
+            onClick={() => toggleGroupCollapsed(group.id)}
+            className="p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors mr-1.5"
           >
-            <div className="flex items-center px-3 py-2.5">
-              {/* Collapse Button - Compact */}
-              <button
-                onClick={() => toggleGroupCollapsed(group.id)}
-                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors flex-shrink-0 mr-1.5"
-              >
-                {group.collapsed ? (
-                  <ChevronRight size={16} className="text-gray-600 dark:text-gray-400" />
-                ) : (
-                  <ChevronDown size={16} className="text-gray-600 dark:text-gray-400" />
+            {group.collapsed ? (
+              <ChevronRight size={12} className="text-gray-500 dark:text-gray-400" />
+            ) : (
+              <ChevronDown size={12} className="text-gray-500 dark:text-gray-400" />
+            )}
+          </button>
+          
+          {/* Group Name */}
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            {editingGroup ? (
+              <input
+                type="text"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                onBlur={handleSaveGroup}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveGroup();
+                  if (e.key === 'Escape') {
+                    setGroupName(group.name);
+                    setEditingGroup(false);
+                  }
+                }}
+                className="w-full px-1 py-0.5 text-xs font-medium bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                autoFocus
+              />
+            ) : (
+              <>
+                {group.emoji && (
+                  <span className="text-xs" aria-hidden="true">
+                    {group.emoji}
+                  </span>
                 )}
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide truncate">
+                  {group.name}
+                </span>
+              </>
+            )}
+          </div>
+          
+          {/* Action Buttons */}
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={handleAddList}
+              className="p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+              title="Add list to group"
+            >
+              <Plus size={12} className="text-gray-500 dark:text-gray-400" />
+            </button>
+            
+            <div className="relative">
+              <button
+                onClick={() => setShowGroupMenu(!showGroupMenu)}
+                className="p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+              >
+                <MoreHorizontal size={12} className="text-gray-500 dark:text-gray-400" />
               </button>
               
-              {/* Group Name Section - Maximum space allocation */}
-              <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                {editingGroup ? (
-                  <input
-                    type="text"
-                    value={groupName}
-                    onChange={(e) => setGroupName(e.target.value)}
-                    onBlur={handleSaveGroup}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveGroup();
-                      if (e.key === 'Escape') {
-                        setGroupName(group.name);
-                        setEditingGroup(false);
-                      }
-                    }}
-                    className="w-full px-2 py-1 text-sm font-semibold bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    autoFocus
-                  />
-                ) : (
-                  <>
-                    {group.emoji && (
-                      <span className="text-base flex-shrink-0" aria-hidden="true">
-                        {group.emoji}
-                      </span>
-                    )}
-                    <span 
-                      className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate"
-                      title={group.name}
-                    >
-                      {group.name}
-                    </span>
-                  </>
-                )}
-              </div>
-              
-              {/* Action Buttons - Compact */}
-              <div className="flex items-center gap-0.5 flex-shrink-0">
-                <button
-                  onClick={handleAddList}
-                  className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
-                  title="Add list to group"
-                >
-                  <Plus size={14} className="text-gray-600 dark:text-gray-400" />
-                </button>
-                
-                <div className="relative">
+              {showGroupMenu && (
+                <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-30 min-w-[120px]">
                   <button
-                    onClick={() => setShowGroupMenu(!showGroupMenu)}
-                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                    onClick={() => {
+                      setShowGroupEditSidebar(true);
+                      setShowGroupMenu(false);
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                   >
-                    <MoreHorizontal size={14} className="text-gray-600 dark:text-gray-400" />
+                    <Edit3 size={12} />
+                    Edit
                   </button>
-                  
-                  {showGroupMenu && (
-                    <div className={`absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-30 min-w-[120px]`}>
-                      <button
-                        onClick={() => {
-                          setShowGroupEditSidebar(true);
-                          setShowGroupMenu(false);
-                        }}
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                      >
-                        <Edit3 size={14} />
-                        Edit
-                      </button>
-                      <button
-                        onClick={handleDeleteGroup}
-                        className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
-                      >
-                        <Trash2 size={14} />
-                        Delete
-                      </button>
-                    </div>
-                  )}
+                  <button
+                    onClick={handleDeleteGroup}
+                    className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                  >
+                    <Trash2 size={12} />
+                    Delete
+                  </button>
                 </div>
-              </div>
+              )}
             </div>
           </div>
-        </DroppableGroupHeader>
+        </div>
+      </DroppableGroupHeader>
 
-        {/* Group Lists with Enhanced Visual Grouping */}
-        {!group.collapsed && (
-          <div className="relative">
-            <SortableContext items={lists.map(l => l.id)} strategy={verticalListSortingStrategy}>
-              <div className="px-3 py-2 space-y-1.5">
-                {lists.map((list) => {
-                  const isActive = currentView === 'list' && currentListId === list.id;
-                  const taskCount = getTaskCountForList(list.id);
-                  
-                  return (
-                    <div key={list.id} className="relative">
-                      <div className="ml-3 relative z-10">
-                        <SortableListItem
-                          list={list}
-                          isActive={isActive}
-                          taskCount={taskCount}
-                          onClick={() => onSetView('list', list.id)}
-                          sidebarCollapsed={false}
-                          onEditList={handleEditList}
-                          onCreateTask={handleCreateTask}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </SortableContext>
-          </div>
-        )}
-      </div>
+      {/* Group Lists */}
+      {!group.collapsed && (
+        <div className="ml-4">
+          <SortableContext items={lists.map(l => l.id)} strategy={verticalListSortingStrategy}>
+            <div className="">
+              {lists.map((list) => {
+                const isActive = currentView === 'list' && currentListId === list.id;
+                const taskCount = getTaskCountForList(list.id);
+                
+                return (
+                  <SortableListItem
+                    key={list.id}
+                    list={list}
+                    isActive={isActive}
+                    taskCount={taskCount}
+                    onClick={() => onSetView('list', list.id)}
+                    sidebarCollapsed={false}
+                    onEditList={handleEditList}
+                    onCreateTask={handleCreateTask}
+                  />
+                );
+              })}
+            </div>
+          </SortableContext>
+        </div>
+      )}
       
-      {/* Add List Modal */}
+      {/* Modals */}
       <ListEditSidebar
         isOpen={showAddListModal}
         onClose={() => setShowAddListModal(false)}
@@ -466,7 +413,6 @@ export function GroupedListSection({
         groupId={group?.id || null}
       />
 
-      {/* Edit List Modal */}
       {editingList && (
         <ListEditSidebar
           list={editingList}
@@ -476,7 +422,6 @@ export function GroupedListSection({
         />
       )}
       
-      {/* Group Edit Sidebar */}
       {group && (
         <GroupEditSidebar
           group={group}

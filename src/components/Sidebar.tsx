@@ -180,7 +180,7 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
 
         {/* System Lists */}
         <div className="flex-1 overflow-y-auto">
-          <div className="p-2">
+          <div className="py-1">
             {systemLists.map((listItem) => {
               const Icon = listItem.icon;
               const isActive = currentView === listItem.view;
@@ -191,19 +191,19 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
                   key={listItem.id}
                   onClick={() => setView(listItem.view)}
                   className={cn(
-                    'w-full flex items-center px-3 py-2 rounded-md text-left transition-colors',
+                    'w-full flex items-center px-3 py-1.5 text-left transition-colors text-sm',
                     isActive
-                      ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700',
+                      ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800',
                     sidebarCollapsed && 'justify-center'
                   )}
                 >
-                  <Icon size={20} className={cn(!sidebarCollapsed && 'mr-3')} />
+                  <Icon size={16} className={cn(!sidebarCollapsed && 'mr-2')} />
                   {!sidebarCollapsed && (
                     <>
                       <span className="flex-1">{listItem.name}</span>
                       {taskCount > 0 && (
-                        <span className="text-xs bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full">
+                        <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">
                           {taskCount}
                         </span>
                       )}
@@ -216,15 +216,15 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
 
           {/* Categories Section */}
           {!sidebarCollapsed && (
-            <div className="p-2 border-t border-gray-200 dark:border-gray-700">
-              <div className="mb-2">
-                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 px-3 py-2 uppercase tracking-wide">
+            <div className="py-2 border-t border-gray-200 dark:border-gray-700">
+              <div className="px-3 py-1">
+                <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                   Categories
                 </h3>
               </div>
               
               {/* Categories List */}
-              <div className="space-y-1 mb-3">
+              <div className="">
                 {categories.slice(0, 5).map((category) => {
                   const taskCount = getTaskCountForCategory(category.id);
                   const isActive = currentView === 'category' && currentCategoryId === category.id;
@@ -234,24 +234,24 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
                       key={category.id}
                       onClick={() => setView('category', undefined, category.id)}
                       className={cn(
-                        'w-full flex items-center px-3 py-2 rounded-md text-left transition-colors',
+                        'w-full flex items-center px-3 py-1.5 text-left transition-colors text-sm',
                         isActive
-                          ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                       )}
                     >
-                      <div className="flex items-center mr-3">
+                      <div className="flex items-center mr-2">
                         {category.emoji && (
-                          <span className="mr-2">{category.emoji}</span>
+                          <span className="mr-1.5 text-sm">{category.emoji}</span>
                         )}
                         <div 
-                          className="w-3 h-3 rounded-full"
+                          className="w-2 h-2 rounded-full"
                           style={{ backgroundColor: category.color }}
                         />
                       </div>
                       <span className="flex-1 truncate">{category.name}</span>
                       {taskCount > 0 && (
-                        <span className="text-xs bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full">
+                        <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">
                           {taskCount}
                         </span>
                       )}
@@ -260,7 +260,7 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
                 })}
                 
                 {categories.length === 0 && (
-                  <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                  <div className="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400">
                     No categories yet
                   </div>
                 )}
@@ -269,9 +269,9 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
               {/* Manage Categories Button */}
               <button
                 onClick={() => setShowCategoryManager(true)}
-                className="w-full flex items-center px-3 py-2 rounded-md text-left transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="w-full flex items-center px-3 py-1.5 text-left transition-colors text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
               >
-                <Settings size={16} className="mr-3" />
+                <Settings size={14} className="mr-2" />
                 <span>Manage Categories</span>
               </button>
             </div>
@@ -279,20 +279,20 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
 
           {/* Collapsed Categories */}
           {sidebarCollapsed && categories.length > 0 && (
-            <div className="p-2 border-t border-gray-200 dark:border-gray-700">
+            <div className="py-1 border-t border-gray-200 dark:border-gray-700">
               <button
                 onClick={() => setShowCategoryManager(true)}
-                className="w-full flex items-center justify-center p-3 rounded-md transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="w-full flex items-center justify-center py-1.5 transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
                 title="Categories"
               >
-                <Tag size={20} />
+                <Tag size={16} />
               </button>
             </div>
           )}
 
           {/* Custom Lists */}
           {!sidebarCollapsed && (
-            <div className="p-2 border-t border-gray-200 dark:border-gray-700">
+            <div className="py-2 border-t border-gray-200 dark:border-gray-700">
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -317,7 +317,7 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
 
           {/* Collapsed Custom Lists */}
           {sidebarCollapsed && customLists.length > 0 && (
-            <div className="p-2 border-t border-gray-200 dark:border-gray-700">
+            <div className="py-1 border-t border-gray-200 dark:border-gray-700">
               {customLists.map((list) => {
                 const isActive = currentView === 'list' && currentListId === list.id;
                 const { icon } = getListDisplayInfo(list);
@@ -327,16 +327,16 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
                     key={list.id}
                     onClick={() => setView('list', list.id)}
                     className={cn(
-                      'w-full flex items-center justify-center p-3 rounded-md transition-colors',
+                      'w-full flex items-center justify-center py-1.5 transition-colors',
                       isActive
-                        ? 'bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-gray-100'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                     )}
                   >
                     {icon ? (
-                      <span className="text-lg">{icon}</span>
+                      <span className="text-base">{icon}</span>
                     ) : (
-                      <List size={20} />
+                      <List size={16} />
                     )}
                   </button>
                 );
@@ -346,39 +346,39 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="p-3 border-t border-gray-200 dark:border-gray-700">
           {!sidebarCollapsed ? (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
               <button
                 onClick={handleAddList}
-                className="flex flex-col items-center justify-center p-3 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all duration-200 group"
+                className="w-full flex items-center px-3 py-1.5 text-left transition-colors text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
               >
-                <Plus size={20} className="mb-1 text-blue-500 dark:text-blue-400 group-hover:scale-110 transition-transform duration-200" />
-                <span>Neue Liste</span>
+                <Plus size={14} className="mr-2" />
+                <span>New List</span>
               </button>
               <button
                 onClick={handleAddGroup}
-                className="flex flex-col items-center justify-center p-3 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all duration-200 group"
+                className="w-full flex items-center px-3 py-1.5 text-left transition-colors text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
               >
-                <Plus size={20} className="mb-1 text-green-500 dark:text-green-400 group-hover:scale-110 transition-transform duration-200" />
+                <Plus size={14} className="mr-2" />
                 <span>New Group</span>
               </button>
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="space-y-1">
               <button
                 onClick={handleAddList}
-                className="flex items-center justify-center p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all duration-200 group"
-                title="Neue Liste"
+                className="w-full flex items-center justify-center py-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                title="New List"
               >
-                <Plus size={20} className="text-blue-500 dark:text-blue-400 group-hover:scale-110 transition-transform duration-200" />
+                <Plus size={14} />
               </button>
               <button
                 onClick={handleAddGroup}
-                className="flex items-center justify-center p-2 text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all duration-200 group"
+                className="w-full flex items-center justify-center py-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 title="New Group"
               >
-                <Plus size={20} className="text-green-500 dark:text-green-400 group-hover:scale-110 transition-transform duration-200" />
+                <Plus size={14} />
               </button>
             </div>
           )}
