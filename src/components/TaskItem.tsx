@@ -1,5 +1,5 @@
 import { useState, memo } from 'react';
-import { Star, Calendar, Edit3, GripVertical, Repeat, CheckSquare, FileText, Sun, Bell, Pin } from 'lucide-react';
+import { Star, Calendar, Edit3, Repeat, CheckSquare, FileText, Sun, Bell, Pin, AlertTriangle } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Task } from '../types/index.ts';
@@ -8,7 +8,7 @@ import { Button } from './ui/Button.tsx';
 import { MarkdownDisplay } from './ui/MarkdownDisplay.tsx';
 import { CategoryBadge } from './CategoryBadge.tsx';
 import { cn } from '../utils/cn.ts';
-import { formatDate } from '../utils/dateUtils.ts';
+import { formatDate, isOverdue } from '../utils/dateUtils.ts';
 import { TaskDetailSidebar } from './TaskDetailSidebar.tsx';
 import { useContextMenuHandler } from './ui/useContextMenu.ts';
 import { createTaskContextMenu } from './ui/contextMenus.tsx';
@@ -155,10 +155,10 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
       <div 
         ref={setNodeRef}
         style={style}
+        {...(isDragEnabled ? { ...attributes, ...listeners } : {})}
         className={cn(
-          'task-item group p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors relative overflow-hidden',
+          'task-item group p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors relative overflow-hidden',
           completed && 'opacity-75',
-          steps.length > 0 && 'cursor-pointer',
           isDragging && !isOverlay && 'opacity-0',
           activeTaskId && activeTaskId !== taskId && !isDragging && 'opacity-40',
           pinnedGlobally && 'bg-blue-25 dark:bg-blue-950/20 border-l-2 border-blue-400',
@@ -174,23 +174,9 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
           />
         )}
         <div className={cn(
-          `grid gap-3 items-start relative z-10`,
-          isDragEnabled ? "grid-cols-[auto_auto_1fr_120px]" : "grid-cols-[auto_1fr_120px]"
+          `grid gap-2 items-center relative z-10`,
+          "grid-cols-[auto_1fr_90px]"
         )}>
-          {/* Drag Handle - always show if drag is enabled or the item is being dragged */}
-          {isDragEnabled && (
-            <div
-              {...(isDragging && sortable.active ? {} : { ...attributes, ...listeners })}
-              className={cn(
-                "mt-0.5 p-1 rounded flex-shrink-0 text-gray-400",
-                isDragging ? "opacity-100 cursor-grabbing text-blue-600 dark:text-blue-400" : "cursor-grab opacity-60 group-hover:opacity-100 hover:text-gray-600 dark:hover:text-gray-300",
-                "transition-opacity"
-              )}
-            >
-              <GripVertical size={16} />
-            </div>
-          )}
-          
           {/* Checkbox */}
           <button
             onClick={(e) => {
@@ -198,14 +184,14 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
               handleToggleComplete();
             }}
             className={cn(
-              'mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0',
+              'mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0',
               completed
                 ? 'bg-primary-600 border-primary-600 text-white'
                 : 'border-gray-300 dark:border-gray-600 hover:border-primary-500'
             )}
           >
             {completed && (
-              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
                 <path
                   fillRule="evenodd"
                   d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -218,18 +204,20 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
           {/* Task Content - grid column */}
           <div className="task-content min-w-0">
             <div className="flex items-start gap-2">
-              <div className={cn(
-                'text-gray-900 dark:text-white font-medium leading-normal flex-1',
-                completed && 'line-through'
-              )}
-              style={{ 
-                wordWrap: 'break-word',
-                overflowWrap: 'anywhere',
-                wordBreak: 'break-word',
-                whiteSpace: 'pre-wrap',
-                width: '100%',
-                minHeight: 'auto'
-              }}
+              <div 
+                className={cn(
+                  'text-gray-900 dark:text-white font-medium leading-normal flex-1 text-sm line-clamp-1',
+                  completed && 'line-through'
+                )}
+                style={{ 
+                  wordWrap: 'break-word',
+                  overflowWrap: 'anywhere',
+                  wordBreak: 'break-word',
+                  whiteSpace: 'pre-wrap',
+                  width: '100%',
+                  minHeight: 'auto'
+                }}
+                title={title} // Show full title on hover when truncated
               >
                 {title}
               </div>
@@ -259,27 +247,35 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
             </div>
 
             {/* Task metadata - Always visible */}
-            <div className="mt-2 space-y-2 min-w-0 overflow-hidden">
+            <div className="mt-1.5 space-y-1.5 min-w-0 overflow-hidden">
               {/* Primary metadata row - High priority items */}
-              <div className="flex items-center gap-3 text-sm flex-wrap min-w-0 overflow-hidden">
+              <div className="flex items-center gap-2 text-sm flex-wrap min-w-0 overflow-hidden">
                 {/* Due Date with enhanced visual hierarchy */}
                 {dueDate && (
                   <div className={cn(
-                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
-                    "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
+                    "flex items-center gap-1 px-1.5 py-0.5 rounded border flex-shrink-0",
+                    isOverdue(dueDate)
+                      ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300"
+                      : "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
                   )}>
-                    <Calendar size={14} className="flex-shrink-0" />
-                    <span className="whitespace-nowrap text-xs font-medium">{formatDate(dueDate)}</span>
+                    {isOverdue(dueDate) ? (
+                      <AlertTriangle size={10} className="flex-shrink-0" />
+                    ) : (
+                      <Calendar size={10} className="flex-shrink-0" />
+                    )}
+                    <span className="whitespace-nowrap text-xs font-medium">
+                      {isOverdue(dueDate) ? `Overdue: ${formatDate(dueDate)}` : formatDate(dueDate)}
+                    </span>
                   </div>
                 )}
 
                 {/* Reminder indicator */}
                 {reminder && (
                   <div className={cn(
-                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
+                    "flex items-center gap-1 px-1.5 py-0.5 rounded border flex-shrink-0",
                     "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300"
                   )}>
-                    <Bell size={14} className="flex-shrink-0" />
+                    <Bell size={10} className="flex-shrink-0" />
                     <span className="whitespace-nowrap text-xs font-medium">Reminder</span>
                   </div>
                 )}
@@ -287,10 +283,10 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                 {/* My Day indicator with enhanced styling */}
                 {myDay && (
                   <div className={cn(
-                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
+                    "flex items-center gap-1 px-1.5 py-0.5 rounded border flex-shrink-0",
                     "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-300"
                   )}>
-                    <Sun size={14} className="flex-shrink-0" />
+                    <Sun size={10} className="flex-shrink-0" />
                     <span className="whitespace-nowrap text-xs font-medium">My Day</span>
                   </div>
                 )}
@@ -298,21 +294,21 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                 {/* Global Pin indicator */}
                 {pinnedGlobally && (
                   <div className={cn(
-                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
+                    "flex items-center gap-0.5 px-1 py-0.5 rounded border flex-shrink-0",
                     "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
                   )}>
-                    <Pin size={14} className="flex-shrink-0 fill-current" />
-                    <span className="whitespace-nowrap text-xs font-medium">Pinned Globally</span>
+                    <Pin size={10} className="flex-shrink-0 fill-current" />
+                    <span className="whitespace-nowrap text-xs font-medium">Global</span>
                   </div>
                 )}
 
                 {/* List Pin indicator (only show if not globally pinned) */}
                 {pinned && !pinnedGlobally && (
                   <div className={cn(
-                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
+                    "flex items-center gap-0.5 px-1 py-0.5 rounded border flex-shrink-0",
                     "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300"
                   )}>
-                    <Pin size={14} className="flex-shrink-0 fill-current" />
+                    <Pin size={10} className="flex-shrink-0 fill-current" />
                     <span className="whitespace-nowrap text-xs font-medium">Pinned</span>
                   </div>
                 )}
@@ -320,10 +316,10 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                 {/* Repeat indicator with icon */}
                 {repeat && repeat !== 'none' && (
                   <div className={cn(
-                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
+                    "flex items-center gap-1 px-1.5 py-0.5 rounded border flex-shrink-0",
                     "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300"
                   )}>
-                    <Repeat size={14} className="flex-shrink-0" />
+                    <Repeat size={10} className="flex-shrink-0" />
                     <span className="whitespace-nowrap text-xs font-medium capitalize">{repeat}</span>
                   </div>
                 )}
@@ -340,7 +336,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
               </div>
 
               {/* Secondary metadata row - Additional info */}
-              <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 flex-wrap min-w-0 overflow-hidden">
+              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 flex-wrap min-w-0 overflow-hidden">
                 {/* Steps indicator with enhanced styling */}
                 {steps.length > 0 && (
                   <button
@@ -349,17 +345,17 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                       setShowSteps(!showSteps);
                     }}
                     className={cn(
-                      "flex items-center gap-1.5 px-2 py-1 rounded-md border transition-all duration-200 flex-shrink-0",
+                      "flex items-center gap-1 px-1.5 py-0.5 rounded border transition-all duration-200 flex-shrink-0",
                       "hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-600",
                       "text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
                     )}
                   >
-                    <CheckSquare size={14} className="flex-shrink-0" />
+                    <CheckSquare size={10} className="flex-shrink-0" />
                     <span className="whitespace-nowrap text-xs font-medium">
                       {steps.filter((step) => step.completed).length} of {steps.length} steps
                     </span>
                     <svg 
-                      className={cn("w-3 h-3 transition-transform", showSteps && "rotate-180")} 
+                      className={cn("w-2.5 h-2.5 transition-transform", showSteps && "rotate-180")} 
                       fill="currentColor" 
                       viewBox="0 0 20 20"
                     >
@@ -371,10 +367,10 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                 {/* Notes indicator */}
                 {notes && (
                   <div className={cn(
-                    "flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0",
+                    "flex items-center gap-1 px-1.5 py-0.5 rounded border flex-shrink-0",
                     "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300"
                   )}>
-                    <FileText size={14} className="flex-shrink-0" />
+                    <FileText size={10} className="flex-shrink-0" />
                     <span className="whitespace-nowrap text-xs font-medium">Notes</span>
                   </div>
                 )}
@@ -382,7 +378,11 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
 
               {/* Notes - Always visible if they exist */}
               {notes && (
-                <div className="bg-gray-50 dark:bg-gray-800/30 p-3 rounded border border-gray-100 dark:border-gray-700">
+                <div className={cn(
+                  "bg-gray-50 dark:bg-gray-800/30 rounded border border-gray-100 dark:border-gray-700",
+                  // Dynamic padding based on note length for better readability
+                  notes.length > 100 ? "p-3" : "p-2.5"
+                )}>
                   <MarkdownDisplay 
                     content={notes} 
                     inline={true}
@@ -394,11 +394,11 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
               {/* Steps - Expandable if they exist */}
               {steps.length > 0 && showSteps && (
                 <div className="w-full min-w-0 overflow-hidden">
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     {steps.map((step) => (
                       <div 
                         key={step.id} 
-                        className="flex items-start gap-2 p-2 bg-gray-50 dark:bg-gray-800/30 rounded border border-gray-100 dark:border-gray-700 w-full min-h-fit" 
+                        className="flex items-start gap-1.5 p-1.5 bg-gray-50 dark:bg-gray-800/30 rounded border border-gray-100 dark:border-gray-700 w-full min-h-fit" 
                         style={{ maxWidth: '100%' }}
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -409,7 +409,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                             e.stopPropagation();
                             handleToggleStep(step.id);
                           }}
-                          className="rounded text-blue-600 focus:ring-blue-500 w-3 h-3 flex-shrink-0 mt-1"
+                          className="rounded text-blue-600 focus:ring-blue-500 w-3 h-3 flex-shrink-0 mt-0.5"
                         />
                         <div className={cn(
                           "text-xs flex-1 leading-relaxed",
@@ -437,7 +437,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
           </div>
 
           {/* Actions - grid column, never overlaps */}
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-1">
             {/* Star - always visible and more prominent */}
             <Button
               variant="ghost"
@@ -447,16 +447,16 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                 handleToggleImportant();
               }}
               className={cn(
-                'p-1.5 h-7 w-7 rounded-full transition-all duration-200 flex-shrink-0',
+                'p-1.5 h-7 w-7 rounded-full transition-all duration-200 flex-shrink-0 border',
                 important 
-                  ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 shadow-sm' 
-                  : 'text-gray-400 dark:text-gray-500 hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
+                  ? 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 shadow-sm' 
+                  : 'text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 hover:border-yellow-200 dark:hover:border-yellow-800'
               )}
             >
-              <Star size={14} className={important ? 'fill-current' : ''} />
+              <Star size={12} className={important ? 'fill-current' : ''} />
             </Button>
 
-            {/* Pin - always visible when pinned, hover visible when not */}
+            {/* Pin - always visible with enhanced styling */}
             <Button
               variant="ghost"
               size="sm"
@@ -465,16 +465,16 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                 handleTogglePin();
               }}
               className={cn(
-                'p-1.5 h-7 w-7 rounded-full transition-all duration-200 flex-shrink-0',
+                'p-1.5 h-7 w-7 rounded-full transition-all duration-200 flex-shrink-0 border',
                 pinned || pinnedGlobally
-                  ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 shadow-sm' 
-                  : 'text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                  ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/30 shadow-sm' 
+                  : 'text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-800'
               )}
             >
-              <Pin size={14} className={(pinned || pinnedGlobally) ? 'fill-current' : ''} />
+              <Pin size={12} className={(pinned || pinnedGlobally) ? 'fill-current' : ''} />
             </Button>
 
-            {/* Edit - only visible on hover */}
+            {/* Edit - always visible with enhanced styling */}
             <Button
               variant="ghost"
               size="sm"
@@ -482,9 +482,13 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                 e.stopPropagation();
                 handleEdit();
               }}
-              className="p-1.5 h-7 w-7 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+              className={cn(
+                'p-1.5 h-7 w-7 rounded-full transition-all duration-200 flex-shrink-0 border',
+                'text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700',
+                'hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 hover:border-green-200 dark:hover:border-green-800'
+              )}
             >
-              <Edit3 size={14} />
+              <Edit3 size={12} />
             </Button>
           </div>
         </div>
