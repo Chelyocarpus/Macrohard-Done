@@ -204,18 +204,20 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
           {/* Task Content - grid column */}
           <div className="task-content min-w-0">
             <div className="flex items-start gap-2">
-              <div className={cn(
-                'text-gray-900 dark:text-white font-medium leading-normal flex-1 text-sm line-clamp-1',
-                completed && 'line-through'
-              )}
-              style={{ 
-                wordWrap: 'break-word',
-                overflowWrap: 'anywhere',
-                wordBreak: 'break-word',
-                whiteSpace: 'pre-wrap',
-                width: '100%',
-                minHeight: 'auto'
-              }}
+              <div 
+                className={cn(
+                  'text-gray-900 dark:text-white font-medium leading-normal flex-1 text-sm line-clamp-1',
+                  completed && 'line-through'
+                )}
+                style={{ 
+                  wordWrap: 'break-word',
+                  overflowWrap: 'anywhere',
+                  wordBreak: 'break-word',
+                  whiteSpace: 'pre-wrap',
+                  width: '100%',
+                  minHeight: 'auto'
+                }}
+                title={title} // Show full title on hover when truncated
               >
                 {title}
               </div>
@@ -376,7 +378,11 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
 
               {/* Notes - Always visible if they exist */}
               {notes && (
-                <div className="bg-gray-50 dark:bg-gray-800/30 p-2 rounded border border-gray-100 dark:border-gray-700">
+                <div className={cn(
+                  "bg-gray-50 dark:bg-gray-800/30 rounded border border-gray-100 dark:border-gray-700",
+                  // Dynamic padding based on note length for better readability
+                  notes.length > 100 ? "p-3" : "p-2.5"
+                )}>
                   <MarkdownDisplay 
                     content={notes} 
                     inline={true}
