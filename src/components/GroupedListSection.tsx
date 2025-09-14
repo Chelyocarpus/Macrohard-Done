@@ -19,6 +19,7 @@ import { GroupEditSidebar } from './GroupEditSidebar';
 import { getListDisplayInfo, extractFirstEmoji, removeFirstEmoji } from '../utils/emojiUtils';
 import { useContextMenuHandler } from './ui/useContextMenu.ts';
 import { createListContextMenu } from './ui/contextMenus.tsx';
+import { DropZone } from './DropZone.tsx';
 
 interface GroupedListSectionProps {
   group: ListGroup | null;
@@ -142,11 +143,11 @@ function SortableListItem({ list, isActive, taskCount, onClick, sidebarCollapsed
         onClick={onClick}
         onContextMenu={handleContextMenu}
         className={cn(
-          'w-full flex items-center px-3 py-1.5 text-left transition-colors text-sm relative',
+          'w-full flex items-center px-3 py-1.5 text-left transition-all duration-200 text-sm relative group',
           isActive
             ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium'
             : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800',
-          isDragging && 'bg-gray-100 dark:bg-gray-700'
+          isDragging && 'opacity-40 scale-95 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-md'
         )}
       >
         {list.color && (
@@ -165,6 +166,18 @@ function SortableListItem({ list, isActive, taskCount, onClick, sidebarCollapsed
             <span className="flex-1 truncate">{displayName}</span>
           )}
         </div>
+        
+        {/* Drag handle indicator - only show on hover */}
+        {!sidebarCollapsed && (
+          <div className="opacity-0 group-hover:opacity-50 transition-opacity duration-200 mr-1">
+            <div className="flex flex-col gap-0.5">
+              <div className="w-1 h-1 bg-gray-400 rounded-full" />
+              <div className="w-1 h-1 bg-gray-400 rounded-full" />
+              <div className="w-1 h-1 bg-gray-400 rounded-full" />
+            </div>
+          </div>
+        )}
+        
         {!sidebarCollapsed && taskCount > 0 && (
           <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">
             {taskCount}
@@ -261,21 +274,38 @@ export function GroupedListSection({
         <SortableContext items={lists.map(l => l.id)} strategy={verticalListSortingStrategy}>
           <DroppableUngroupedArea activeId={activeId} lists={lists}>
             <div className="">
-              {lists.map((list) => {
+              {/* Drop zone at the beginning */}
+              <DropZone
+                id={`drop-ungrouped-start`}
+                groupId={null}
+                position={0}
+                className="h-2"
+              />
+              
+              {lists.map((list, index) => {
                 const isActive = currentView === 'list' && currentListId === list.id;
                 const taskCount = getTaskCountForList(list.id);
                 
                 return (
-                  <SortableListItem
-                    key={list.id}
-                    list={list}
-                    isActive={isActive}
-                    taskCount={taskCount}
-                    onClick={() => onSetView('list', list.id)}
-                    sidebarCollapsed={false}
-                    onEditList={handleEditList}
-                    onCreateTask={handleCreateTask}
-                  />
+                  <div key={list.id}>
+                    <SortableListItem
+                      list={list}
+                      isActive={isActive}
+                      taskCount={taskCount}
+                      onClick={() => onSetView('list', list.id)}
+                      sidebarCollapsed={false}
+                      onEditList={handleEditList}
+                      onCreateTask={handleCreateTask}
+                    />
+                    {/* Drop zone after each item */}
+                    <DropZone
+                      id={`drop-ungrouped-${index + 1}`}
+                      groupId={null}
+                      position={index + 1}
+                      afterListId={list.id}
+                      className="h-2"
+                    />
+                  </div>
                 );
               })}
             </div>
@@ -383,21 +413,38 @@ export function GroupedListSection({
         <div className="ml-4">
           <SortableContext items={lists.map(l => l.id)} strategy={verticalListSortingStrategy}>
             <div className="">
-              {lists.map((list) => {
+              {/* Drop zone at the beginning of the group */}
+              <DropZone
+                id={`drop-group-${group.id}-start`}
+                groupId={group.id}
+                position={0}
+                className="h-2"
+              />
+              
+              {lists.map((list, index) => {
                 const isActive = currentView === 'list' && currentListId === list.id;
                 const taskCount = getTaskCountForList(list.id);
                 
                 return (
-                  <SortableListItem
-                    key={list.id}
-                    list={list}
-                    isActive={isActive}
-                    taskCount={taskCount}
-                    onClick={() => onSetView('list', list.id)}
-                    sidebarCollapsed={false}
-                    onEditList={handleEditList}
-                    onCreateTask={handleCreateTask}
-                  />
+                  <div key={list.id}>
+                    <SortableListItem
+                      list={list}
+                      isActive={isActive}
+                      taskCount={taskCount}
+                      onClick={() => onSetView('list', list.id)}
+                      sidebarCollapsed={false}
+                      onEditList={handleEditList}
+                      onCreateTask={handleCreateTask}
+                    />
+                    {/* Drop zone after each item */}
+                    <DropZone
+                      id={`drop-group-${group.id}-${index + 1}`}
+                      groupId={group.id}
+                      position={index + 1}
+                      afterListId={list.id}
+                      className="h-2"
+                    />
+                  </div>
                 );
               })}
             </div>

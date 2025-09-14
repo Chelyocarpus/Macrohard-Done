@@ -7,6 +7,7 @@ import { getListDisplayInfo } from '../utils/emojiUtils.ts';
 import { GroupedListSection } from './GroupedListSection.tsx';
 import { ListEditSidebar } from './ListEditSidebar.tsx';
 import { CategoryManager } from './CategoryManager.tsx';
+import { ListDragOverlay } from './ListDragOverlay.tsx';
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
@@ -37,7 +38,8 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
     getTaskCountForCategory,
     getGroupedLists,
     moveListToGroup,
-    reorderLists,
+    moveListToPosition,
+    insertListAtPosition,
   } = useTaskStore();
 
   const sensors = useSensors(
@@ -66,6 +68,21 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
     setActiveId(null);
 
     if (over && active.id !== over.id) {
+      const activeList = lists.find(list => list.id === active.id);
+      if (!activeList) return;
+
+      // Check if we have position data from the drop zone
+      if (over.data?.current?.type === 'position') {
+        const dropData = over.data.current;
+        moveListToPosition(
+          active.id as string,
+          dropData.groupId,
+          dropData.beforeListId,
+          dropData.afterListId
+        );
+        return;
+      }
+
       // Check if dropping on a group header to move list to group
       if (typeof over.id === 'string' && over.id.startsWith('group-')) {
         const groupId = over.id.replace('group-', '');
@@ -73,29 +90,15 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
         return;
       }
 
-      // Handle reordering within the same group/section
-      const activeList = lists.find(list => list.id === active.id);
+      // Handle traditional reordering (fallback for existing functionality)
       const overList = lists.find(list => list.id === over.id);
-      
       if (activeList && overList && activeList.groupId === overList.groupId) {
-        // Get all lists in this group/section
-        const sectionLists = lists
-          .filter(list => !list.isSystem && list.groupId === activeList.groupId)
-          .sort((a, b) => a.order - b.order);
-        
-        const oldIndex = sectionLists.findIndex(list => list.id === active.id);
-        const newIndex = sectionLists.findIndex(list => list.id === over.id);
-        
-        if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-          // Reorder the lists
-          const reorderedLists = [...sectionLists];
-          const [movedList] = reorderedLists.splice(oldIndex, 1);
-          reorderedLists.splice(newIndex, 0, movedList);
-          
-          // Update the order in store
-          const listIds = reorderedLists.map(list => list.id);
-          reorderLists(activeList.groupId || null, listIds);
-        }
+        // Use position-based insertion instead of traditional reordering
+        insertListAtPosition(
+          active.id as string,
+          activeList.groupId || null,
+          overList.order
+        );
       }
     }
   };
@@ -311,6 +314,7 @@ export function Sidebar({ setShowAddGroupModal, showAddListModal, setShowAddList
                     activeId={activeId}
                   />
                 ))}
+                <ListDragOverlay activeId={activeId} lists={customLists} />
               </DndContext>
             </div>
           )}

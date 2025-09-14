@@ -12,6 +12,7 @@ import { LazyWrapper } from './components/ui/ErrorBoundary.tsx';
 import { ModalLoadingWithTimeout } from './components/ui/LoadingWithTimeout.tsx';
 import { ContextMenuProvider } from './components/ui/ContextMenu.tsx';
 import { ToastProvider } from './components/ui/ToastProvider.tsx';
+import { DragProvider } from './contexts/DragProvider.tsx';
 import { cn } from './utils/cn.ts';
 
 function App() {
@@ -29,35 +30,37 @@ function App() {
   }, [darkMode]);
 
   return (
-    <ContextMenuProvider>
-      <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-        <Sidebar 
-          setShowAddGroupModal={setShowAddGroupModal}
-          showAddListModal={showAddListModal}
-          setShowAddListModal={setShowAddListModal}
-        />
-        <main className={cn(
-          'flex-1 flex flex-col transition-all duration-300 min-w-0 relative',
-          sidebarCollapsed ? 'ml-16' : 'ml-64'
-        )}>
-          <TaskView />
-        </main>
-
-        {/* Group Modal - rendered at root level for proper z-index */}
-        <LazyWrapper
-          fallback={showAddGroupModal ? <ModalLoadingWithTimeout message="Loading modal..." /> : null}
-          context="group edit modal"
-        >
-          <LazyGroupEditModal
-            isOpen={showAddGroupModal}
-            onClose={() => setShowAddGroupModal(false)}
+    <DragProvider>
+      <ContextMenuProvider>
+        <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+          <Sidebar 
+            setShowAddGroupModal={setShowAddGroupModal}
+            showAddListModal={showAddListModal}
+            setShowAddListModal={setShowAddListModal}
           />
-        </LazyWrapper>
-        
-        {/* Toast notifications */}
-        <ToastProvider />
-      </div>
-    </ContextMenuProvider>
+          <main className={cn(
+            'flex-1 flex flex-col transition-all duration-300 min-w-0 relative',
+            sidebarCollapsed ? 'ml-16' : 'ml-64'
+          )}>
+            <TaskView />
+          </main>
+
+          {/* Group Modal - rendered at root level for proper z-index */}
+          <LazyWrapper
+            fallback={showAddGroupModal ? <ModalLoadingWithTimeout message="Loading modal..." /> : null}
+            context="group edit modal"
+          >
+            <LazyGroupEditModal
+              isOpen={showAddGroupModal}
+              onClose={() => setShowAddGroupModal(false)}
+            />
+          </LazyWrapper>
+          
+          {/* Toast notifications */}
+          <ToastProvider />
+        </div>
+      </ContextMenuProvider>
+    </DragProvider>
   );
 }
 

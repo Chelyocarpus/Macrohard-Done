@@ -36,6 +36,8 @@ interface TaskStore extends AppState {
   deleteList: (id: string) => void;
   reorderLists: (groupId: string | null, listIds: string[]) => void;
   moveListToGroup: (listId: string, groupId: string | null) => void;
+  insertListAtPosition: (listId: string, targetGroupId: string | null, position: number) => void;
+  moveListToPosition: (listId: string, targetGroupId: string | null, beforeListId?: string, afterListId?: string) => void;
   
   // Group actions
   addGroup: (name: string, color?: string, emoji?: string, overrideListIcons?: boolean) => void;
@@ -789,6 +791,97 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
             list.id === listId ? { ...list, groupId, order: newOrder } : list
           ),
         };
+      });
+      saveState();
+    },
+
+    insertListAtPosition: (listId: string, targetGroupId: string | null, position: number) => {
+      set((state) => {
+        // First handle the basic move and position shifts
+        const updatedLists = state.lists.map((list) => {
+          // Handle the list being moved
+          if (list.id === listId) {
+            return { ...list, groupId: targetGroupId, order: position };
+          }
+          
+          // Handle other lists in the target group that need their positions adjusted
+          if (list.groupId === targetGroupId && !list.isSystem && list.id !== listId && list.order >= position) {
+            return { ...list, order: list.order + 1 };
+          }
+          
+          // Leave other lists unchanged
+          return list;
+        });
+
+        // Now normalize order values within each group to avoid gaps
+        const groupMap = new Map<string | null, TaskList[]>();
+        
+        // Group lists by their groupId
+        updatedLists.forEach(list => {
+          const groupKey = list.groupId || 'null';
+          if (!groupMap.has(groupKey)) {
+            groupMap.set(groupKey, []);
+          }
+          groupMap.get(groupKey)?.push(list);
+        });
+        
+        // Sort and normalize order values within each group
+        const normalizedLists: TaskList[] = [];
+        groupMap.forEach((groupLists) => {
+          const sortedLists = [...groupLists].sort((a, b) => a.order - b.order);
+          sortedLists.forEach((list, index) => {
+            normalizedLists.push({ ...list, order: index });
+          });
+        });
+
+        return { lists: normalizedLists };
+      });
+      saveState();
+    },
+
+    moveListToPosition: (listId: string, targetGroupId: string | null, beforeListId?: string, afterListId?: string) => {
+      set((state) => {
+        const targetLists = state.lists
+          .filter(l => !l.isSystem && l.groupId === targetGroupId)
+          .sort((a, b) => a.order - b.order);
+
+        let newPosition = 0;
+
+        if (beforeListId) {
+          const beforeList = targetLists.find(l => l.id === beforeListId);
+          newPosition = beforeList ? beforeList.order : 0;
+        } else if (afterListId) {
+          const afterList = targetLists.find(l => l.id === afterListId);
+          newPosition = afterList ? afterList.order + 1 : targetLists.length;
+        } else {
+          // Insert at the end
+          newPosition = targetLists.length;
+        }
+
+        // Remove the dragged list from its current position
+        const filteredLists = state.lists.filter(l => l.id !== listId);
+        
+        // Adjust orders for existing lists in the target group
+        const updatedLists = filteredLists.map((list) => {
+          if (list.groupId === targetGroupId && !list.isSystem) {
+            if (list.order >= newPosition) {
+              return { ...list, order: list.order + 1 };
+            }
+          }
+          return list;
+        });
+
+        // Find the original list and update it
+        const originalList = state.lists.find(l => l.id === listId);
+        if (originalList) {
+          updatedLists.push({
+            ...originalList,
+            groupId: targetGroupId,
+            order: newPosition
+          });
+        }
+
+        return { lists: updatedLists };
       });
       saveState();
     },
