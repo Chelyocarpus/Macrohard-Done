@@ -36,6 +36,8 @@ interface TaskStore extends AppState {
   deleteList: (id: string) => void;
   reorderLists: (groupId: string | null, listIds: string[]) => void;
   moveListToGroup: (listId: string, groupId: string | null) => void;
+  insertListAtPosition: (listId: string, targetGroupId: string | null, position: number) => void;
+  moveListToPosition: (listId: string, targetGroupId: string | null, beforeListId?: string, afterListId?: string) => void;
   
   // Group actions
   addGroup: (name: string, color?: string, emoji?: string, overrideListIcons?: boolean) => void;
@@ -789,6 +791,74 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
             list.id === listId ? { ...list, groupId, order: newOrder } : list
           ),
         };
+      });
+      saveState();
+    },
+
+    insertListAtPosition: (listId: string, targetGroupId: string | null, position: number) => {
+      set((state) => {
+        // Adjust orders for lists that will be shifted
+        const updatedLists = state.lists.map((list) => {
+          if (list.id === listId) {
+            // Move the dragged list to the new position
+            return { ...list, groupId: targetGroupId, order: position };
+          } else if (list.groupId === targetGroupId && !list.isSystem) {
+            // Shift other lists in the target group
+            if (list.order >= position) {
+              return { ...list, order: list.order + 1 };
+            }
+          }
+          return list;
+        });
+
+        return { lists: updatedLists };
+      });
+      saveState();
+    },
+
+    moveListToPosition: (listId: string, targetGroupId: string | null, beforeListId?: string, afterListId?: string) => {
+      set((state) => {
+        const targetLists = state.lists
+          .filter(l => !l.isSystem && l.groupId === targetGroupId)
+          .sort((a, b) => a.order - b.order);
+
+        let newPosition = 0;
+
+        if (beforeListId) {
+          const beforeList = targetLists.find(l => l.id === beforeListId);
+          newPosition = beforeList ? beforeList.order : 0;
+        } else if (afterListId) {
+          const afterList = targetLists.find(l => l.id === afterListId);
+          newPosition = afterList ? afterList.order + 1 : targetLists.length;
+        } else {
+          // Insert at the end
+          newPosition = targetLists.length;
+        }
+
+        // Remove the dragged list from its current position
+        const filteredLists = state.lists.filter(l => l.id !== listId);
+        
+        // Adjust orders for existing lists in the target group
+        const updatedLists = filteredLists.map((list) => {
+          if (list.groupId === targetGroupId && !list.isSystem) {
+            if (list.order >= newPosition) {
+              return { ...list, order: list.order + 1 };
+            }
+          }
+          return list;
+        });
+
+        // Find the original list and update it
+        const originalList = state.lists.find(l => l.id === listId);
+        if (originalList) {
+          updatedLists.push({
+            ...originalList,
+            groupId: targetGroupId,
+            order: newPosition
+          });
+        }
+
+        return { lists: updatedLists };
       });
       saveState();
     },
