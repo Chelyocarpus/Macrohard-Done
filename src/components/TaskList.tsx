@@ -123,7 +123,7 @@ export function TaskList() {
   };
 
   return (
-    <div className="p-6 w-full">
+    <div className="p-6 w-full relative">
       {/* No Tasks Message */}
       {allTasks.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-48 text-gray-500 dark:text-gray-400">
@@ -213,6 +213,16 @@ export function TaskList() {
             </div>
           )}
         </>
+      )}
+      
+      {/* Global spacer to prevent FAB overlap - always present regardless of task list state */}
+      {allTasks.length > 0 && (
+        <div 
+          className="h-16 sm:h-20" 
+          aria-hidden="true"
+          data-testid="fab-spacer"
+          title="Space to prevent floating action button overlap"
+        />
       )}
     </div>
   );
