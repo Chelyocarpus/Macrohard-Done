@@ -797,21 +797,44 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
 
     insertListAtPosition: (listId: string, targetGroupId: string | null, position: number) => {
       set((state) => {
-        // Adjust orders for lists that will be shifted
+        // First handle the basic move and position shifts
         const updatedLists = state.lists.map((list) => {
+          // Handle the list being moved
           if (list.id === listId) {
-            // Move the dragged list to the new position
             return { ...list, groupId: targetGroupId, order: position };
-          } else if (list.groupId === targetGroupId && !list.isSystem) {
-            // Shift other lists in the target group
-            if (list.order >= position) {
-              return { ...list, order: list.order + 1 };
-            }
           }
+          
+          // Handle other lists in the target group that need their positions adjusted
+          if (list.groupId === targetGroupId && !list.isSystem && list.id !== listId && list.order >= position) {
+            return { ...list, order: list.order + 1 };
+          }
+          
+          // Leave other lists unchanged
           return list;
         });
 
-        return { lists: updatedLists };
+        // Now normalize order values within each group to avoid gaps
+        const groupMap = new Map<string | null, TaskList[]>();
+        
+        // Group lists by their groupId
+        updatedLists.forEach(list => {
+          const groupKey = list.groupId || 'null';
+          if (!groupMap.has(groupKey)) {
+            groupMap.set(groupKey, []);
+          }
+          groupMap.get(groupKey)?.push(list);
+        });
+        
+        // Sort and normalize order values within each group
+        const normalizedLists: TaskList[] = [];
+        groupMap.forEach((groupLists) => {
+          const sortedLists = [...groupLists].sort((a, b) => a.order - b.order);
+          sortedLists.forEach((list, index) => {
+            normalizedLists.push({ ...list, order: index });
+          });
+        });
+
+        return { lists: normalizedLists };
       });
       saveState();
     },
