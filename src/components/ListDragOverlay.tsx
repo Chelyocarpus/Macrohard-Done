@@ -1,7 +1,8 @@
 import { DragOverlay } from '@dnd-kit/core';
 import { List } from 'lucide-react';
 import { cn } from '../utils/cn';
-import { getListDisplayInfo } from '../utils/emojiUtils';
+import { getListDisplayInfo, groupIconOverride } from '../utils/emojiUtils';
+import { useTaskStore } from '../stores/taskStore';
 import type { TaskList } from '../types';
 
 interface ListDragOverlayProps {
@@ -10,18 +11,21 @@ interface ListDragOverlayProps {
 }
 
 export function ListDragOverlay({ activeId, lists }: ListDragOverlayProps) {
+  const listGroups = useTaskStore((state) => state.listGroups);
   const activeList = activeId ? lists.find(list => list.id === activeId) : null;
 
   if (!activeList) return null;
 
-  const { displayName, icon } = getListDisplayInfo(activeList);
+  const info = getListDisplayInfo(activeList);
+  const displayName = info.displayName;
+  const icon = groupIconOverride(listGroups.find((group) => group.id === activeList.groupId)) ?? info.icon;
 
   return (
     <DragOverlay>
       <div className={cn(
-        'flex items-center px-3 py-1.5 text-sm bg-white dark:bg-gray-800 border-2 border-blue-300 dark:border-blue-600 rounded-lg shadow-xl',
+        'flex items-center px-3 py-1.5 text-sm bg-canvas border-2 border-accent rounded-lg shadow-xl',
         'transform rotate-1 scale-110 opacity-95',
-        'backdrop-blur-sm bg-white/95 dark:bg-gray-800/95'
+        'backdrop-blur-sm bg-canvas/95'
       )}>
         {activeList.color && (
           <div 
@@ -33,16 +37,16 @@ export function ListDragOverlay({ activeId, lists }: ListDragOverlayProps) {
           {icon ? (
             <span className="text-sm">{icon}</span>
           ) : (
-            <List size={14} className="text-blue-500" />
+            <List size={14} className="text-accent" />
           )}
-          <span className="flex-1 truncate text-gray-900 dark:text-gray-100 font-medium">
+          <span className="flex-1 truncate text-ink font-medium">
             {displayName}
           </span>
           {/* Drag indicator */}
           <div className="flex flex-col gap-0.5 opacity-50">
-            <div className="w-1 h-1 bg-gray-400 rounded-full" />
-            <div className="w-1 h-1 bg-gray-400 rounded-full" />
-            <div className="w-1 h-1 bg-gray-400 rounded-full" />
+            <div className="w-1 h-1 bg-muted rounded-full" />
+            <div className="w-1 h-1 bg-muted rounded-full" />
+            <div className="w-1 h-1 bg-muted rounded-full" />
           </div>
         </div>
       </div>

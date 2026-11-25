@@ -1,3 +1,4 @@
+import { HOVER_TINT_CLASS, hoverTintStyle, selectionStyle } from '../utils/accentTheme.ts';
 import { useState } from 'react';
 import {
   useDroppable,
@@ -10,16 +11,23 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ChevronDown, ChevronRight, List, MoreHorizontal, Plus, Trash2, Edit3 } from 'lucide-react';
+import { ChevronDown, ChevronRight, MoreHorizontal, Plus, Trash2, Edit3 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useTaskStore } from '../stores/taskStore';
+import { useShallow } from 'zustand/react/shallow';
 import type { TaskList, ListGroup } from '../types';
 import { ListEditSidebar } from './ListEditSidebar';
 import { GroupEditSidebar } from './GroupEditSidebar';
-import { getListDisplayInfo, extractFirstEmoji, removeFirstEmoji } from '../utils/emojiUtils';
-import { useContextMenuHandler } from './ui/useContextMenu.ts';
+import { getListDisplayInfo, extractFirstEmoji, removeFirstEmoji, groupIconOverride } from '../utils/emojiUtils';
+import { ListGlyph } from './SidebarGlyphs.tsx';
+import { useContextMenuHandler, useContextMenuButtonHandler } from './ui/useContextMenu.ts';
 import { createListContextMenu } from './ui/contextMenus.tsx';
 import { DropZone } from './DropZone.tsx';
+import { Tooltip } from './ui/Tooltip.tsx';
+
+/** The group heading's add and menu buttons: 28px to hit (36px on touch screens), with a 16px icon */
+const GROUP_ACTION_CLASS =
+  'flex h-7 w-7 items-center justify-center rounded text-muted hover:bg-hover hover:text-ink transition-colors [@media(pointer:coarse)]:h-9 [@media(pointer:coarse)]:w-9';
 
 interface GroupedListSectionProps {
   group: ListGroup | null;
@@ -27,16 +35,16 @@ interface GroupedListSectionProps {
   currentView: string;
   currentListId?: string;
   onSetView: (view: 'list', listId: string) => void;
-  sidebarCollapsed: boolean;
   activeId: string | null;
 }
 
 interface SortableListItemProps {
+  /** The icon the list's group sets for all its lists, if it does */
+  groupIcon?: string;
   list: TaskList;
   isActive: boolean;
   taskCount: number;
   onClick: () => void;
-  sidebarCollapsed: boolean;
   onEditList: (list: TaskList) => void;
   onCreateTask: (listId: string) => void;
 }
@@ -56,11 +64,11 @@ function DroppableGroupHeader({ group, children }: DroppableGroupHeaderProps) {
       ref={setNodeRef}
       className={cn(
         'transition-colors duration-200',
-        isOver && 'bg-gray-50 dark:bg-gray-800 rounded'
+        isOver && 'bg-sidebar rounded'
       )}
     >
       {isOver && (
-        <div className="text-xs text-gray-500 dark:text-gray-400 px-3 py-1 mb-1">
+        <div className="text-xs text-muted px-3 py-1 mb-1">
           Drop to add to group
         </div>
       )}
@@ -83,11 +91,11 @@ function DroppableUngroupedArea({ children, activeId, lists }: { children: React
       ref={setNodeRef}
       className={cn(
         'transition-colors duration-200',
-        isOver && 'bg-gray-50 dark:bg-gray-800 rounded'
+        isOver && 'bg-sidebar rounded'
       )}
     >
       {isOver && isMovingFromGroup && (
-        <div className="text-xs text-gray-500 dark:text-gray-400 px-3 py-1 mb-1">
+        <div className="text-xs text-muted px-3 py-1 mb-1">
           Drop to ungroup
         </div>
       )}
@@ -96,8 +104,8 @@ function DroppableUngroupedArea({ children, activeId, lists }: { children: React
   );
 }
 
-function SortableListItem({ list, isActive, taskCount, onClick, sidebarCollapsed, onEditList, onCreateTask }: SortableListItemProps) {
-  const { deleteList, addTask } = useTaskStore();
+function SortableListItem({ list, groupIcon, isActive, taskCount, onClick, onEditList, onCreateTask }: SortableListItemProps) {
+  const { deleteList, duplicateList } = useTaskStore(useShallow((state) => ({ deleteList: state.deleteList, duplicateList: state.duplicateList })));
   const {
     attributes,
     listeners,
@@ -112,21 +120,18 @@ function SortableListItem({ list, isActive, taskCount, onClick, sidebarCollapsed
     transition,
   };
 
-  const { displayName, icon } = getListDisplayInfo(list);
+  const { displayName } = getListDisplayInfo(list);
 
-  // Context menu handler for list items
-  const handleContextMenu = useContextMenuHandler(() => {
-    return createListContextMenu(list, {
-      onEdit: () => onEditList(list),
-      onDelete: () => deleteList(list.id),
-      onDuplicate: () => {
-        // Create a duplicate list
-        addTask(`${list.name} Copy`, list.id);
-      },
-      onChangeColor: () => onEditList(list),
-      onCreateTask: () => onCreateTask(list.id),
-    });
+  // The same menu opens from a right-click and from the visible "more" button (for touch screens)
+  const getListMenu = () => createListContextMenu(list, {
+    onEdit: () => onEditList(list),
+    onDelete: () => deleteList(list.id),
+    onDuplicate: () => { duplicateList(list.id); },
+    onChangeColor: () => onEditList(list),
+    onCreateTask: () => onCreateTask(list.id),
   });
+  const handleContextMenu = useContextMenuHandler(getListMenu);
+  const handleMenuButtonClick = useContextMenuButtonHandler(getListMenu);
 
   return (
     <div
@@ -135,55 +140,56 @@ function SortableListItem({ list, isActive, taskCount, onClick, sidebarCollapsed
       {...attributes}
       {...listeners}
       className={cn(
-        'transition-opacity duration-200',
+        'group/list relative transition-opacity duration-200',
         isDragging && 'opacity-50'
       )}
     >
       <button
         onClick={onClick}
         onContextMenu={handleContextMenu}
+        aria-current={isActive ? 'page' : undefined}
         className={cn(
-          'w-full flex items-center px-3 py-1.5 text-left transition-all duration-200 text-sm relative group',
+          'w-full flex items-center px-3 min-h-8 [@media(pointer:coarse)]:min-h-11 rounded-md text-left transition-[background-color,color,opacity,transform] duration-200 text-sm relative group',
           isActive
-            ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium'
-            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800',
-          isDragging && 'opacity-40 scale-95 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-md'
+            ? cn('text-ink', !list.color && 'bg-hover shadow-[inset_3px_0_0_rgb(var(--c-accent))]')
+            : cn('text-ink', HOVER_TINT_CLASS),
+          isDragging && 'opacity-40 scale-95 bg-accent/10 border border-accent/30 rounded-md'
         )}
+        // The open list is tinted and barred in its own colour (blue when it has none)
+        style={isActive ? (selectionStyle(list.color) ? { backgroundColor: selectionStyle(list.color)?.backgroundColor } : undefined) : hoverTintStyle(list.color)}
       >
         {list.color && (
-          <div 
-            className="absolute left-0 top-0 bottom-0 w-0.5"
+          <div
+            aria-hidden="true"
+            className={cn('absolute left-0.5 top-1.5 bottom-1.5 rounded-full', isActive ? 'w-[3px]' : 'w-0.5')}
             style={{ backgroundColor: list.color }}
           />
         )}
-        <div className={`flex items-center gap-2 flex-1 min-w-0 ${list.color ? 'ml-2' : ''}`}>
-          {icon ? (
-            <span className="text-sm">{icon}</span>
-          ) : (
-            <List size={14} />
-          )}
-          {!sidebarCollapsed && (
-            <span className="flex-1 truncate">{displayName}</span>
-          )}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <ListGlyph list={list} icon={groupIcon} />
+          <span className="flex-1 truncate">{displayName}</span>
         </div>
         
-        {/* Drag handle indicator - only show on hover */}
-        {!sidebarCollapsed && (
-          <div className="opacity-0 group-hover:opacity-50 transition-opacity duration-200 mr-1">
-            <div className="flex flex-col gap-0.5">
-              <div className="w-1 h-1 bg-gray-400 rounded-full" />
-              <div className="w-1 h-1 bg-gray-400 rounded-full" />
-              <div className="w-1 h-1 bg-gray-400 rounded-full" />
-            </div>
-          </div>
-        )}
-        
-        {!sidebarCollapsed && taskCount > 0 && (
-          <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">
+        {/* The count gives way to the "more" button while the row is hovered or focused */}
+        {taskCount > 0 && (
+          <span className="text-xs tabular-nums text-muted font-normal transition-opacity group-hover/list:opacity-0 group-focus-within/list:opacity-0 [@media(hover:none)]:mr-8 [@media(pointer:coarse)]:mr-10">
             {taskCount}
           </span>
         )}
       </button>
+
+      {/* "More" button: opens the right-click menu. Always shown on touch screens, otherwise on hover or keyboard focus. */}
+        <Tooltip label="More actions" className="absolute right-1 top-1/2 -translate-y-1/2">
+          <button
+            type="button"
+            aria-label={`More actions for ${displayName}`}
+            aria-haspopup="menu"
+            onClick={handleMenuButtonClick}
+            className="flex h-7 w-7 items-center justify-center rounded text-muted hover:bg-line hover:text-ink opacity-0 group-hover/list:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity [@media(pointer:coarse)]:h-9 [@media(pointer:coarse)]:w-9"
+          >
+            <MoreHorizontal size={16} />
+          </button>
+        </Tooltip>
     </div>
   );
 }
@@ -194,7 +200,6 @@ export function GroupedListSection({
   currentView, 
   currentListId, 
   onSetView, 
-  sidebarCollapsed,
   activeId
 }: GroupedListSectionProps) {
   const [showGroupMenu, setShowGroupMenu] = useState(false);
@@ -204,13 +209,8 @@ export function GroupedListSection({
   const [editingList, setEditingList] = useState<TaskList | null>(null);
   const [showGroupEditSidebar, setShowGroupEditSidebar] = useState(false);
   
-  const { 
-    toggleGroupCollapsed, 
-    updateGroup, 
-    deleteGroup,
-    getTaskCountForList,
-    setView
-  } = useTaskStore();
+  // Selected: only what is used here. `tasks` is listed too because the getters below read it; without it a change would not re-render.
+  const { toggleGroupCollapsed, updateGroup, deleteGroup, getTaskCountForList, setView } = useTaskStore(useShallow((state) => ({ toggleGroupCollapsed: state.toggleGroupCollapsed, updateGroup: state.updateGroup, deleteGroup: state.deleteGroup, getTaskCountForList: state.getTaskCountForList, setView: state.setView, tasks: state.tasks })));
 
   const handleAddList = () => {
     setShowAddListModal(true);
@@ -243,34 +243,13 @@ export function GroupedListSection({
     setShowGroupMenu(false);
   };
 
-  if (sidebarCollapsed) {
-    return (
-      <div className="">
-        {lists.map((list) => {
-          const isActive = currentView === 'list' && currentListId === list.id;
-          const taskCount = getTaskCountForList(list.id);
-          
-          return (
-            <SortableListItem
-              key={list.id}
-              list={list}
-              isActive={isActive}
-              taskCount={taskCount}
-              onClick={() => onSetView('list', list.id)}
-              sidebarCollapsed={true}
-              onEditList={handleEditList}
-              onCreateTask={handleCreateTask}
-            />
-          );
-        })}
-      </div>
-    );
-  }
+  // Lists drawn under the group's heading: all of them, or only the open one while the group is collapsed
+  const shownLists = group?.collapsed ? lists.filter((list) => currentView === 'list' && currentListId === list.id) : lists;
 
   if (!group) {
     // Ungrouped lists
     return (
-      <div className="mb-4">
+      <div className="mb-2">
         <SortableContext items={lists.map(l => l.id)} strategy={verticalListSortingStrategy}>
           <DroppableUngroupedArea activeId={activeId} lists={lists}>
             <div className="">
@@ -279,7 +258,7 @@ export function GroupedListSection({
                 id={`drop-ungrouped-start`}
                 groupId={null}
                 position={0}
-                className="h-2"
+                className="h-0.5"
               />
               
               {lists.map((list, index) => {
@@ -293,7 +272,6 @@ export function GroupedListSection({
                       isActive={isActive}
                       taskCount={taskCount}
                       onClick={() => onSetView('list', list.id)}
-                      sidebarCollapsed={false}
                       onEditList={handleEditList}
                       onCreateTask={handleCreateTask}
                     />
@@ -303,7 +281,7 @@ export function GroupedListSection({
                       groupId={null}
                       position={index + 1}
                       afterListId={list.id}
-                      className="h-2"
+                      className="h-0.5"
                     />
                   </div>
                 );
@@ -316,19 +294,21 @@ export function GroupedListSection({
   }
 
   return (
-    <div className="mb-4">
-      {/* Group Header */}
+    <div className="mb-1">
+      {/* Group Header: the add and menu buttons show when the heading is hovered or focused (always on touch screens) */}
       <DroppableGroupHeader group={group}>
-        <div className="px-3 py-1 flex items-center">
+        <div className="group/head px-3 min-h-8 flex items-center [@media(pointer:coarse)]:min-h-11">
           {/* Collapse Button */}
           <button
             onClick={() => toggleGroupCollapsed(group.id)}
-            className="p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors mr-1.5"
+            aria-label={`${group.collapsed ? 'Expand' : 'Collapse'} group ${group.name}`}
+            aria-expanded={!group.collapsed}
+            className="flex h-6 w-6 items-center justify-center hover:bg-hover rounded transition-colors mr-1 -ml-1 [@media(pointer:coarse)]:h-9 [@media(pointer:coarse)]:w-9"
           >
             {group.collapsed ? (
-              <ChevronRight size={12} className="text-gray-500 dark:text-gray-400" />
+              <ChevronRight size={14} className="text-muted" />
             ) : (
-              <ChevronDown size={12} className="text-gray-500 dark:text-gray-400" />
+              <ChevronDown size={14} className="text-muted" />
             )}
           </button>
           
@@ -347,7 +327,7 @@ export function GroupedListSection({
                     setEditingGroup(false);
                   }
                 }}
-                className="w-full px-1 py-0.5 text-xs font-medium bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full px-1 py-0.5 text-xs font-medium bg-canvas border border-line rounded focus:outline-none focus:ring-1 focus:ring-accent"
                 autoFocus
               />
             ) : (
@@ -357,7 +337,7 @@ export function GroupedListSection({
                     {group.emoji}
                   </span>
                 )}
-                <span className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide truncate">
+                <span className="text-xs font-medium text-muted uppercase tracking-wide truncate">
                   {group.name}
                 </span>
               </>
@@ -365,38 +345,43 @@ export function GroupedListSection({
           </div>
           
           {/* Action Buttons */}
-          <div className="flex items-center gap-0.5">
-            <button
-              onClick={handleAddList}
-              className="p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-              title="Add list to group"
-            >
-              <Plus size={12} className="text-gray-500 dark:text-gray-400" />
-            </button>
+          <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/head:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+            <Tooltip label="Add list to group">
+              <button
+                onClick={handleAddList}
+                className={GROUP_ACTION_CLASS}
+                aria-label="Add list to group"
+              >
+                <Plus size={16} />
+              </button>
+            </Tooltip>
             
             <div className="relative">
               <button
                 onClick={() => setShowGroupMenu(!showGroupMenu)}
-                className="p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                aria-label={`Group actions for ${group.name}`}
+                aria-haspopup="menu"
+                aria-expanded={showGroupMenu}
+                className={GROUP_ACTION_CLASS}
               >
-                <MoreHorizontal size={12} className="text-gray-500 dark:text-gray-400" />
+                <MoreHorizontal size={16} />
               </button>
               
               {showGroupMenu && (
-                <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-30 min-w-[120px]">
+                <div className="absolute right-0 top-full mt-1 bg-canvas border border-line rounded-md shadow-lg z-30 min-w-[120px]">
                   <button
                     onClick={() => {
                       setShowGroupEditSidebar(true);
                       setShowGroupMenu(false);
                     }}
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-hover flex items-center gap-2"
                   >
                     <Edit3 size={12} />
                     Edit
                   </button>
                   <button
                     onClick={handleDeleteGroup}
-                    className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                    className="w-full px-3 py-2 text-left text-sm text-overdue hover:bg-overdue/10 flex items-center gap-2"
                   >
                     <Trash2 size={12} />
                     Delete
@@ -408,42 +393,46 @@ export function GroupedListSection({
         </div>
       </DroppableGroupHeader>
 
-      {/* Group Lists */}
-      {!group.collapsed && (
-        <div className="ml-4">
-          <SortableContext items={lists.map(l => l.id)} strategy={verticalListSortingStrategy}>
+      {/* Group Lists. A collapsed group still shows the list that is open, so the sidebar always says where you are. */}
+      {shownLists.length > 0 && (
+        <div className="ml-[18px] pl-1 border-l border-line">
+          <SortableContext items={shownLists.map(l => l.id)} strategy={verticalListSortingStrategy}>
             <div className="">
               {/* Drop zone at the beginning of the group */}
-              <DropZone
-                id={`drop-group-${group.id}-start`}
-                groupId={group.id}
-                position={0}
-                className="h-2"
-              />
-              
-              {lists.map((list, index) => {
+              {!group.collapsed && (
+                <DropZone
+                  id={`drop-group-${group.id}-start`}
+                  groupId={group.id}
+                  position={0}
+                  className="h-0.5"
+                />
+              )}
+
+              {shownLists.map((list, index) => {
                 const isActive = currentView === 'list' && currentListId === list.id;
                 const taskCount = getTaskCountForList(list.id);
-                
+
                 return (
                   <div key={list.id}>
                     <SortableListItem
                       list={list}
+                      groupIcon={groupIconOverride(group)}
                       isActive={isActive}
                       taskCount={taskCount}
                       onClick={() => onSetView('list', list.id)}
-                      sidebarCollapsed={false}
                       onEditList={handleEditList}
                       onCreateTask={handleCreateTask}
                     />
                     {/* Drop zone after each item */}
-                    <DropZone
-                      id={`drop-group-${group.id}-${index + 1}`}
-                      groupId={group.id}
-                      position={index + 1}
-                      afterListId={list.id}
-                      className="h-2"
-                    />
+                    {!group.collapsed && (
+                      <DropZone
+                        id={`drop-group-${group.id}-${index + 1}`}
+                        groupId={group.id}
+                        position={index + 1}
+                        afterListId={list.id}
+                        className="h-0.5"
+                      />
+                    )}
                   </div>
                 );
               })}
@@ -451,7 +440,7 @@ export function GroupedListSection({
           </SortableContext>
         </div>
       )}
-      
+
       {/* Modals */}
       <ListEditSidebar
         isOpen={showAddListModal}
