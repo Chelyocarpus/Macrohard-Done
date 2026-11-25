@@ -1,28 +1,38 @@
 import { useState, useRef, useEffect } from 'react';
+import { Plus } from 'lucide-react';
 import { cn } from '../utils/cn.ts';
+import { QUICK_ADD_EVENT } from '../hooks/useKeyboardShortcuts.ts';
 
 interface FloatingActionButtonProps {
   onQuickAdd: () => void;
-  onInlineTaskCreate?: (title: string) => void;
+  /** Returns true when the task was created; the typed text is kept when it returns false. */
+  onInlineTaskCreate?: (title: string) => boolean;
   className?: string;
-  currentListColor?: string;
   // Immediate state-based positioning (not waiting for DOM)
   isAnySidebarOpening?: boolean;
 }
 
-export function FloatingActionButton({ 
-  onQuickAdd, 
+export function FloatingActionButton({
+  onQuickAdd,
   onInlineTaskCreate,
   className,
-  currentListColor,
   isAnySidebarOpening = false
 }: FloatingActionButtonProps) {
-  const [isHovered, setIsHovered] = useState(false);
   const [quickAddText, setQuickAddText] = useState('');
   const [isQuickAddMode, setIsQuickAddMode] = useState(false);
-  const [rightSidebarWidth, setRightSidebarWidth] = useState(0);
+  const [modalOpen, setModalOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const fabContainerRef = useRef<HTMLDivElement>(null);
+
+  // The "N" shortcut: open the bar and put the cursor in it (or just focus it when already open)
+  useEffect(() => {
+    const open = () => {
+      setIsQuickAddMode(true);
+      inputRef.current?.focus();
+    };
+    window.addEventListener(QUICK_ADD_EVENT, open);
+    return () => window.removeEventListener(QUICK_ADD_EVENT, open);
+  }, []);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -54,21 +64,16 @@ export function FloatingActionButton({
     }
   };
 
-  const handleMainButtonClick = () => {
-    console.log('Main FAB clicked', { isQuickAddMode });
-    if (!isQuickAddMode) {
-      setIsQuickAddMode(true);
-    }
-  };
-
   const handleQuickAdd = () => {
-    console.log('Quick add clicked', { quickAddText });
     if (quickAddText.trim()) {
       // Create task directly inline if handler is provided
       if (onInlineTaskCreate) {
-        onInlineTaskCreate(quickAddText.trim());
-        setQuickAddText('');
-        setIsQuickAddMode(false);
+        // Keep the typed text if creation failed so it isn't lost
+        // The bar stays open and focused so several tasks can be typed in a row (Esc closes it)
+        if (onInlineTaskCreate(quickAddText.trim())) {
+          setQuickAddText('');
+          inputRef.current?.focus();
+        }
       } else {
         // Fallback to opening modal
         onQuickAdd();
@@ -82,247 +87,107 @@ export function FloatingActionButton({
     if (e.key === 'Enter') {
       e.preventDefault();
       handleQuickAdd();
-    } else if (e.key === 'Escape') {
-      setIsQuickAddMode(false);
-      setQuickAddText('');
     }
   };
 
-  // Generate colors based on current list color or use default
-  const getGradientColors = () => {
-    if (currentListColor) {
-      // Validate hex color format
-      const isValidHex = (color: string): boolean => {
-        return /^#[0-9A-Fa-f]{6}$/.test(color);
-      };
-
-      // Convert hex to RGB with validation
-      const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
-        if (!isValidHex(hex)) {
-          return null;
-        }
-        
-        const cleanHex = hex.replace('#', '');
-        const r = parseInt(cleanHex.substr(0, 2), 16);
-        const g = parseInt(cleanHex.substr(2, 2), 16);
-        const b = parseInt(cleanHex.substr(4, 2), 16);
-        
-        // Check for NaN values
-        if (isNaN(r) || isNaN(g) || isNaN(b)) {
-          return null;
-        }
-        
-        return { r, g, b };
-      };
-
-      // Convert hex to RGB for gradient variations
-      const lightenColor = (color: string, factor: number) => {
-        const rgb = hexToRgb(color);
-        if (!rgb) {
-          console.warn(`Invalid hex color format: ${color}. Using fallback color.`);
-          return 'rgb(59, 130, 246)'; // Default blue
-        }
-        
-        const { r, g, b } = rgb;
-        const newR = Math.min(255, Math.floor(r + (255 - r) * factor));
-        const newG = Math.min(255, Math.floor(g + (255 - g) * factor));
-        const newB = Math.min(255, Math.floor(b + (255 - b) * factor));
-        
-        return `rgb(${newR}, ${newG}, ${newB})`;
-      };
-      
-      const darkenColor = (color: string, factor: number) => {
-        const rgb = hexToRgb(color);
-        if (!rgb) {
-          console.warn(`Invalid hex color format: ${color}. Using fallback color.`);
-          return 'rgb(29, 78, 216)'; // Default dark blue
-        }
-        
-        const { r, g, b } = rgb;
-        const newR = Math.floor(r * (1 - factor));
-        const newG = Math.floor(g * (1 - factor));
-        const newB = Math.floor(b * (1 - factor));
-        
-        return `rgb(${newR}, ${newG}, ${newB})`;
-      };
-
-      // Validate the base color before processing
-      if (!isValidHex(currentListColor)) {
-        console.warn(`Invalid hex color format: ${currentListColor}. Using default gradient.`);
-        // Fall through to default gradient
-      } else {
-        const baseColor = currentListColor;
-        const lightColor = lightenColor(baseColor, 0.1);
-        const darkColor = darkenColor(baseColor, 0.2);
-        
-        return {
-          background: `linear-gradient(to right, ${baseColor}, ${lightColor}, ${darkColor})`,
-          hoverBackground: `linear-gradient(to right, ${darkenColor(baseColor, 0.1)}, ${baseColor}, ${darkenColor(baseColor, 0.3)})`
-        };
-      }
-    }
-    
-    // Default blue-purple gradient
-    return {
-      background: 'linear-gradient(to right, rgb(37, 99, 235), rgb(29, 78, 216), rgb(126, 34, 206))',
-      hoverBackground: 'linear-gradient(to right, rgb(29, 78, 216), rgb(30, 64, 175), rgb(107, 33, 168))'
-    };
-  };
-
-  const gradientColors = getGradientColors();
-
-  // Detect right sidebars by checking DOM
+  // Is a dialog or side panel open over the page? Every one of them (task details, list and group editors, tag manager,
+  // pickers, ...) declares `aria-modal`, so that is what is looked for. (The old check looked for elements by their width
+  // class; the pop-up message container has one too, so on a phone it hid this bar for good.)
+  //
+  // Robustness / pitfalls guarded against:
+  // - Bursts of changes in the page cause at most one look per animation frame.
+  // - Only the page's own structure is watched (added/removed elements and the `aria-modal` attribute), not every class
+  //   change, and there is no timer polling.
   useEffect(() => {
-    const checkRightSidebars = () => {
-      // Look for common sidebar selectors in the DOM
-      const rightSidebars = document.querySelectorAll('div[class*="w-96"], div[class*="w-[400px]"]');
-      let maxWidth = 0;
-      
-      rightSidebars.forEach((sidebar) => {
-        const rect = sidebar.getBoundingClientRect();
-        // Check if it's positioned on the right side of the screen
-        if (rect.right > window.innerWidth - 100 && rect.width > maxWidth) {
-          maxWidth = rect.width;
-        }
+    const check = () => setModalOpen(!!document.querySelector('[aria-modal="true"]'));
+    check();
+    let frame = 0;
+    const scheduleCheck = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        check();
       });
-      
-      setRightSidebarWidth(maxWidth);
     };
-
-    // Initial check
-    checkRightSidebars();
-    
-    // Use MutationObserver for instant detection of DOM changes
-    const observer = new MutationObserver(() => {
-      checkRightSidebars();
-    });
-
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['class', 'style']
-    });
-    
-    // Fallback interval for edge cases (much faster)
-    const interval = setInterval(checkRightSidebars, 50); // Very fast: 50ms
-    
+    const observer = new MutationObserver(scheduleCheck);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-modal'] });
     return () => {
       observer.disconnect();
-      clearInterval(interval);
+      if (frame) cancelAnimationFrame(frame);
     };
   }, []);
 
-  // Calculate right margin based on immediate state and detected sidebar width
-  const getRightMargin = () => {
-    // Immediate response to sidebar opening (before DOM is updated)
-    if (isAnySidebarOpening) {
-      return 'right-[424px]'; // 400px sidebar + 24px margin for better spacing
-    }
-    
-    // DOM-based detection for precise sizing when available
-    if (rightSidebarWidth >= 400) {
-      return 'right-[424px]'; // For 400px sidebars + 24px margin
-    }
-    if (rightSidebarWidth >= 384) {
-      return 'right-[408px]'; // For 384px sidebars + 24px margin
-    }
-    if (rightSidebarWidth > 0) {
-      return 'right-24'; // Generic margin for smaller sidebars
-    }
-    return 'right-4'; // Default margin when no sidebar is detected
-  };
-
-  // Debug: Log both immediate state and detected width
-  console.log('FAB States:', { 
-    isAnySidebarOpening, 
-    rightSidebarWidth, 
-    rightClass: getRightMargin() 
-  });
+  // While a side panel (task details, list or group editor) is open the bar is hidden: the panel has its
+  // own buttons, and the bar would only sit on top of the dimmed page. Hidden with CSS rather than
+  // unmounted, so a half-typed task is still there when the panel closes.
+  const hideBar = isAnySidebarOpening || modalOpen;
 
   return (
-    <div 
+    <div
       ref={fabContainerRef}
       className={cn(
-        "absolute bottom-4 left-4 z-50 transition-all duration-75", // Super fast transition: 75ms
-        getRightMargin(), // Dynamic right positioning based on open sidebars
-        "flex", // Always visible, spans full available width
+        "absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 z-50",
+        hideBar ? "hidden" : "flex", // Spans the full available width when shown
         className
       )}
       onKeyDown={handleKeyDown}
     >
-      {/* Main FAB Bar */}
-      <div className="relative w-full">
-        <div
-          className={cn(
-            "h-12 sm:h-14 rounded-xl sm:rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-150",
-            "transform hover:scale-[1.01] border-0 text-white relative overflow-hidden cursor-pointer",
-            "flex items-center gap-2 sm:gap-3 px-3 sm:px-6 w-full" // Full width
-          )}
-          style={{
-            background: gradientColors.background,
-            transition: 'all 0.15s ease'
-          }}
-          onMouseEnter={(e) => {
-            setIsHovered(true);
-            e.currentTarget.style.background = gradientColors.hoverBackground;
-          }}
-          onMouseLeave={(e) => {
-            setIsHovered(false);
-            e.currentTarget.style.background = gradientColors.background;
-          }}
-          onClick={handleMainButtonClick}
+      {/* A plain surface bar: it reads as an input field, with the one accent colour only on the plus, the
+          focus ring and the Add button. A list's own colour never reaches these controls. */}
+      <div
+        className={cn(
+          "w-full h-12 sm:h-14 flex items-center gap-3 pl-2.5 sm:pl-3 pr-2.5 sm:pr-3 rounded-[10px] border transition-shadow duration-150",
+          "bg-canvas",
+          isQuickAddMode
+            ? "border-list ring-1 ring-list shadow-lg"
+            : "border-line shadow-md hover:shadow-lg"
+        )}
+        onClick={() => inputRef.current?.focus()}
+      >
+        <span
+          aria-hidden="true"
+          className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-list text-on-list"
         >
-          <div className="flex-1 min-w-0"> {/* Added min-w-0 for proper text truncation */}
-            {isQuickAddMode ? (
-              <input
-                ref={inputRefCallback}
-                value={quickAddText}
-                onChange={(e) => setQuickAddText(e.target.value)}
-                onKeyDown={handleQuickAddKeyDown}
-                placeholder="What needs to be done?"
-                className="w-full bg-transparent text-white placeholder-white/70 border-none outline-none text-sm sm:text-lg font-medium"
-              />
-            ) : (
-              <div className="w-full text-left text-sm sm:text-lg font-medium text-white/90 truncate">
-                Add a task...
-              </div>
-            )}
-          </div>
+          <Plus size={20} strokeWidth={2.5} />
+        </span>
 
-          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-            {isQuickAddMode && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleQuickAdd();
-                }}
-                disabled={!quickAddText.trim()}
-                className="px-2 sm:px-4 py-1 sm:py-2 bg-white/20 hover:bg-white/30 rounded-md sm:rounded-lg text-xs sm:text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Add
-              </button>
-            )}
-          </div>
-
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-500 transform -skew-x-12 pointer-events-none" />
-        </div>
-
-        {isHovered && (
-          <div className="absolute inset-0 pointer-events-none">
-            {[...Array(3)].map((_, i) => (
-              <div
-                key={i}
-                className="absolute w-1 h-1 bg-white/30 rounded-full animate-ping"
-                style={{
-                  left: `${20 + Math.random() * 60}%`,
-                  top: `${30 + Math.random() * 40}%`,
-                  animationDelay: `${Math.random() * 2000}ms`,
-                  animationDuration: '3s'
-                }}
-              />
-            ))}
-          </div>
+        {isQuickAddMode ? (
+          <>
+            <input
+              ref={inputRefCallback}
+              value={quickAddText}
+              onChange={(e) => setQuickAddText(e.target.value)}
+              onKeyDown={handleQuickAddKeyDown}
+              placeholder="Task name"
+              aria-label="New task name"
+              className="flex-1 min-w-0 bg-transparent text-base text-ink placeholder:text-muted border-none outline-none"
+            />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleQuickAdd();
+              }}
+              disabled={!quickAddText.trim()}
+              className="px-4 h-8 sm:h-9 rounded-md text-sm font-semibold flex-shrink-0 transition-colors bg-list text-on-list hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-list focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
+            >
+              Add
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsQuickAddMode(true);
+            }}
+            className="flex-1 min-w-0 h-full flex items-center justify-between gap-3 text-left rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-list"
+          >
+            <span className="truncate text-base text-muted">Add a task</span>
+            <kbd className="hidden sm:inline [@media(hover:none)]:hidden flex-shrink-0 px-2 py-0.5 rounded-md border border-line bg-sidebar text-xs font-sans text-muted">
+              N
+            </kbd>
+          </button>
         )}
       </div>
     </div>

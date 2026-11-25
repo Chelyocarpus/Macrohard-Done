@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
+import { useFocusTrap } from '../hooks/useFocusTrap.ts';
 import { Plus, X } from 'lucide-react';
 import { useTaskStore } from '../stores/taskStore.ts';
+import { useShallow } from 'zustand/react/shallow';
 import { useToastStore } from '../stores/toastStore.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
+import { getNewTaskDefaults } from '../utils/newTaskDefaults.ts';
 
 interface QuickAddTaskFormProps {
   isOpen: boolean;
@@ -13,11 +16,13 @@ interface QuickAddTaskFormProps {
 }
 
 export function QuickAddTaskForm({ isOpen, onClose, onFullFormRequested, initialTitle = '' }: QuickAddTaskFormProps) {
-  const { addTask, currentView, currentListId } = useTaskStore();
+  const { addTask, currentView, currentListId, currentCategoryId } = useTaskStore(useShallow((state) => ({ addTask: state.addTask, currentView: state.currentView, currentListId: state.currentListId, currentCategoryId: state.currentCategoryId })));
   const { showError } = useToastStore();
   const [title, setTitle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, isOpen);
 
   useEffect(() => {
     if (isOpen) {
@@ -45,17 +50,15 @@ export function QuickAddTaskForm({ isOpen, onClose, onFullFormRequested, initial
     setIsSubmitting(true);
 
     try {
-      // Determine which list to add the task to
-      let listId = 'all';
-      if (currentView === 'list' && currentListId) {
-        listId = currentListId;
-      }
+      // The task starts with whatever the current view needs (list, category, My Day, ...) so it shows up there
+      const { listId, ...options } = getNewTaskDefaults(currentView, currentListId, currentCategoryId);
 
       // Create the task with minimal data
-      addTask(title.trim(), listId);
-      
-      setTitle('');
-      onClose();
+      // Only clear and close when the task was actually created, so typed text isn't lost on failure
+      if (addTask(title.trim(), listId, options)) {
+        setTitle('');
+        onClose();
+      }
     } catch {
       showError('Error', 'Failed to create task. Please try again.');
     } finally {
@@ -79,24 +82,29 @@ export function QuickAddTaskForm({ isOpen, onClose, onFullFormRequested, initial
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      ref={dialogRef}
+      className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center p-0 sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Quick add task"
       onClick={handleBackdropClick}
     >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
       
       {/* Modal */}
-      <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-6 w-full max-w-md mx-auto transform transition-all duration-200 scale-100">
+      {/* Phones: fills the whole screen (content at the top, clear of the keyboard); larger screens: centred card */}
+      <div className="relative bg-canvas sm:rounded-2xl shadow-2xl sm:border border-line p-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:py-6 w-full h-full sm:h-auto sm:max-w-md mx-auto transform transition-all duration-200 scale-100">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h3 className="text-lg font-semibold text-ink">
             Quick Add Task
           </h3>
           <Button
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="p-2 h-8 w-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="p-2 h-8 w-8 rounded-full hover:bg-hover"
           >
             <X size={16} />
           </Button>
@@ -111,7 +119,7 @@ export function QuickAddTaskForm({ isOpen, onClose, onFullFormRequested, initial
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="text-base border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400"
+              className="text-base border-line focus:border-accent"
               disabled={isSubmitting}
             />
           </div>
@@ -122,7 +130,7 @@ export function QuickAddTaskForm({ isOpen, onClose, onFullFormRequested, initial
               variant="ghost"
               size="sm"
               onClick={onFullFormRequested}
-              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+              className="text-accent hover:text-accent"
             >
               Need more options?
             </Button>
