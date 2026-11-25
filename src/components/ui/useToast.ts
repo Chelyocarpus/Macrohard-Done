@@ -9,6 +9,7 @@ export function useToast() {
     showError,
     showWarning,
     showInfo,
+    showUndo,
   } = useToastStore();
 
   return {
@@ -22,5 +23,6 @@ export function useToast() {
     error: showError,
     warning: showWarning,
     info: showInfo,
+    undo: showUndo,
   };
 }

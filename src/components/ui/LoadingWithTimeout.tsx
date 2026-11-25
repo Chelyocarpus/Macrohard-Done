@@ -47,9 +47,9 @@ export function LoadingWithTimeout({
         case 'minimal':
           return 'bg-transparent border-0';
         case 'editor':
-          return 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg';
+          return 'bg-important/10 border border-important/30 rounded-lg';
         default:
-          return 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl';
+          return 'bg-important/10 border border-important/30 rounded-xl';
       }
     };
 
@@ -62,15 +62,15 @@ export function LoadingWithTimeout({
           className
         )}
       >
-        <div className="flex items-center justify-center w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-full">
-          <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+        <div className="flex items-center justify-center w-10 h-10 bg-important/10 rounded-full">
+          <AlertTriangle className="w-5 h-5 text-important" />
         </div>
         
         <div className="text-center">
-          <p className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-1">
+          <p className="text-sm font-medium text-ink mb-1">
             Taking longer than expected
           </p>
-          <p className="text-xs text-amber-700 dark:text-amber-300">
+          <p className="text-xs text-muted">
             The component may be slow to load or unavailable
           </p>
         </div>
@@ -80,7 +80,7 @@ export function LoadingWithTimeout({
             onClick={handleRetry}
             variant="secondary"
             size="sm"
-            className="bg-white dark:bg-amber-800 border-amber-200 dark:border-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/50 text-amber-900 dark:text-amber-100"
+            className="bg-canvas border-important/30 hover:bg-important/10 text-ink"
           >
             <RefreshCw className="w-3 h-3 mr-2" />
             Try Again

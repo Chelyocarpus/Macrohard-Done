@@ -19,22 +19,22 @@ export function AutoSaveIndicator({ status, className }: AutoSaveIndicatorProps)
     )}>
       {status === 'saving' && (
         <>
-          <Loader2 size={16} className="animate-spin text-blue-600 dark:text-blue-400" />
-          <span className="text-blue-600 dark:text-blue-400">Saving...</span>
+          <Loader2 size={16} className="animate-spin text-accent" />
+          <span className="text-accent">Saving...</span>
         </>
       )}
       
       {status === 'saved' && (
         <>
-          <CheckCircle size={16} className="text-green-600 dark:text-green-400" />
-          <span className="text-green-600 dark:text-green-400">Saved</span>
+          <CheckCircle size={16} className="text-done" />
+          <span className="text-done">Saved</span>
         </>
       )}
       
       {status === 'error' && (
         <>
-          <AlertCircle size={16} className="text-red-600 dark:text-red-400" />
-          <span className="text-red-600 dark:text-red-400">Save failed</span>
+          <AlertCircle size={16} className="text-overdue" />
+          <span className="text-overdue">Save failed</span>
         </>
       )}
     </div>

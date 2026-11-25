@@ -11,35 +11,35 @@ interface ToastProps {
 const toastVariants = {
   success: {
     icon: CheckCircle,
-    bgColor: 'bg-green-100 dark:bg-green-900/20',
-    borderColor: 'border-green-200 dark:border-green-800',
-    iconColor: 'text-green-600 dark:text-green-400',
-    titleColor: 'text-green-900 dark:text-green-100',
-    descriptionColor: 'text-green-700 dark:text-green-300',
+    bgColor: 'bg-canvas',
+    borderColor: 'border-done/30',
+    iconColor: 'text-done',
+    titleColor: 'text-ink',
+    descriptionColor: 'text-muted',
   },
   error: {
     icon: AlertCircle,
-    bgColor: 'bg-red-100 dark:bg-red-900/20',
-    borderColor: 'border-red-200 dark:border-red-800',
-    iconColor: 'text-red-600 dark:text-red-400',
-    titleColor: 'text-red-900 dark:text-red-100',
-    descriptionColor: 'text-red-700 dark:text-red-300',
+    bgColor: 'bg-canvas',
+    borderColor: 'border-overdue/30',
+    iconColor: 'text-overdue',
+    titleColor: 'text-ink',
+    descriptionColor: 'text-overdue',
   },
   warning: {
     icon: AlertTriangle,
-    bgColor: 'bg-yellow-100 dark:bg-yellow-900/20',
-    borderColor: 'border-yellow-200 dark:border-yellow-800',
-    iconColor: 'text-yellow-600 dark:text-yellow-400',
-    titleColor: 'text-yellow-900 dark:text-yellow-100',
-    descriptionColor: 'text-yellow-700 dark:text-yellow-300',
+    bgColor: 'bg-canvas',
+    borderColor: 'border-important/30',
+    iconColor: 'text-important',
+    titleColor: 'text-ink',
+    descriptionColor: 'text-muted',
   },
   info: {
     icon: Info,
-    bgColor: 'bg-blue-100 dark:bg-blue-900/20',
-    borderColor: 'border-blue-200 dark:border-blue-800',
-    iconColor: 'text-blue-600 dark:text-blue-400',
-    titleColor: 'text-blue-900 dark:text-blue-100',
-    descriptionColor: 'text-blue-700 dark:text-blue-300',
+    bgColor: 'bg-canvas',
+    borderColor: 'border-accent/30',
+    iconColor: 'text-accent',
+    titleColor: 'text-ink',
+    descriptionColor: 'text-accent',
   },
 };
 
@@ -108,12 +108,13 @@ export function Toast({ toast, onClose }: ToastProps) {
   return (
     <div
       className={cn(
-        'relative flex w-full max-w-sm items-start gap-3 rounded-lg border p-4 shadow-lg transition-all duration-300 ease-in-out overflow-hidden',
-        'animate-slide-in-from-right',
+        // Opaque card, one soft shadow, a short fade in (instant with reduced motion, see index.css)
+        'relative flex w-full max-w-sm items-start gap-3 rounded-[10px] border p-4 shadow-lg overflow-hidden',
+        'animate-toast-in',
         variant.bgColor,
         variant.borderColor
       )}
-      role="alert"
+      role="status"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -131,36 +132,47 @@ export function Toast({ toast, onClose }: ToastProps) {
           </p>
         )}
       </div>
+
+      {toast.action && (
+        <button
+          type="button"
+          onClick={toast.action.onClick}
+          className="flex-shrink-0 self-center rounded-md px-3 py-1.5 text-sm font-semibold text-accent hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent transition-colors"
+        >
+          {toast.action.label}
+        </button>
+      )}
       
       {/* Close button */}
       <button
         onClick={() => onClose(toast.id)}
         className={cn(
           'flex-shrink-0 rounded-md p-1 transition-colors',
-          'hover:bg-gray-200 dark:hover:bg-gray-700',
-          'focus:outline-none focus:ring-2 focus:ring-gray-400'
+          'hover:bg-hover',
+          'focus:outline-none focus:ring-2 focus:ring-accent'
         )}
         aria-label="Close notification"
       >
-        <X className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+        <X className="h-4 w-4 text-muted" />
       </button>
       
-      {/* Progress bar */}
-      {toast.duration && (
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 dark:bg-gray-700 rounded-b-lg overflow-hidden">
+      {/* Progress bar (only for a toast that closes by itself: a duration of 0 stays until it is closed, and must not print "0") */}
+      {!!toast.duration && (
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-hover rounded-b-lg overflow-hidden">
           <div
             className={cn(
-              'h-full transition-all duration-100 ease-linear rounded-b-lg',
+              // Scaled with a transform (not width) so the countdown doesn't trigger layout every frame
+              'h-full w-full origin-left transition-transform duration-100 ease-linear',
               {
-                'bg-green-500': toast.variant === 'success',
-                'bg-red-500': toast.variant === 'error',
-                'bg-yellow-500': toast.variant === 'warning',
-                'bg-blue-500': toast.variant === 'info',
+                'bg-done': toast.variant === 'success',
+                'bg-overdue': toast.variant === 'error',
+                'bg-important': toast.variant === 'warning',
+                'bg-accent': toast.variant === 'info',
               }
             )}
             style={{
-              width: `${progress}%`,
-              transition: isPausedRef.current ? 'none' : 'width 100ms linear'
+              transform: `scaleX(${progress / 100})`,
+              transition: isPausedRef.current ? 'none' : 'transform 100ms linear'
             }}
           />
         </div>
@@ -170,18 +182,22 @@ export function Toast({ toast, onClose }: ToastProps) {
 }
 
 // Toast container component
-export function ToastContainer({ 
-  toasts, 
-  onClose 
-}: { 
-  toasts: Toast[]; 
-  onClose: (id: string) => void; 
+export function ToastContainer({
+  toasts,
+  onClose,
+  className,
+  style,
+}: {
+  toasts: Toast[];
+  onClose: (id: string) => void;
+  className?: string;
+  style?: React.CSSProperties;
 }) {
-  if (toasts.length === 0) return null;
-
+  // Always rendered, even when empty: a live region that appears together with its first message is often not announced
   return (
     <div
-      className={`fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none`}
+      className={cn('fixed z-50 flex flex-col gap-2 pointer-events-none', className)}
+      style={style}
       aria-live="polite"
       aria-label="Notifications"
     >

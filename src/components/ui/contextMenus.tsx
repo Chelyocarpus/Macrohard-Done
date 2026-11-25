@@ -6,7 +6,6 @@ import {
   Calendar, 
   Sun, 
   Eye, 
-  EyeOff,
   CheckCircle,
   Circle,
   Plus,
@@ -106,7 +105,7 @@ export function createTaskContextMenu(
         items: [
           {
             id: 'categories',
-            label: 'Manage categories',
+            label: 'Manage tags',
             icon: <Tag size={16} />,
             onClick: actions.onManageCategories || actions.onEdit,
           },
@@ -137,7 +136,6 @@ export function createListContextMenu(
     onDuplicate: () => void;
     onChangeColor: () => void;
     onArchive?: () => void;
-    onHide?: () => void;
     onCreateTask: () => void;
   }
 ): ContextMenuData {
@@ -184,12 +182,6 @@ export function createListContextMenu(
       ...(isSystemList ? [] : [
         {
           items: [
-            {
-              id: 'hide',
-              label: 'Hide list',
-              icon: <EyeOff size={16} />,
-              onClick: actions.onHide || actions.onEdit,
-            },
             {
               id: 'delete',
               label: 'Remove list',

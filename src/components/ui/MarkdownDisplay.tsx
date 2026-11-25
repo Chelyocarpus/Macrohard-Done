@@ -1,6 +1,8 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '../../utils/cn.ts';
+import { createMarkdownComponents } from './markdownComponents.tsx';
+import type { MarkdownElementStyles } from './markdownComponents.tsx';
 
 interface MarkdownDisplayProps {
   content: string;
@@ -8,35 +10,79 @@ interface MarkdownDisplayProps {
   inline?: boolean;
 }
 
-export function MarkdownDisplay({ 
-  content, 
+// Shared by both variants: only spacing and line height differ between them
+const SHARED_STYLES = {
+  inlineCode: 'bg-accent/10 text-accent px-1 py-0.5 rounded text-xs font-mono',
+  table: 'w-full border-collapse border border-line rounded text-xs',
+  th: 'bg-hover border border-line px-2 py-1 text-left font-medium text-ink text-xs',
+  td: 'border border-line px-2 py-1 text-muted text-xs',
+};
+
+// Compact styles for inline display (task list items)
+const INLINE_STYLES: MarkdownElementStyles = {
+  ...SHARED_STYLES,
+  h1: 'font-bold text-ink text-sm mb-1',
+  h2: 'font-semibold text-ink text-sm mb-1',
+  h3: 'font-medium text-ink text-sm mb-1',
+  p: 'text-muted mb-1 last:mb-0 leading-tight',
+  ul: 'list-disc list-inside text-muted mb-1 space-y-0',
+  ol: 'list-decimal list-inside text-muted mb-1 space-y-0',
+  li: 'leading-tight',
+  blockquote: 'border-l-0 bg-hover rounded-md px-3 py-1 italic text-muted my-1',
+  pre: 'bg-hover border border-line rounded p-2 overflow-x-auto text-xs my-1',
+  tableWrapper: 'overflow-x-auto my-1',
+  hr: 'border-line my-1',
+};
+
+// Regular spacing for full display
+const FULL_STYLES: MarkdownElementStyles = {
+  ...SHARED_STYLES,
+  h1: 'font-bold text-ink text-lg mb-2 mt-3 first:mt-0',
+  h2: 'font-semibold text-ink text-base mb-2 mt-2 first:mt-0',
+  h3: 'font-medium text-ink text-sm mb-1 mt-2 first:mt-0',
+  p: 'text-muted mb-2 last:mb-0 leading-relaxed',
+  ul: 'list-disc list-inside text-muted mb-2 space-y-1',
+  ol: 'list-decimal list-inside text-muted mb-2 space-y-1',
+  li: 'leading-relaxed',
+  blockquote: 'border-l-0 bg-hover rounded-md px-3 py-1 italic text-muted my-2',
+  pre: 'bg-hover border border-line rounded p-2 overflow-x-auto text-xs my-2',
+  tableWrapper: 'overflow-x-auto my-2',
+  hr: 'border-line my-3',
+};
+
+// Created once so ReactMarkdown receives stable component identities between renders
+const INLINE_COMPONENTS = createMarkdownComponents(INLINE_STYLES);
+const FULL_COMPONENTS = createMarkdownComponents(FULL_STYLES);
+
+export function MarkdownDisplay({
+  content,
   className,
-  inline = false 
+  inline = false
 }: MarkdownDisplayProps) {
   if (!content.trim()) return null;
 
   return (
-    <div 
+    <div
       className={cn(
         "prose prose-sm dark:prose-invert max-w-none",
-        "prose-headings:text-gray-900 dark:prose-headings:text-gray-100",
-        "prose-p:text-gray-600 dark:prose-p:text-gray-300",
-        "prose-li:text-gray-600 dark:prose-li:text-gray-300",
-        "prose-strong:text-gray-900 dark:prose-strong:text-gray-100",
-        "prose-em:text-gray-600 dark:prose-em:text-gray-300",
-        "prose-code:text-blue-600 dark:prose-code:text-blue-400",
-        "prose-code:bg-blue-50 dark:prose-code:bg-blue-900/20",
+        "prose-headings:text-ink",
+        "prose-p:text-ink",
+        "prose-li:text-ink",
+        "prose-strong:text-ink",
+        "prose-em:text-ink",
+        "prose-code:text-accent",
+        "prose-code:bg-accent/10",
         "prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs",
-        "prose-pre:bg-gray-100 dark:prose-pre:bg-gray-800",
-        "prose-pre:border prose-pre:border-gray-200 dark:prose-pre:border-gray-700",
-        "prose-blockquote:text-gray-500 dark:prose-blockquote:text-gray-400",
-        "prose-blockquote:border-l-blue-500 dark:prose-blockquote:border-l-blue-400",
-        "prose-hr:border-gray-200 dark:prose-hr:border-gray-700",
-        "prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline",
-        "prose-table:text-gray-600 dark:prose-table:text-gray-300",
-        "prose-th:bg-gray-100 dark:prose-th:bg-gray-800",
-        "prose-td:border-gray-200 dark:prose-td:border-gray-700",
-        "prose-th:border-gray-200 dark:prose-th:border-gray-700",
+        "prose-pre:bg-hover",
+        "prose-pre:border prose-pre:border-line",
+        "prose-blockquote:text-muted",
+        "prose-blockquote:border-l-0",
+        "prose-hr:border-line",
+        "prose-a:text-accent prose-a:no-underline hover:prose-a:underline",
+        "prose-table:text-ink",
+        "prose-th:bg-hover",
+        "prose-td:border-line",
+        "prose-th:border-line",
         // Compact styles for inline display
         inline && [
           "prose-p:my-0 prose-p:leading-tight",
@@ -47,131 +93,9 @@ export function MarkdownDisplay({
         className
       )}
     >
-      <ReactMarkdown 
+      <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        components={{
-          // Custom components for compact styling in task items
-          h1: ({ children, ...props }) => (
-            <h1 className={cn(
-              "font-bold text-gray-900 dark:text-gray-100",
-              inline ? "text-sm mb-1" : "text-lg mb-2 mt-3 first:mt-0"
-            )} {...props}>
-              {children}
-            </h1>
-          ),
-          h2: ({ children, ...props }) => (
-            <h2 className={cn(
-              "font-semibold text-gray-900 dark:text-gray-100",
-              inline ? "text-sm mb-1" : "text-base mb-2 mt-2 first:mt-0"
-            )} {...props}>
-              {children}
-            </h2>
-          ),
-          h3: ({ children, ...props }) => (
-            <h3 className={cn(
-              "font-medium text-gray-900 dark:text-gray-100",
-              inline ? "text-sm mb-1" : "text-sm mb-1 mt-2 first:mt-0"
-            )} {...props}>
-              {children}
-            </h3>
-          ),
-          p: ({ children, ...props }) => (
-            <p className={cn(
-              "text-gray-600 dark:text-gray-300",
-              inline ? "mb-1 last:mb-0 leading-tight" : "mb-2 last:mb-0 leading-relaxed"
-            )} {...props}>
-              {children}
-            </p>
-          ),
-          ul: ({ children, ...props }) => (
-            <ul className={cn(
-              "list-disc list-inside text-gray-600 dark:text-gray-300",
-              inline ? "mb-1 space-y-0" : "mb-2 space-y-1"
-            )} {...props}>
-              {children}
-            </ul>
-          ),
-          ol: ({ children, ...props }) => (
-            <ol className={cn(
-              "list-decimal list-inside text-gray-600 dark:text-gray-300",
-              inline ? "mb-1 space-y-0" : "mb-2 space-y-1"
-            )} {...props}>
-              {children}
-            </ol>
-          ),
-          li: ({ children, ...props }) => (
-            <li className={cn(
-              inline ? "leading-tight" : "leading-relaxed"
-            )} {...props}>
-              {children}
-            </li>
-          ),
-          blockquote: ({ children, ...props }) => (
-            <blockquote className={cn(
-              "border-l-4 border-l-blue-500 dark:border-l-blue-400 pl-3 italic text-gray-500 dark:text-gray-400",
-              inline ? "my-1" : "my-2"
-            )} {...props}>
-              {children}
-            </blockquote>
-          ),
-          code: ({ children, className, ...props }) => {
-            const isInline = !className;
-            if (isInline) {
-              return (
-                <code className="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-1 py-0.5 rounded text-xs font-mono" {...props}>
-                  {children}
-                </code>
-              );
-            }
-            return (
-              <code className={className} {...props}>
-                {children}
-              </code>
-            );
-          },
-          pre: ({ children, ...props }) => (
-            <pre className={cn(
-              "bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-2 overflow-x-auto text-xs",
-              inline ? "my-1" : "my-2"
-            )} {...props}>
-              {children}
-            </pre>
-          ),
-          table: ({ children, ...props }) => (
-            <div className={cn("overflow-x-auto", inline ? "my-1" : "my-2")}>
-              <table className="w-full border-collapse border border-gray-200 dark:border-gray-700 rounded text-xs" {...props}>
-                {children}
-              </table>
-            </div>
-          ),
-          th: ({ children, ...props }) => (
-            <th className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2 py-1 text-left font-medium text-gray-900 dark:text-gray-100 text-xs" {...props}>
-              {children}
-            </th>
-          ),
-          td: ({ children, ...props }) => (
-            <td className="border border-gray-200 dark:border-gray-700 px-2 py-1 text-gray-600 dark:text-gray-300 text-xs" {...props}>
-              {children}
-            </td>
-          ),
-          a: ({ children, href, ...props }) => (
-            <a 
-              href={href} 
-              className="text-blue-600 dark:text-blue-400 hover:underline" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              {...props}
-            >
-              {children}
-            </a>
-          ),
-          hr: ({ ...props }) => (
-            <hr className={cn(
-              "border-gray-200 dark:border-gray-700",
-              inline ? "my-1" : "my-3"
-            )} {...props} />
-          ),
-        }}
+        components={inline ? INLINE_COMPONENTS : FULL_COMPONENTS}
       >
         {content}
       </ReactMarkdown>
