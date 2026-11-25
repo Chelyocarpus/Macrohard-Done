@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useEscapeKey } from '../hooks/useEscapeKey.ts';
 import type { Category } from '../types/index.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
@@ -31,15 +32,17 @@ export function CategoryForm({ category, onSave, onCancel, isSubmitting = false 
   const [selectedColor, setSelectedColor] = useState(category?.color || colorOptions[0]);
   const [selectedEmoji, setSelectedEmoji] = useState(category?.emoji || '');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  // Escape closes the emoji picker first (the picker is the top layer, so the manager around the form stays put)
+  useEscapeKey(showEmojiPicker, () => setShowEmojiPicker(false));
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     
     if (!name.trim()) {
-      newErrors.name = 'Category name is required';
+      newErrors.name = 'Tag name is required';
     } else if (name.trim().length > 50) {
-      newErrors.name = 'Category name must be 50 characters or less';
+      newErrors.name = 'Tag name must be 50 characters or less';
     }
     
     if (description && description.length > 200) {
@@ -73,7 +76,7 @@ export function CategoryForm({ category, onSave, onCancel, isSubmitting = false 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="category-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label htmlFor="category-name" className="block text-sm font-medium text-ink mb-2">
           Name *
         </label>
         <Input
@@ -81,17 +84,17 @@ export function CategoryForm({ category, onSave, onCancel, isSubmitting = false 
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Enter category name"
+          placeholder="Enter tag name"
           disabled={isSubmitting}
-          className={cn(errors.name && 'border-red-500 focus:border-red-500 focus:ring-red-500')}
+          className={cn(errors.name && 'border-overdue focus:border-overdue focus:ring-overdue')}
         />
         {errors.name && (
-          <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.name}</p>
+          <p className="mt-1 text-sm text-overdue">{errors.name}</p>
         )}
       </div>
 
       <div>
-        <label htmlFor="category-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label htmlFor="category-description" className="block text-sm font-medium text-ink mb-2">
           Description
         </label>
         <textarea
@@ -102,21 +105,21 @@ export function CategoryForm({ category, onSave, onCancel, isSubmitting = false 
           disabled={isSubmitting}
           rows={3}
           className={cn(
-            'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg',
-            'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
-            'focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+            'w-full px-3 py-2 border border-line rounded-lg',
+            'bg-canvas text-ink',
+            'focus:ring-2 focus:ring-accent focus:border-accent',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             'resize-none',
-            errors.description && 'border-red-500 focus:border-red-500 focus:ring-red-500'
+            errors.description && 'border-overdue focus:border-overdue focus:ring-overdue'
           )}
         />
         {errors.description && (
-          <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.description}</p>
+          <p className="mt-1 text-sm text-overdue">{errors.description}</p>
         )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label className="block text-sm font-medium text-ink mb-2">
           Color
         </label>
         <div className="flex flex-wrap gap-2">
@@ -129,8 +132,8 @@ export function CategoryForm({ category, onSave, onCancel, isSubmitting = false 
               className={cn(
                 'w-8 h-8 rounded-full border-2 transition-all',
                 selectedColor === color 
-                  ? 'border-gray-900 dark:border-gray-100 scale-110' 
-                  : 'border-gray-300 dark:border-gray-600 hover:scale-105'
+                  ? 'border-ink scale-110' 
+                  : 'border-line hover:scale-105'
               )}
               style={{ backgroundColor: color }}
               aria-label={`Select color ${color}`}
@@ -140,7 +143,7 @@ export function CategoryForm({ category, onSave, onCancel, isSubmitting = false 
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label className="block text-sm font-medium text-ink mb-2">
           Icon (Emoji)
         </label>
         <div className="flex items-center gap-2">
@@ -150,9 +153,9 @@ export function CategoryForm({ category, onSave, onCancel, isSubmitting = false 
             disabled={isSubmitting}
             className={cn(
               'flex items-center justify-center w-12 h-12 rounded-lg border-2 border-dashed',
-              'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500',
-              'transition-colors text-2xl bg-gray-50 dark:bg-gray-800',
-              selectedEmoji && 'border-solid bg-white dark:bg-gray-700'
+              'border-line hover:border-muted',
+              'transition-colors text-2xl bg-sidebar',
+              selectedEmoji && 'border-solid bg-canvas'
             )}
           >
             {selectedEmoji || '😊'}
@@ -187,7 +190,7 @@ export function CategoryForm({ category, onSave, onCancel, isSubmitting = false 
           disabled={isSubmitting || !name.trim()}
           className="flex-1"
         >
-          {isSubmitting ? 'Saving...' : category ? 'Update Category' : 'Create Category'}
+          {isSubmitting ? 'Saving...' : category ? 'Update tag' : 'Create tag'}
         </Button>
         <Button
           type="button"
