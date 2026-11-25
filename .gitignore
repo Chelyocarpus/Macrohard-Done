@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 /.github
 /.serena
+/.claude
 /.github/instructions
 /.playwright-mcp
 /tests
