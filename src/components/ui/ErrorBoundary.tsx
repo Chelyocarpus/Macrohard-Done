@@ -52,18 +52,18 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       return (
         <div className={cn(
           'flex flex-col items-center justify-center p-6 text-center',
-          'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl',
+          'bg-overdue/10 border border-overdue/30 rounded-xl',
           this.props.className
         )}>
-          <div className="flex items-center justify-center w-12 h-12 mb-4 bg-red-100 dark:bg-red-900/30 rounded-full">
-            <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+          <div className="flex items-center justify-center w-12 h-12 mb-4 bg-overdue/15 rounded-full">
+            <AlertTriangle className="w-6 h-6 text-overdue" />
           </div>
           
-          <h3 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">
+          <h3 className="text-lg font-semibold text-ink mb-2">
             {this.props.context ? `Failed to load ${this.props.context}` : 'Something went wrong'}
           </h3>
           
-          <p className="text-sm text-red-700 dark:text-red-300 mb-4 max-w-md">
+          <p className="text-sm text-overdue mb-4 max-w-md">
             {this.state.error?.message || 'An unexpected error occurred while loading this component.'}
           </p>
 
@@ -72,7 +72,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               onClick={this.handleRetry}
               variant="secondary"
               size="sm"
-              className="bg-white dark:bg-gray-800 border-red-200 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/30"
+              className="bg-canvas border-overdue/30 hover:bg-overdue/10"
             >
               <RefreshCw className="w-4 h-4 mr-2" />
               Try Again
@@ -95,8 +95,16 @@ interface LazyWrapperProps {
   onRetry?: () => void;
 }
 
+// Automatic retries before the error UI (with its manual "Try Again" button) is left in place
+const MAX_AUTO_RETRIES = 2;
+
 export function LazyWrapper({ children, fallback, className, context, onRetry }: LazyWrapperProps) {
   const [retryKey, setRetryKey] = React.useState(0);
+  const autoRetriesRef = React.useRef(0);
+  const retryTimerRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Don't fire a pending retry after unmount
+  React.useEffect(() => () => clearTimeout(retryTimerRef.current), []);
 
   const handleErrorBoundaryRetry = () => {
     setRetryKey(prev => prev + 1);
@@ -111,8 +119,12 @@ export function LazyWrapper({ children, fallback, className, context, onRetry }:
       onError={(error) => {
         // Log errors for debugging
         console.error(`Lazy loading error in ${context}:`, error);
-        // Automatically trigger retry after error to reset state
-        setTimeout(handleErrorBoundaryRetry, 100);
+        // Retry automatically a limited number of times (with a growing delay); after that the
+        // error UI stays visible instead of remounting and failing in an endless loop.
+        if (autoRetriesRef.current < MAX_AUTO_RETRIES) {
+          autoRetriesRef.current += 1;
+          retryTimerRef.current = setTimeout(handleErrorBoundaryRetry, 300 * autoRetriesRef.current);
+        }
       }}
     >
       <React.Suspense fallback={fallback}>

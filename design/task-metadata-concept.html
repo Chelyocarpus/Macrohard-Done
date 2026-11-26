@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Task metadata concept</title>
+<style>
+  /* Tokens copied from src/index.css so the concept matches the app */
+  :root {
+    --canvas: #ffffff; --sidebar: #f5f6f8; --hover: #f0f2f5; --ink: #1f2328; --muted: #5b6470; --line: #e3e6ea;
+    --accent: #2b66e0; --on-accent: #ffffff; --important: #bf7d00; --overdue: #c42b31; --done: #1f9d55;
+    --page: #eceff3;
+  }
+  :root[data-theme="dark"] {
+    --canvas: #1b1b1f; --sidebar: #232328; --hover: #2b2b31; --ink: #ecedef; --muted: #a3a8b1; --line: #35353c;
+    --accent: #6b9bff; --on-accent: #0b1220; --important: #f2b93b; --overdue: #ff6b6e; --done: #4cc38a;
+    --page: #121215;
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: light dark; }
+  body {
+    margin: 0; background: var(--page); color: var(--ink);
+    font: 14px/1.45 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .shell { max-width: 1240px; margin: 0 auto; padding: 24px 16px 64px; }
+
+  /* ---------- page chrome ---------- */
+  .top { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; justify-content: space-between; margin-bottom: 20px; }
+  .top h1 { margin: 0; font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+  .top p { margin: 4px 0 0; color: var(--muted); max-width: 56ch; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+  .seg-ctl { display: inline-flex; padding: 2px; background: var(--canvas); border: 1px solid var(--line); border-radius: 8px; }
+  .seg-ctl button { border: 0; background: none; padding: 5px 12px; border-radius: 6px; color: var(--muted); font-size: 13px; }
+  .seg-ctl button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+  .plain-btn { border: 1px solid var(--line); background: var(--canvas); border-radius: 8px; padding: 6px 12px; font-size: 13px; color: var(--muted); }
+  .plain-btn:hover { color: var(--ink); }
+  .cols { display: grid; grid-template-columns: minmax(0, 760px) minmax(0, 1fr); gap: 24px; align-items: start; }
+  @media (max-width: 1100px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+  /* ---------- mock task view ---------- */
+  .view { background: var(--canvas); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .view-head { padding: 18px 16px 12px; display: flex; align-items: baseline; gap: 10px; }
+  .view-head h2 { margin: 0; font-size: 22px; font-weight: 650; }
+  .view-head span { color: var(--muted); font-size: 13px; }
+  .tasks { list-style: none; margin: 0; padding: 0; }
+  .section-label { padding: 14px 16px 6px; font-size: 12px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); }
+
+  .row {
+    position: relative; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; column-gap: 12px;
+    padding: 8px 16px; border-bottom: 1px solid var(--line); cursor: pointer; outline: none;
+  }
+  .row:hover { background: var(--hover); }
+  .row:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+  .row.sel { background: color-mix(in srgb, var(--accent) 8%, var(--canvas)); box-shadow: inset 3px 0 0 var(--accent); }
+  [data-density="comfortable"] .row { padding-block: 12px; }
+
+  .check {
+    width: 22px; height: 22px; margin-top: 1px; border-radius: 50%; border: 2px solid var(--muted); background: none;
+    display: grid; place-items: center; padding: 0; color: transparent;
+  }
+  .check:hover { border-color: var(--done); color: color-mix(in srgb, var(--done) 70%, transparent); }
+  .row.done .check { background: var(--done); border-color: var(--done); color: #fff; }
+
+  .title { font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .row.done .title { text-decoration: line-through; color: var(--muted); }
+
+  /* meta */
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 10px; margin-top: 2px; font-size: 12px; line-height: 18px; color: var(--muted); }
+  .meta + .meta { margin-top: 4px; }
+  .it { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; min-width: 0; }
+  .ic { flex: none; }
+  .row.done .meta { opacity: .7; }
+
+  /* A group is one answer: when / progress / where. How groups are split is switchable (data-split). */
+  .grp { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 3px 9px; min-width: 0; }
+  .grp[data-g="note"] { flex: 1 1 160px; }
+
+  /* Hairline and dots draw their mark in a 14px strip at the left of every group. Each group is pulled
+     14px left and the line clips overflow, so the mark of a group that starts a line is cut off: a divider
+     only ever shows between two groups on the same line, however the row wraps. */
+  [data-split="hairline"] .meta, [data-split="dots"] .meta { overflow: hidden; column-gap: 14px; }
+  [data-split="hairline"] .grp, [data-split="dots"] .grp { margin-left: -14px; padding-left: 14px; background-repeat: no-repeat; }
+
+  /* 1. Hairline: a thin vertical rule between groups */
+  [data-split="hairline"] .grp { background-image: linear-gradient(var(--line), var(--line)); background-size: 1px 12px; background-position: 7px 50%; }
+  [data-density="comfortable"][data-split="hairline"] .meta + .meta { border-top: 1px dashed var(--line); padding-top: 4px; margin-top: 4px; }
+
+  /* 2. Dots: a centred dot, the lightest option */
+  [data-split="dots"] .grp { background-image: radial-gradient(circle, var(--muted) 1.4px, transparent 1.6px); background-size: 14px 14px; background-position: 0 50%; }
+
+  /* 3. Capsules: each group sits in its own outlined container, so the groups read as separate blocks */
+  [data-split="capsule"] .meta { gap: 4px 6px; }
+  [data-split="capsule"] .grp { border: 1px solid var(--line); border-radius: 8px; padding: 1px 8px; gap: 3px 10px; }
+  [data-split="capsule"] .grp .due { background: none; padding: 0; }
+  [data-split="capsule"] .grp .due.today, [data-split="capsule"] .grp .due.overdue { padding: 0 7px 0 5px; margin-left: -4px; background: color-mix(in srgb, var(--accent) 13%, var(--canvas)); }
+  [data-split="capsule"] .grp .due.overdue { background: color-mix(in srgb, var(--overdue) 13%, var(--canvas)); }
+  [data-split="capsule"] .grp[data-g="tags"], [data-split="capsule"] .grp[data-g="where"] { padding-inline: 4px; }
+  [data-split="capsule"] .grp[data-g="list"] { margin-left: auto; }
+  [data-split="capsule"] .grp[data-g="note"] { flex: 1 1 160px; }
+
+  .due { padding: 0 8px 0 6px; border-radius: 999px; background: var(--hover); color: var(--ink); }
+  .row:hover .due { background: color-mix(in srgb, var(--ink) 8%, var(--canvas)); }
+  .due.today { background: color-mix(in srgb, var(--accent) 13%, var(--canvas)); color: var(--accent); }
+  .due.overdue { background: color-mix(in srgb, var(--overdue) 13%, var(--canvas)); color: var(--overdue); font-weight: 550; }
+  .due.later { color: var(--muted); }
+
+  .steps-it { gap: 6px; }
+  .seg { display: inline-flex; gap: 2px; }
+  .seg i { width: 8px; height: 4px; border-radius: 2px; background: var(--line); }
+  .seg i.on { background: var(--done); }
+  .steps-it.all { color: var(--done); }
+  .snippet { flex: 1 1 160px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .snippet span { overflow: hidden; text-overflow: ellipsis; }
+
+  .tag {
+    --t: #2b66e0; display: inline-flex; align-items: center; border-radius: 999px; padding: 0 8px; font-weight: 500; white-space: nowrap;
+    color: color-mix(in srgb, var(--t) 62%, var(--ink)); background: color-mix(in srgb, var(--t) 13%, var(--canvas)); border: 1px solid color-mix(in srgb, var(--t) 28%, var(--canvas));
+  }
+  :root[data-theme="dark"] .tag { color: color-mix(in srgb, var(--t) 55%, #fff); }
+  .tag.more { --t: var(--muted); }
+  .tags { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+  .list-it i { width: 7px; height: 7px; border-radius: 50%; background: var(--lc); }
+  .push { margin-left: auto; }
+
+  /* right-hand state buttons: a value that is set is always visible; hover only reveals what is unset */
+  .acts { display: flex; align-self: start; margin: -4px -6px 0 0; }
+  .act { width: 30px; height: 30px; border: 0; background: none; border-radius: 50%; display: grid; place-items: center; color: var(--muted); opacity: 0; }
+  .row:hover .act, .row:focus-within .act, .act.on { opacity: 1; }
+  .act:hover { background: color-mix(in srgb, var(--ink) 9%, transparent); color: var(--ink); }
+  .act.sun.on { color: var(--accent); } .act.sun.on svg { fill: currentColor; }
+  .act.star.on { color: var(--important); } .act.star.on svg { fill: currentColor; }
+  .act.pin.on { color: var(--muted); } .act.pin.on svg { fill: currentColor; }
+  .act.pin.global { color: var(--accent); }
+  @media (hover: none) { .act { opacity: 1; } .act:not(.on) { display: none; } .act.more { display: grid; } }
+
+  /* peek: every field, in four groups */
+  .peek { grid-column: 2 / -1; display: grid; grid-template-rows: 0fr; transition: grid-template-rows .2s ease; }
+  .row.open .peek { grid-template-rows: 1fr; }
+  .peek > div { overflow: hidden; min-height: 0; }
+  .peek-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px; padding: 14px 0 6px; margin-top: 8px; border-top: 1px dashed var(--line); cursor: default; }
+  @media (max-width: 560px) { .peek-grid { grid-template-columns: minmax(0, 1fr); } }
+  .peek h4 { margin: 0 0 8px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .peek h4::after { content: ''; flex: 1; height: 1px; background: var(--line); margin-left: 4px; }
+  .peek-grid { gap: 14px 0; }
+  .peek-grid > section:nth-child(1) { padding-right: 20px; }
+  .peek-grid > section:nth-child(2) { padding-left: 20px; border-left: 1px solid var(--line); }
+  @media (max-width: 560px) { .peek-grid > section:nth-child(n) { padding: 0; border: 0; } }
+  .peek dl { margin: 0; display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 5px 8px; font-size: 13px; }
+  .peek dt { color: var(--muted); }
+  .peek dd { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+  .peek .wide { grid-column: 1 / -1; }
+  .badge { font-size: 11px; font-weight: 600; padding: 0 7px; border-radius: 999px; line-height: 18px; }
+  .badge.overdue { background: color-mix(in srgb, var(--overdue) 13%, var(--canvas)); color: var(--overdue); }
+  .badge.flag { background: var(--hover); color: var(--ink); display: inline-flex; gap: 4px; align-items: center; }
+  .steplist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+  .steplist li { display: flex; gap: 8px; align-items: center; }
+  .steplist .box { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid var(--muted); display: grid; place-items: center; color: transparent; flex: none; }
+  .steplist .on .box { background: var(--done); border-color: var(--done); color: #fff; }
+  .steplist .on span { text-decoration: line-through; color: var(--muted); }
+  .note { margin: 0; font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+  .stamps { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--muted); padding-top: 8px; border-top: 1px solid var(--line); }
+  .stamps span { display: inline-flex; gap: 5px; align-items: center; }
+
+  /* ---------- side notes ---------- */
+  .side { display: grid; gap: 16px; }
+  .card { background: var(--canvas); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+  .card h3 { margin: 0 0 10px; font-size: 14px; font-weight: 650; }
+  .rules { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; font-size: 13px; }
+  .rules b { display: block; font-weight: 600; }
+  .rules span { color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th { text-align: left; font-weight: 600; color: var(--muted); padding: 0 8px 6px 0; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+  td { padding: 6px 8px 6px 0; border-top: 1px solid var(--line); vertical-align: top; }
+  td:first-child { font-weight: 550; white-space: nowrap; }
+  td.no { color: var(--muted); }
+  @media (max-width: 560px) { table { display: block; overflow-x: auto; } }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 50%; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="top">
+    <div>
+      <h1>Task row: all metadata</h1>
+      <p>One data model, three levels of detail. Click a row to open its full peek, or switch density to see how the line under the title grows.</p>
+    </div>
+    <div class="controls">
+      <div class="seg-ctl" role="group" aria-label="Row density">
+        <button type="button" data-density="compact" aria-pressed="true">Compact</button>
+        <button type="button" data-density="comfortable" aria-pressed="false">Comfortable</button>
+      </div>
+      <div class="seg-ctl" role="group" aria-label="Group divider">
+        <button type="button" data-split="hairline" aria-pressed="false">Hairline</button>
+        <button type="button" data-split="dots" aria-pressed="false">Dots</button>
+        <button type="button" data-split="capsule" aria-pressed="true">Capsules</button>
+      </div>
+      <div class="seg-ctl" role="group" aria-label="Theme">
+        <button type="button" data-theme="light" aria-pressed="true">Light</button>
+        <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+      </div>
+      <button type="button" class="plain-btn" id="expandAll">Expand all</button>
+    </div>
+  </header>
+
+  <div class="cols">
+    <section class="view" aria-label="Task view concept">
+      <div class="view-head"><h2>Planned</h2><span>Mon, Nov 23</span></div>
+      <ul class="tasks" id="open"></ul>
+      <div class="section-label">Completed</div>
+      <ul class="tasks" id="done"></ul>
+    </section>
+
+    <aside class="side">
+      <div class="card">
+        <h3>Four rules behind the layout</h3>
+        <ul class="rules">
+          <li><b>Group by the question it answers</b><span>When (due, reminder, repeat), progress (steps, note), where (list, tags). A divider between the groups (hairline, dot or outlined capsule: switch above) lets the line read in three glances instead of one long run.</span></li>
+          <li><b>Colour only where it means something</b><span>Overdue red, today blue, important amber, done green. Everything else stays in muted grey. Tags and lists keep their own colour as small accents.</span></li>
+          <li><b>Detail grows with space, never with noise</b><span>Compact uses icons and short words. Comfortable spells them out and adds the note preview. Peek shows every field, including created and edited.</span></li>
+          <li><b>A set value is never hidden behind hover</b><span>My Day, important and pinned stay visible once set. Hover only adds the buttons that are still off.</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Where each field appears</h3>
+        <table>
+          <thead><tr><th>Field</th><th>Compact</th><th>Comfortable</th><th>Peek</th></tr></thead>
+          <tbody>
+            <tr><td>Title, done</td><td>Title, check</td><td>Same</td><td>Same</td></tr>
+            <tr><td>Due date</td><td>Chip, short date</td><td>Chip, short date</td><td>Full date, time, days late</td></tr>
+            <tr><td>Reminder</td><td>Bell + time</td><td>Bell + time</td><td>Full date and time</td></tr>
+            <tr><td>Repeat</td><td>Short word</td><td>Interval, days</td><td>Plus where the count starts</td></tr>
+            <tr><td>Steps</td><td>Bar + count</td><td>Bar + "of" count</td><td>Every step, checked</td></tr>
+            <tr><td>Note</td><td>Icon</td><td>First line</td><td>Whole note</td></tr>
+            <tr><td>List</td><td>Dot + name*</td><td>After the tags*</td><td>Dot + name</td></tr>
+            <tr><td>Tags</td><td>Up to 2, then +N</td><td>Up to 3, then +N</td><td>All</td></tr>
+            <tr><td>My Day, important, pinned</td><td>Right buttons</td><td>Right buttons</td><td>Named flags</td></tr>
+            <tr><td>Created, edited</td><td class="no">Hidden</td><td class="no">Hidden</td><td>Footer</td></tr>
+          </tbody>
+        </table>
+        <p style="margin:10px 0 0;font-size:12px;color:var(--muted)">* Shown in views that mix lists (My Day, Planned, All). Inside a list, and for the default Tasks list, the name is left out, as today.</p>
+      </div>
+      <div class="card">
+        <h3>Colour key</h3>
+        <div class="legend">
+          <span><i style="background:var(--overdue)"></i>Overdue</span>
+          <span><i style="background:var(--accent)"></i>Today, My Day</span>
+          <span><i style="background:var(--important)"></i>Important</span>
+          <span><i style="background:var(--done)"></i>Steps and done</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+/* The concept fixes "now" so the dates stay meaningful whenever the page is opened. */
+const NOW = new Date('2026-11-23T15:00:00');
+const D = (s) => new Date(s);
+
+const LISTS = {
+  work: { name: 'Work', emoji: '💼', color: '#0f8b8d' },
+  personal: { name: 'Personal', emoji: '🌿', color: '#2e9e5b' },
+  home: { name: 'Home', emoji: '🏠', color: '#d9822b' },
+  travel: { name: 'Travel', emoji: '✈️', color: '#7c5ce0' },
+  tasks: { name: 'Tasks', isSystem: true },
+};
+const TAGS = {
+  work: { name: 'work', color: '#2b66e0' }, finance: { name: 'finance', color: '#c2410c' },
+  health: { name: 'health', color: '#db2777' }, home: { name: 'home', color: '#b45309' },
+  trip: { name: 'trip', color: '#7c3aed' }, admin: { name: 'admin', color: '#0f766e' },
+  ideas: { name: 'ideas', color: '#a16207' }, urgent: { name: 'urgent', color: '#dc2626' },
+};
+
+const tasks = [
+  { id: 1, title: 'Send the Q4 budget draft to finance', completed: false, important: true, myDay: true, pinned: false, pinnedGlobally: true,
+    dueDate: D('2026-11-21T17:00:00'), dueTime: true, reminder: D('2026-11-21T09:00:00'), repeat: 'monthly', repeatInterval: 1, repeatAnchor: 'due',
+    notes: 'Pull the numbers from the finance sheet, add the headcount line, and send the draft to Maria before the Thursday review.',
+    steps: [['Pull numbers from the sheet', 1], ['Add headcount line', 1], ['Check against last quarter', 1], ['Send to Maria', 0], ['Book the Thursday review', 0]],
+    listId: 'work', tagIds: ['work', 'finance'], createdAt: D('2026-11-12T10:20:00'), updatedAt: D('2026-11-23T13:10:00') },
+  { id: 2, title: 'Book the dentist appointment', completed: false, important: false, myDay: true, pinned: false, pinnedGlobally: false,
+    dueDate: D('2026-11-23T17:00:00'), dueTime: true, reminder: D('2026-11-23T16:00:00'), repeat: 'none',
+    notes: 'Ask about the Tuesday slots.', steps: [], listId: 'personal', tagIds: ['health'], createdAt: D('2026-11-20T08:00:00'), updatedAt: D('2026-11-20T08:00:00') },
+  { id: 3, title: 'Water the plants', completed: false, important: false, myDay: false, pinned: false, pinnedGlobally: false,
+    dueDate: D('2026-11-24T00:00:00'), repeat: 'weekly', repeatInterval: 1, repeatDays: [2, 6], repeatAnchor: 'completion', notes: '', steps: [],
+    listId: 'home', tagIds: ['home'], createdAt: D('2026-09-02T18:00:00'), updatedAt: D('2026-11-17T19:30:00') },
+  { id: 4, title: 'Plan the Lisbon trip', completed: false, important: false, myDay: false, pinned: true, pinnedGlobally: false,
+    dueDate: D('2026-12-12T00:00:00'), repeat: 'none',
+    notes: 'Flights first, then the hotel near Alfama. Check whether the museum pass covers the tram.',
+    steps: [['Pick the dates', 1], ['Compare flights', 0], ['Book the hotel', 0], ['Museum pass', 0], ['Airport transfer', 0], ['Pack list', 0]],
+    listId: 'travel', tagIds: ['trip', 'admin', 'ideas', 'urgent'], createdAt: D('2026-11-01T21:00:00'), updatedAt: D('2026-11-22T20:45:00') },
+  { id: 5, title: 'Reply to Sam about the conference schedule, the booth setup, and whether we still need the second banner stand on Thursday',
+    completed: false, important: false, myDay: false, pinned: false, pinnedGlobally: false, repeat: 'none', notes: '', steps: [],
+    listId: 'tasks', tagIds: [], createdAt: D('2026-11-23T14:40:00'), updatedAt: D('2026-11-23T14:40:00') },
+  { id: 6, title: 'Renew passport', completed: true, important: false, myDay: false, pinned: false, pinnedGlobally: false,
+    dueDate: D('2026-11-18T00:00:00'), repeat: 'none', notes: 'Photos done, form sent.', steps: [['Photos', 1], ['Fill in the form', 1], ['Post it', 1]],
+    listId: 'personal', tagIds: ['admin'], createdAt: D('2026-10-20T09:00:00'), updatedAt: D('2026-11-18T11:00:00') },
+];
+
+/* ---------- formatting ---------- */
+const P = {
+  calendar: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  repeat: '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
+  note: '<path d="M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8z"/><path d="M15 3v4a2 2 0 0 0 2 2h4"/>',
+  steps: '<path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  pin: '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>',
+  more: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  tag: '<path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+};
+const ic = (n, s = 13) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+
+const dayStart = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const dayDiff = (d) => Math.round((dayStart(d) - dayStart(NOW)) / 864e5);
+const shortDate = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(d.getFullYear() !== NOW.getFullYear() ? { year: 'numeric' } : {}) });
+const longDate = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', ...(d.getFullYear() !== NOW.getFullYear() ? { year: 'numeric' } : {}) });
+const timeOf = (d) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+function dayWord(d) { const n = dayDiff(d); return n === 0 ? 'Today' : n === 1 ? 'Tomorrow' : n === -1 ? 'Yesterday' : shortDate(d); }
+
+function dueInfo(t) {
+  if (!t.dueDate) return null;
+  const n = dayDiff(t.dueDate);
+  const overdue = !t.completed && n < 0;
+  const tone = overdue ? 'overdue' : t.completed ? 'later' : n === 0 ? 'today' : n === 1 ? 'soon' : 'later';
+  const label = overdue ? `Overdue · ${shortDate(t.dueDate)}` : dayWord(t.dueDate) + (t.dueTime && n >= 0 ? `, ${timeOf(t.dueDate)}` : '');
+  return { tone, label, overdue, days: -n };
+}
+function reminderText(t, full) {
+  if (!t.reminder) return '';
+  const sameDay = t.dueDate && dayDiff(t.reminder) === dayDiff(t.dueDate);
+  return sameDay && !full ? timeOf(t.reminder) : `${full ? longDate(t.reminder) + ', ' : shortDate(t.reminder) + ' '}${timeOf(t.reminder)}`;
+}
+function repeatText(t, mode) {
+  if (!t.repeat || t.repeat === 'none') return '';
+  const n = t.repeatInterval || 1;
+  const unit = { daily: 'day', weekly: 'week', monthly: 'month', yearly: 'year' }[t.repeat];
+  if (mode === 'short') return n === 1 ? { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', yearly: 'Yearly' }[t.repeat] : `Every ${n} ${unit}s`;
+  const days = t.repeat === 'weekly' && t.repeatDays?.length ? ' on ' + t.repeatDays.map((d) => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d]).join(', ') : '';
+  return (n === 1 ? `Every ${unit}` : `Every ${n} ${unit}s`) + days;
+}
+function ago(d) {
+  const mins = Math.round((NOW - d) / 6e4);
+  if (mins < 60) return `${Math.max(mins, 1)} min ago`;
+  if (mins < 60 * 24) return `${Math.round(mins / 60)} h ago`;
+  const days = Math.round(mins / 1440);
+  return days < 14 ? `${days} days ago` : shortDate(d);
+}
+const stepsDone = (t) => t.steps.filter((s) => s[1]).length;
+
+/* ---------- row pieces ---------- */
+/* One group = one answer. Empty groups are dropped, so no divider is ever left dangling. */
+const grp = (name, ...parts) => { const p = parts.filter(Boolean); return p.length ? `<span class="grp" data-g="${name}">${p.join('')}</span>` : ''; };
+function dueChip(t) {
+  const d = dueInfo(t); if (!d) return '';
+  return `<span class="it due ${d.tone}" title="Due ${longDate(t.dueDate)}">${ic(d.overdue ? 'alert' : 'calendar', 12)}${d.label}</span>`;
+}
+const reminderIt = (t, full) => t.reminder ? `<span class="it" title="Reminder ${reminderText(t, true)}">${ic('bell', 12)}${reminderText(t, full)}</span>` : '';
+const repeatIt = (t, mode) => repeatText(t, mode) ? `<span class="it" title="${repeatText(t, 'long')}">${ic('repeat', 12)}${repeatText(t, mode)}</span>` : '';
+function stepsIt(t, long) {
+  if (!t.steps.length) return '';
+  const done = stepsDone(t), all = done === t.steps.length;
+  const segs = t.steps.slice(0, 10).map((s, i) => `<i class="${i < Math.round(done / t.steps.length * Math.min(t.steps.length, 10)) ? 'on' : ''}"></i>`).join('');
+  return `<span class="it steps-it ${all ? 'all' : ''}" title="${done} of ${t.steps.length} steps done"><span class="seg" aria-hidden="true">${segs}</span>${long ? `${done} of ${t.steps.length} steps` : `${done}/${t.steps.length}`}</span>`;
+}
+const noteIt = (t) => t.notes ? `<span class="it" title="Has a note">${ic('note', 12)}</span>` : '';
+function tagsIt(t, max) {
+  if (!t.tagIds.length) return '';
+  const shown = t.tagIds.slice(0, max), rest = t.tagIds.slice(max);
+  return `<span class="tags">${shown.map((k) => `<span class="tag" style="--t:${TAGS[k].color}">#${TAGS[k].name}</span>`).join('')}${rest.length ? `<span class="tag more" title="${rest.map((k) => '#' + TAGS[k].name).join(', ')}">+${rest.length}</span>` : ''}</span>`;
+}
+function listIt(t) {
+  const l = LISTS[t.listId]; if (!l || l.isSystem) return '';   /* the default list is left out, like today */
+  return `<span class="it list-it" style="--lc:${l.color}" title="List: ${l.name}"><i aria-hidden="true"></i>${l.emoji} ${l.name}</span>`;
+}
+
+function metaBlock(t, density) {
+  if (density === 'compact') {
+    const line = grp('when', dueChip(t), reminderIt(t, false), repeatIt(t, 'short')) + grp('progress', stepsIt(t, false), noteIt(t)) + grp('where', tagsIt(t, 2), listIt(t));
+    return line ? `<div class="meta">${line}</div>` : '';
+  }
+  const snippet = t.notes ? `<span class="it snippet" title="${t.notes}">${ic('note', 12)}<span>${t.notes}</span></span>` : '';
+  return [
+    grp('when', dueChip(t), reminderIt(t, false), repeatIt(t, 'long')),
+    grp('steps', stepsIt(t, true)) + grp('note', snippet),
+    grp('tags', tagsIt(t, 3)) + grp('list', listIt(t)),
+  ].filter(Boolean).map((l) => `<div class="meta">${l}</div>`).join('');
+}
+
+function peekBlock(t) {
+  const d = dueInfo(t), l = LISTS[t.listId];
+  const flag = (cond, icon, text) => cond ? `<span class="badge flag">${ic(icon, 11)}${text}</span>` : '';
+  const flags = [flag(t.myDay, 'sun', 'My Day'), flag(t.important, 'star', 'Important'), flag(t.pinnedGlobally, 'pin', 'Pinned to all views'), flag(t.pinned && !t.pinnedGlobally, 'pin', 'Pinned in list')].join('');
+  const whenRows = [
+    `<dt>Due</dt><dd>${d ? `${longDate(t.dueDate)}${t.dueTime ? ', ' + timeOf(t.dueDate) : ''}${d.overdue ? `<span class="badge overdue">${d.days} day${d.days > 1 ? 's' : ''} late</span>` : ''}` : '<span style="color:var(--muted)">No due date</span>'}</dd>`,
+    `<dt>Reminder</dt><dd>${t.reminder ? reminderText(t, true) : '<span style="color:var(--muted)">None</span>'}</dd>`,
+    `<dt>Repeats</dt><dd>${repeatText(t, 'long') ? `${repeatText(t, 'long')}<span style="color:var(--muted)">· counted from ${t.repeatAnchor === 'completion' ? 'completion' : 'due date'}</span>` : '<span style="color:var(--muted)">Never</span>'}</dd>`,
+  ].join('');
+  const orgRows = [
+    `<dt>List</dt><dd>${l && !l.isSystem ? `<span class="it list-it" style="--lc:${l.color}"><i></i>${l.emoji} ${l.name}</span>` : 'Tasks'}</dd>`,
+    `<dt>Tags</dt><dd>${t.tagIds.length ? `<span class="tags">${t.tagIds.map((k) => `<span class="tag" style="--t:${TAGS[k].color}">#${TAGS[k].name}</span>`).join('')}</span>` : '<span style="color:var(--muted)">None</span>'}</dd>`,
+    `<dt>Flags</dt><dd>${flags || '<span style="color:var(--muted)">None</span>'}</dd>`,
+  ].join('');
+  const steps = t.steps.length ? `<section class="wide"><h4>${ic('steps', 12)}Steps · ${stepsDone(t)} of ${t.steps.length}</h4><ul class="steplist">${t.steps.map((s) => `<li class="${s[1] ? 'on' : ''}"><span class="box">${ic('check', 11)}</span><span>${s[0]}</span></li>`).join('')}</ul></section>` : '';
+  const note = t.notes ? `<section class="wide"><h4>${ic('note', 12)}Note</h4><p class="note">${t.notes}</p></section>` : '';
+  return `<div class="peek"><div><div class="peek-grid" onclick="event.stopPropagation()">
+    <section><h4>${ic('calendar', 12)}When</h4><dl>${whenRows}</dl></section>
+    <section><h4>${ic('tag', 12)}Organise</h4><dl>${orgRows}</dl></section>
+    ${steps}${note}
+    <div class="wide stamps"><span>${ic('clock', 12)}Created ${shortDate(t.createdAt)}</span><span>${ic('clock', 12)}Edited ${ago(t.updatedAt)}</span></div>
+  </div></div></div>`;
+}
+
+const state = { density: 'compact', split: 'capsule', open: new Set([1]), selected: 1 };
+
+function rowHtml(t) {
+  const act = (cls, on, label, icon, extra = '') => `<button type="button" class="act ${cls} ${on ? 'on' : ''} ${extra}" data-act="${cls}" aria-pressed="${on}" aria-label="${label}" title="${label}">${ic(icon, 16)}</button>`;
+  return `<li class="row ${t.completed ? 'done' : ''} ${state.open.has(t.id) ? 'open' : ''} ${state.selected === t.id ? 'sel' : ''}" data-id="${t.id}" tabindex="0" aria-expanded="${state.open.has(t.id)}">
+    <button type="button" class="check" data-act="check" aria-label="${t.completed ? 'Mark as not done' : 'Mark as done'}">${ic('check', 14)}</button>
+    <div>
+      <div class="title" title="${t.title}">${t.title}</div>
+      ${metaBlock(t, state.density)}
+    </div>
+    <div class="acts">
+      ${act('sun', t.myDay, t.myDay ? 'Remove from My Day' : 'Add to My Day', 'sun')}
+      ${act('star', t.important, t.important ? 'Remove importance' : 'Mark as important', 'star')}
+      ${act('pin', t.pinned || t.pinnedGlobally, t.pinnedGlobally ? 'Pinned to all views' : 'Pin to the top', 'pin', t.pinnedGlobally ? 'global' : '')}
+      ${act('more', false, 'More actions', 'more')}
+    </div>
+    ${peekBlock(t)}
+  </li>`;
+}
+
+function render() {
+  document.documentElement.dataset.density = state.density;
+  document.documentElement.dataset.split = state.split;
+  const pinnedFirst = (a, b) => (b.pinnedGlobally - a.pinnedGlobally) || (b.pinned - a.pinned);
+  document.getElementById('open').innerHTML = tasks.filter((t) => !t.completed).sort(pinnedFirst).map(rowHtml).join('');
+  document.getElementById('done').innerHTML = tasks.filter((t) => t.completed).map(rowHtml).join('');
+}
+
+document.addEventListener('click', (e) => {
+  const seg = e.target.closest('button[data-density]');
+  if (seg) {
+    state.density = seg.dataset.density;
+    document.querySelectorAll('button[data-density]').forEach((b) => b.setAttribute('aria-pressed', String(b === seg)));
+    return render();
+  }
+  const sp = e.target.closest('button[data-split]');
+  if (sp) {
+    state.split = sp.dataset.split;
+    document.querySelectorAll('button[data-split]').forEach((b) => b.setAttribute('aria-pressed', String(b === sp)));
+    return render();
+  }
+  const th = e.target.closest('button[data-theme]');
+  if (th) {
+    document.documentElement.dataset.theme = th.dataset.theme;
+    document.querySelectorAll('button[data-theme]').forEach((b) => b.setAttribute('aria-pressed', String(b === th)));
+    return;
+  }
+  if (e.target.closest('#expandAll')) {
+    const all = tasks.every((t) => state.open.has(t.id));
+    state.open = all ? new Set() : new Set(tasks.map((t) => t.id));
+    document.getElementById('expandAll').textContent = all ? 'Expand all' : 'Collapse all';
+    return render();
+  }
+  const row = e.target.closest('.row'); if (!row) return;
+  const t = tasks.find((x) => x.id === Number(row.dataset.id));
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if (act === 'check') t.completed = !t.completed;
+  else if (act === 'sun') t.myDay = !t.myDay;
+  else if (act === 'star') t.important = !t.important;
+  else if (act === 'pin') { t.pinnedGlobally = t.pinned || t.pinnedGlobally ? false : true; t.pinned = false; }
+  else if (act === 'more') return;
+  else { state.open.has(t.id) ? state.open.delete(t.id) : state.open.add(t.id); state.selected = t.id; }
+  render();
+});
+document.addEventListener('keydown', (e) => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList?.contains('row')) { e.preventDefault(); e.target.click(); }
+});
+
+if (matchMedia('(prefers-color-scheme: dark)').matches) {
+  document.documentElement.dataset.theme = 'dark';
+  document.querySelectorAll('button[data-theme]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.theme === 'dark')));
+}
+render();
+</script>
+</body>
+</html>

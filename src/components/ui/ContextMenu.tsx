@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../../utils/cn.ts';
 import { ContextMenuContext } from './ContextMenuContext.ts';
+import { useEscapeKey } from '../../hooks/useEscapeKey.ts';
 
 // Context Menu Types
 export interface ContextMenuItem {
@@ -44,31 +45,32 @@ export function ContextMenuProvider({ children }: ContextMenuProviderProps) {
     setMenuData(null);
   };
 
+  // Escape closes the menu first: as the newest layer it is asked before a panel or dialog behind it
+  useEscapeKey(isVisible, hide);
+
   // Handle clicks outside the menu
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: PointerEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         hide();
       }
     };
 
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        hide();
-      }
-    };
+    // Named handler so the exact same function can be removed on cleanup
+    // (an inline arrow would never match and the listener would leak on every open).
+    const preventNativeContextMenu = (event: MouseEvent) => event.preventDefault();
 
     if (isVisible) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleEscape);
+      // pointerdown (not mousedown): iOS Safari only synthesizes mouse events for elements that
+      // look clickable, so a tap on empty space would otherwise never close the menu.
+      document.addEventListener('pointerdown', handleClickOutside);
       // Prevent default context menu
-      document.addEventListener('contextmenu', (e) => e.preventDefault());
+      document.addEventListener('contextmenu', preventNativeContextMenu);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-      document.removeEventListener('contextmenu', (e) => e.preventDefault());
+      document.removeEventListener('pointerdown', handleClickOutside);
+      document.removeEventListener('contextmenu', preventNativeContextMenu);
     };
   }, [isVisible]);
 
@@ -150,7 +152,8 @@ const ContextMenu = React.forwardRef<HTMLDivElement, ContextMenuProps>(
       <div
         ref={ref}
         className={cn(
-          `fixed z-30 min-w-[200px] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700`,
+          // Above the floating "Add a task" bar (z-50), which otherwise covers the bottom of the menu
+          `fixed z-[70] min-w-[200px] bg-canvas rounded-lg shadow-lg border border-line`,
           "animate-in fade-in-0 zoom-in-95 duration-100"
         )}
         style={{
@@ -158,24 +161,25 @@ const ContextMenu = React.forwardRef<HTMLDivElement, ContextMenuProps>(
           top: position.y,
         }}
       >
-        <div className="py-1">
+        {/* Long menus (many lists or tags) scroll instead of running off the screen */}
+        <div className="py-1 max-h-[min(70vh,28rem)] overflow-y-auto">
           {data.sections.map((section, sectionIndex) => (
             <div key={sectionIndex}>
               {section.items.map((item, itemIndex) => (
                 <div key={item.id}>
                   {item.divider && itemIndex > 0 && (
-                    <div className="my-1 h-px bg-gray-200 dark:bg-gray-600" />
+                    <div className="my-1 h-px bg-line" />
                   )}
                   <button
                     onClick={() => handleItemClick(item)}
                     disabled={item.disabled}
                     className={cn(
                       "w-full px-4 py-2 text-left text-sm flex items-center gap-3 transition-colors",
-                      "hover:bg-gray-100 dark:hover:bg-gray-700",
-                      "focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none",
+                      "hover:bg-hover",
+                      "focus:bg-hover focus:outline-none",
                       item.disabled && "opacity-50 cursor-not-allowed",
-                      item.destructive && "text-red-600 dark:text-red-400",
-                      item.destructive && !item.disabled && "hover:bg-red-50 dark:hover:bg-red-900/20"
+                      item.destructive && "text-overdue",
+                      item.destructive && !item.disabled && "hover:bg-overdue/10"
                     )}
                   >
                     {item.icon && (
@@ -188,7 +192,7 @@ const ContextMenu = React.forwardRef<HTMLDivElement, ContextMenuProps>(
                 </div>
               ))}
               {sectionIndex < data.sections.length - 1 && (
-                <div className="my-1 h-px bg-gray-200 dark:bg-gray-600" />
+                <div className="my-1 h-px bg-line" />
               )}
             </div>
           ))}

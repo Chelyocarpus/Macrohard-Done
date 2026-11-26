@@ -90,7 +90,7 @@ export function getContrastingTextColor(backgroundColor: string): 'white' | 'bla
  */
 export function getAccessibleTextClasses(backgroundColor?: string): string {
   if (!backgroundColor) {
-    return 'text-gray-600 dark:text-gray-400';
+    return 'text-muted';
   }
   
   const textColor = getContrastingTextColor(backgroundColor);

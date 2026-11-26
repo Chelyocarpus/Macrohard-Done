@@ -1,11 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { format } from 'date-fns';
 import { X, Clock, Calendar, Plus } from 'lucide-react';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
 import { cn } from '../utils/cn.ts';
-import { formatDate, formatTime } from '../utils/dateUtils.ts';
+import { formatClock, formatDate, formatHour, formatTime } from '../utils/dateUtils.ts';
+import { useDateTimePrefs } from '../stores/dateFormatStore.ts';
 import { useTaskStore } from '../stores/taskStore.ts';
+import { useShallow } from 'zustand/react/shallow';
 import type { TimePreset } from '../types/index.ts';
+import { useEscapeKey } from '../hooks/useEscapeKey.ts';
+import { useFocusTrap } from '../hooks/useFocusTrap.ts';
 
 interface DateTimePickerProps {
   value?: Date;
@@ -23,7 +28,8 @@ interface DatePreset {
 }
 
 export function DateTimePicker({ value, onChange, onClose, mode, title }: DateTimePickerProps) {
-  const { customTimePresets, addCustomTimePreset, removeCustomTimePreset, removeBuiltInPreset, disabledBuiltInPresets } = useTaskStore();
+  useDateTimePrefs(); // dates here follow the chosen style, so draw again when it changes
+  const { customTimePresets, addCustomTimePreset, removeCustomTimePreset, removeBuiltInPreset, disabledBuiltInPresets } = useTaskStore(useShallow((state) => ({ customTimePresets: state.customTimePresets, addCustomTimePreset: state.addCustomTimePreset, removeCustomTimePreset: state.removeCustomTimePreset, removeBuiltInPreset: state.removeBuiltInPreset, disabledBuiltInPresets: state.disabledBuiltInPresets })));
   const [selectedDate, setSelectedDate] = useState<Date>(value || new Date());
   const [selectedTime, setSelectedTime] = useState<{ hour: number; minute: number }>(() => {
     if (value) {
@@ -196,42 +202,48 @@ export function DateTimePicker({ value, onChange, onClose, mode, title }: DateTi
     }
   }, [value]);
 
+  // The picker is only mounted while it is open. Escape closes just the picker (not the task panel behind it).
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useEscapeKey(true, onClose, { back: true });
+  useFocusTrap(dialogRef, true);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div ref={dialogRef} className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label={title}>
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       
       {/* Modal */}
-      <div className="relative w-[500px] max-h-[80vh] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      {/* Phones: fills the whole screen; larger screens: centred card */}
+      <div className="relative flex flex-col w-full h-full sm:h-auto sm:w-[500px] sm:max-w-[calc(100vw-2rem)] sm:max-h-[80vh] bg-canvas sm:rounded-2xl shadow-2xl sm:border border-line overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] sm:py-0">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+        <div className="flex items-center justify-between p-6 border-b border-line bg-sidebar">
           <div className="flex items-center gap-3">
             {mode === 'datetime' ? (
-              <Clock size={24} className="text-blue-600 dark:text-blue-400" />
+              <Clock size={24} className="text-accent" />
             ) : (
-              <Calendar size={24} className="text-blue-600 dark:text-blue-400" />
+              <Calendar size={24} className="text-accent" />
             )}
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{title}</h2>
+            <h2 className="text-xl font-semibold text-ink">{title}</h2>
           </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="p-2 hover:bg-white/50 dark:hover:bg-gray-800/50 rounded-full"
+            className="p-2 hover:bg-hover rounded-full"
           >
             <X size={18} />
           </Button>
         </div>
 
         {/* Content */}
-        <div className="p-6 max-h-[60vh] overflow-y-auto">
+        <div className="p-6 flex-1 min-h-0 sm:flex-none sm:max-h-[60vh] overflow-y-auto">
           {/* Current Selection Display */}
-          <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
-            <div className="text-sm text-blue-700 dark:text-blue-300 font-medium mb-1">Selected:</div>
-            <div className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+          <div className="mb-6 p-4 bg-accent/10 rounded-xl border border-accent/30">
+            <div className="text-sm text-accent font-medium mb-1">Selected:</div>
+            <div className="text-lg font-semibold text-ink">
               {formatDate(selectedDate)}
               {mode === 'datetime' && (
-                <span className="ml-2 text-blue-700 dark:text-blue-300">
+                <span className="ml-2 text-accent">
                   at {formatTime(selectedDate)}
                 </span>
               )}
@@ -240,7 +252,7 @@ export function DateTimePicker({ value, onChange, onClose, mode, title }: DateTi
 
           {/* Date Presets */}
           <div className="mb-6">
-            <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3 uppercase tracking-wide">
+            <h3 className="text-sm font-medium text-ink mb-3 uppercase tracking-wide">
               Quick Dates
             </h3>
             <div className="grid grid-cols-2 gap-2">
@@ -265,7 +277,7 @@ export function DateTimePicker({ value, onChange, onClose, mode, title }: DateTi
           {mode === 'datetime' && (
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white uppercase tracking-wide">
+                <h3 className="text-sm font-medium text-ink uppercase tracking-wide">
                   Quick Times
                 </h3>
                 <Button
@@ -281,7 +293,7 @@ export function DateTimePicker({ value, onChange, onClose, mode, title }: DateTi
 
               {/* Custom Time Form */}
               {showCustomTimeForm && (
-                <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="mb-4 p-4 bg-sidebar rounded-lg border border-line">
                   <div className="flex gap-2 mb-3">
                     <Input
                       placeholder="Label (e.g., 'Daily Standup')"
@@ -292,18 +304,18 @@ export function DateTimePicker({ value, onChange, onClose, mode, title }: DateTi
                     <select
                       value={customHour}
                       onChange={(e) => setCustomHour(Number(e.target.value))}
-                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm"
+                      className="px-3 py-2 border border-line rounded-lg bg-canvas text-sm"
                     >
                       {Array.from({ length: 24 }, (_, i) => (
                         <option key={i} value={i}>
-                          {i.toString().padStart(2, '0')}
+                          {formatHour(i)}
                         </option>
                       ))}
                     </select>
                     <select
                       value={customMinute}
                       onChange={(e) => setCustomMinute(Number(e.target.value))}
-                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm"
+                      className="px-3 py-2 border border-line rounded-lg bg-canvas text-sm"
                     >
                       {[0, 15, 30, 45].map((minute) => (
                         <option key={minute} value={minute}>
@@ -344,8 +356,8 @@ export function DateTimePicker({ value, onChange, onClose, mode, title }: DateTi
                     >
                       <div className="flex flex-col items-start">
                         <span className="font-medium">{preset.label}</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {preset.hour.toString().padStart(2, '0')}:{preset.minute.toString().padStart(2, '0')}
+                        <span className="text-xs text-muted">
+                          {formatClock(preset.hour, preset.minute)}
                         </span>
                       </div>
                     </Button>
@@ -353,7 +365,7 @@ export function DateTimePicker({ value, onChange, onClose, mode, title }: DateTi
                       variant="ghost"
                       size="sm"
                       onClick={(e) => handleDeleteClick(preset, e)}
-                      className="absolute -top-1 -right-1 w-6 h-6 p-0 rounded-full bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400"
+                      className="hit-area absolute -top-1 -right-1 w-7 h-7 p-0 rounded-full bg-overdue/15 hover:bg-overdue/20 text-overdue"
                       title={`Remove ${preset.label}`}
                     >
                       <X size={12} />
@@ -367,7 +379,7 @@ export function DateTimePicker({ value, onChange, onClose, mode, title }: DateTi
           {/* Restore Disabled Presets */}
           {disabledBuiltInPresets.length > 0 && (
             <div className="mb-6">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3 uppercase tracking-wide">
+              <h3 className="text-sm font-medium text-ink mb-3 uppercase tracking-wide">
                 Restore Built-in Times
               </h3>
               <div className="grid grid-cols-3 gap-2">
@@ -379,12 +391,12 @@ export function DateTimePicker({ value, onChange, onClose, mode, title }: DateTi
                       variant="ghost"
                       size="sm"
                       onClick={() => useTaskStore.getState().restoreBuiltInPreset(preset.id)}
-                      className="w-full justify-start h-10 text-sm border border-dashed border-gray-300 dark:border-gray-600 hover:border-solid hover:border-blue-400 dark:hover:border-blue-500"
+                      className="w-full justify-start h-10 text-sm border border-dashed border-line hover:border-solid hover:border-accent"
                     >
                       <div className="flex flex-col items-start">
                         <span className="font-medium">{preset.label}</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {preset.hour.toString().padStart(2, '0')}:{preset.minute.toString().padStart(2, '0')}
+                        <span className="text-xs text-muted">
+                          {formatClock(preset.hour, preset.minute)}
                         </span>
                       </div>
                     </Button>
@@ -395,22 +407,22 @@ export function DateTimePicker({ value, onChange, onClose, mode, title }: DateTi
 
           {/* Manual Input */}
           <div className="mb-6">
-            <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3 uppercase tracking-wide">
+            <h3 className="text-sm font-medium text-ink mb-3 uppercase tracking-wide">
               Custom {mode === 'datetime' ? 'Date & Time' : 'Date'}
             </h3>
             <div className="flex gap-3">
               <input
                 type="date"
-                value={selectedDate.toISOString().split('T')[0]}
+                value={format(selectedDate, 'yyyy-MM-dd')}
                 onChange={handleManualDateChange}
-                className="flex-1 p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                className="flex-1 p-3 border border-line rounded-lg bg-canvas focus:ring-2 focus:ring-accent focus:border-accent transition-colors"
               />
               {mode === 'datetime' && (
                 <input
                   type="time"
                   value={`${selectedTime.hour.toString().padStart(2, '0')}:${selectedTime.minute.toString().padStart(2, '0')}`}
                   onChange={handleManualTimeChange}
-                  className="w-32 p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-32 p-3 border border-line rounded-lg bg-canvas focus:ring-2 focus:ring-accent focus:border-accent transition-colors"
                 />
               )}
             </div>
@@ -418,17 +430,17 @@ export function DateTimePicker({ value, onChange, onClose, mode, title }: DateTi
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+        <div className="flex items-center justify-between p-6 border-t border-line bg-sidebar">
           <Button
             variant="ghost"
             onClick={onClose}
-            className="text-gray-600 dark:text-gray-400"
+            className="text-muted"
           >
             Cancel
           </Button>
           <Button
             onClick={handleApply}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6"
+            className="bg-accent hover:bg-accent-hover text-on-accent px-6"
           >
             Apply
           </Button>
@@ -438,11 +450,11 @@ export function DateTimePicker({ value, onChange, onClose, mode, title }: DateTi
       {/* Delete Confirmation Dialog */}
       {deleteConfirmation?.show && (
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-sm mx-4 shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+          <div className="bg-canvas rounded-xl p-6 max-w-sm mx-4 shadow-xl">
+            <h3 className="text-lg font-semibold text-ink mb-2">
               Remove Quick Time
             </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
+            <p className="text-muted mb-6">
               Are you sure you want to remove "{deleteConfirmation.preset.label}"? 
               {!deleteConfirmation.preset.isCustom && (
                 <span className="block mt-1 text-sm text-orange-600 dark:text-orange-400">
@@ -460,7 +472,7 @@ export function DateTimePicker({ value, onChange, onClose, mode, title }: DateTi
               </Button>
               <Button
                 onClick={handleConfirmDelete}
-                className="bg-red-600 hover:bg-red-700 text-white px-4"
+                className="bg-overdue hover:bg-overdue/90 text-on-accent px-4"
               >
                 Remove
               </Button>

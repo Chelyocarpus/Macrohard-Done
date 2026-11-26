@@ -1,35 +1,171 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Design tokens (see the UI spec). Stored as space-separated RGB channels so Tailwind can add opacity,
+ * e.g. `bg-accent/10`. Tailwind names: canvas = bg, ink = text, muted = text-muted, line = divider,
+ * hover = surface-hover.
+ * The light accent, overdue and important values are slightly darker than the spec's starting points so
+ * text and icons reach WCAG 2.1 AA (4.5:1 text, 3:1 icons) on canvas, sidebar and hover surfaces.
+ */
 @layer base {
+  :root {
+    --c-canvas: 255 255 255;     /* #FFFFFF */
+    --c-sidebar: 245 246 248;    /* #F5F6F8 */
+    --c-hover: 240 242 245;      /* #F0F2F5 */
+    --c-ink: 31 35 40;           /* #1F2328 */
+    --c-muted: 91 100 112;       /* #5B6470 */
+    --c-line: 227 230 234;       /* #E3E6EA */
+    --c-accent: 43 102 224;      /* #2B66E0 */
+    --c-accent-hover: 34 85 192; /* #2255C0 */
+    --c-on-accent: 255 255 255;  /* text on an accent background */
+    --c-important: 191 125 0;    /* #BF7D00 */
+    --c-overdue: 196 43 49;      /* #C42B31 */
+    --c-done: 31 157 85;         /* #1F9D55 */
+
+    /* A list or tag colour replaces these on its own page (utils/accentTheme.ts); with none they ARE the accent */
+    --c-list: var(--c-accent);
+    --c-list-text: var(--c-accent);
+    --c-on-list: var(--c-on-accent);    --list-wash: 0;
+    /* Hovered and selected task rows. Selected is clearly stronger than hover, so the two never look alike. */
+    --row-hover: rgb(var(--c-hover));
+    --row-selected: rgb(var(--c-line));
+  }
+
+  .dark {
+    --c-canvas: 27 27 31;        /* #1B1B1F */
+    --c-sidebar: 35 35 40;       /* #232328 */
+    --c-hover: 43 43 49;         /* #2B2B31 */
+    --c-ink: 236 237 239;        /* #ECEDEF */
+    --c-muted: 163 168 177;      /* #A3A8B1 */
+    --c-line: 53 53 60;          /* #35353C */
+    --c-accent: 107 155 255;     /* #6B9BFF */
+    --c-accent-hover: 139 177 255; /* #8BB1FF */
+    --c-on-accent: 11 18 32;     /* dark text: white on the light dark-mode accent would fail contrast */
+    --c-important: 242 185 59;   /* #F2B93B */
+    --c-overdue: 255 107 110;    /* #FF6B6E */
+    --c-done: 76 195 138;        /* #4CC38A */
+  }
+
+  /* Focus is always visible: a 2px accent ring with a 2px gap. Components that draw their own ring
+     (ring-* classes with outline-none) override this. */
+  :focus-visible {
+    outline: 2px solid rgb(var(--c-accent));
+    outline-offset: 2px;
+  }
+
   html {
     @apply h-full;
   }
-  
+
   body {
-    @apply h-full bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans;
+    @apply h-full bg-canvas text-ink font-sans;
   }
   
   #root {
     @apply h-full;
   }
+
+  /* Touch: tapping controls shouldn't wait for a double-tap-zoom check or zoom the page */
+  button,
+  a,
+  summary,
+  select,
+  [role='button'] {
+    touch-action: manipulation;
+  }
+
+  /* Keep long lists from "rubber-banding" the whole page on phones and trackpads */
+  body {
+    overscroll-behavior-y: none;
+  }
+}
+
+/* iOS Safari zooms the page when a text field with a font smaller than 16px gets focus.
+   Only touch screens get the larger size, so desktop keeps the compact look. */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* The text size setting (Settings > Appearance) scales everything sized in rem. Icons are drawn at a fixed pixel size
+   (size={16}), so they follow it here: icons that are sized by a class (h-4 w-4, in rem) already scale and are left out. */
+@supports (zoom: 1) {
+  svg.lucide:not([class*=' h-']):not([class*=' w-']):not([class*=' size-']) {
+    zoom: var(--icon-scale, 1);
+  }
+}
+
+/* Respect the system "reduce motion" setting: keep state changes, drop the movement */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* A completed row shrinking away: the grid row goes from full height to 0 (200ms) while it fades.
+   Animating `grid-template-rows` instead of `height` lets the browser handle rows of any height. */
+@keyframes row-collapse {
+  from { grid-template-rows: 1fr; opacity: 1; }
+  to { grid-template-rows: 0fr; opacity: 0; }
+}
+
+.row-collapse {
+  display: grid;
+  animation: row-collapse 200ms ease-out forwards;
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md font-medium transition-colors;
+    @apply bg-accent hover:bg-accent-hover text-on-accent px-4 py-2 rounded-md font-medium transition-colors;
   }
-  
+
   .btn-secondary {
-    @apply bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 px-4 py-2 rounded-md font-medium transition-colors;
+    @apply bg-hover hover:bg-line text-ink px-4 py-2 rounded-md font-medium transition-colors;
   }
-  
+
+  /* An invisible extra tap area for small icon buttons: at least 32px to hit with a mouse and 44px on a touch screen,
+     whatever size the button is drawn at. Centered on the button; the button itself keeps its look. Sized in rem so it
+     grows with the text size setting. */
+  .hit-area {
+    position: relative;
+  }
+
+  .hit-area::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 2rem);
+    height: max(100%, 2rem);
+    transform: translate(-50%, -50%);
+  }
+
+  @media (pointer: coarse) {
+    .hit-area::after {
+      width: max(100%, 2.75rem);
+      height: max(100%, 2.75rem);
+    }
+  }
+
   .task-item {
-    @apply p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-sm transition-shadow;
-    min-height: 48px;
+    /* Compact density: 40px cards (the spec's comfortable size is 48px, touch is 56px) */
+    min-height: 40px;
+  }
+
+  @media (pointer: coarse) {
+    .task-item {
+      min-height: 56px;
+    }
   }
   
   .line-clamp-1 {
@@ -62,3 +198,17 @@
   }
 
 
+
+/* Row density (Settings > Appearance): comfortable rows are 48px with more room; compact is the default above.
+   After the utilities so it wins over the row's own padding class; touch screens keep their 56px rows. */
+[data-density='comfortable'] .task-item {
+  min-height: 48px;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+@media (pointer: coarse) {
+  [data-density='comfortable'] .task-item {
+    min-height: 56px;
+  }
+}

@@ -1,4 +1,8 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { createWriteScheduler, type WriteScheduler } from '../utils/writeScheduler.ts';
+
+/** The longest a change waits to be saved while someone keeps typing without a pause */
+const MAX_WAIT_MS = 5000;
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -7,11 +11,15 @@ interface UseAutoSaveOptions {
   debounceMs?: number;
   showSavedDuration?: number;
   customValidator?: (values: Record<string, unknown>) => boolean;
+  /** Identifies the item being edited. When it changes, a save still waiting is written for the item that is being left. */
+  resetKey?: string;
 }
 
 interface UseAutoSaveReturn {
   saveStatus: SaveStatus;
   triggerSave: () => void;
+  /** Forgets a save that is still waiting (call after saving the same values yourself) */
+  cancelPendingSave: () => void;
   resetSaveStatus: () => void;
 }
 
@@ -28,11 +36,11 @@ export function useAutoSave(
     enabled = true,
     debounceMs = 500,
     showSavedDuration = 2000,
-    customValidator
+    customValidator,
+    resetKey
   } = options;
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
-  const timeoutRef = useRef<number | null>(null);
   const savedTimeoutRef = useRef<number | null>(null);
   const valuesRef = useRef(values);
   const originalValuesRef = useRef(originalValues);
@@ -138,45 +146,57 @@ export function useAutoSave(
     }
   }, []);
 
-  // Auto-save effect with debouncing
+  // The newest save, for the scheduler (made once) and for the flush when the form goes away.
+  // Refs are updated in an effect, which runs AFTER the cleanups of the same render: so a cleanup that
+  // flushes still sees the closure (task id and values) of the form that is being left.
+  const triggerSaveRef = useRef(triggerSave);
   useEffect(() => {
+    triggerSaveRef.current = triggerSave;
+  }, [triggerSave]);
+
+  // Debounce, cancel and flush in one tested piece (utils/writeScheduler.ts). The cap keeps typing without a pause
+  // from postponing the save forever, so a crash or a killed tab loses at most a few seconds.
+  const schedulerRef = useRef<WriteScheduler | null>(null);
+  if (schedulerRef.current === null) {
+    schedulerRef.current = createWriteScheduler(() => { void triggerSaveRef.current(); }, debounceMs, MAX_WAIT_MS);
+  }
+
+  // Auto-save effect with debouncing: every change moves the save back, an unchanged or invalid form saves nothing
+  useEffect(() => {
+    const scheduler = schedulerRef.current;
+    if (!scheduler) return;
     if (!enabled || !hasChanges() || !isValid()) {
+      scheduler.cancel();
       return;
     }
+    scheduler.schedule();
+  }, [enabled, hasChanges, isValid, triggerSave]);
 
-    // Clear existing timeout
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
+  // When the form is closed, switched to another item (`resetKey` changes) or removed, a change typed within the
+  // last moment is saved right away instead of being thrown away with the timer.
+  useEffect(() => {
+    const scheduler = schedulerRef.current;
+    return () => scheduler?.flush();
+  }, [enabled, resetKey]);
 
-    // Set new timeout for debounced save
-    timeoutRef.current = window.setTimeout(() => {
-      triggerSave();
-    }, debounceMs);
-
-    // Cleanup timeout on unmount or dependency change
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [enabled, hasChanges, isValid, triggerSave, debounceMs]);
-
-  // Cleanup timeouts on unmount
+  // Cleanup the "saved" message timer on unmount
   useEffect(() => {
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
       if (savedTimeoutRef.current) {
         clearTimeout(savedTimeoutRef.current);
       }
     };
   }, []);
 
+  // Drop a waiting save, for a caller that has just saved the same values itself
+  const cancelPendingSave = useCallback(() => {
+    schedulerRef.current?.cancel();
+  }, []);
+
   return {
     saveStatus,
     triggerSave,
+    cancelPendingSave,
     resetSaveStatus
   };
 }

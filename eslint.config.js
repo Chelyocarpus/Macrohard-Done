@@ -6,7 +6,8 @@ import tseslint from 'typescript-eslint'
 import { globalIgnores } from 'eslint/config'
 
 export default tseslint.config([
-  globalIgnores(['dist']),
+  // dist is build output; .remember holds the assistant's scratch files, not app code
+  globalIgnores(['dist', '.remember']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

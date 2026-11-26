@@ -1,90 +1,95 @@
 import type { Category } from '../types/index.ts';
 import { cn } from '../utils/cn.ts';
+import { tagChipColors } from '../utils/tagColors.ts';
+import { useTaskStore } from '../stores/taskStore.ts';
 
+/**
+ * A tag chip: a full-radius pill showing `#name`, tinted with the tag's color. (In the data a tag is
+ * still called a "category"; only the wording on screen changed.)
+ */
 interface CategoryBadgeProps {
   category: Category;
   size?: 'sm' | 'md' | 'lg';
-  variant?: 'default' | 'outline' | 'subtle';
   showRemove?: boolean;
   onRemove?: () => void;
+  /** Makes the chip a button, e.g. "show only tasks with this tag" */
+  onClick?: () => void;
+  /** Put the tag's emoji before the name (the manager does; the small chips don't) */
+  showEmoji?: boolean;
   className?: string;
 }
 
 const sizeClasses = {
-  sm: 'px-1.5 py-0.5 text-xs',
-  md: 'px-2 py-1 text-sm',
+  sm: 'px-2 py-0.5 text-xs',
+  md: 'px-2.5 py-1 text-sm',
   lg: 'px-3 py-1.5 text-base',
 };
 
-const variantClasses = {
-  default: 'text-white',
-  outline: 'border-2 bg-transparent',
-  subtle: 'bg-opacity-10 border border-current',
-};
-
-export function CategoryBadge({ 
-  category, 
-  size = 'sm', 
-  variant = 'default',
+export function CategoryBadge({
+  category,
+  size = 'sm',
   showRemove = false,
   onRemove,
-  className 
+  onClick,
+  showEmoji = false,
+  className,
 }: CategoryBadgeProps) {
-  const bgColor = category.color || '#6b7280'; // Default gray if no color
-  
-  const badgeStyle = variant === 'default' 
-    ? { backgroundColor: bgColor }
-    : { 
-        borderColor: bgColor, 
-        color: bgColor,
-        backgroundColor: variant === 'subtle' ? `${bgColor}1a` : 'transparent'
-      };
+  const darkMode = useTaskStore((state) => state.darkMode);
+  const colors = tagChipColors(category.color, darkMode);
+
+  const label = (
+    <>
+      {showEmoji && category.emoji && <span className="flex-shrink-0">{category.emoji}</span>}
+      <span className="truncate">#{category.name}</span>
+    </>
+  );
 
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-full font-medium transition-colors',
+        'inline-flex max-w-full items-center gap-1 rounded-full border font-medium transition-colors',
         sizeClasses[size],
-        variantClasses[variant],
         className
       )}
-      style={badgeStyle}
+      style={{ backgroundColor: colors.background, borderColor: colors.border, color: colors.text }}
     >
-      {category.emoji && (
-        <span className="flex-shrink-0">
-          {category.emoji}
-        </span>
+      {onClick ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick();
+          }}
+          title={`Show only tasks tagged #${category.name}`}
+          aria-label={`Show only tasks tagged #${category.name}`}
+          className="inline-flex min-w-0 items-center gap-1 rounded-full hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          {label}
+        </button>
+      ) : (
+        label
       )}
-      <span className="truncate">
-        {category.name}
-      </span>
       {showRemove && onRemove && (
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             onRemove();
           }}
           className={cn(
-            'flex-shrink-0 rounded-full hover:bg-black/10 focus:outline-none focus:ring-1 focus:ring-current',
+            'flex-shrink-0 rounded-full hover:bg-black/10 focus-visible:outline-2 focus-visible:outline-offset-2',
             size === 'sm' ? 'p-0.5' : 'p-1'
           )}
-          aria-label={`Remove ${category.name} category`}
+          aria-label={`Remove tag ${category.name}`}
         >
           <svg
-            className={cn(
-              'text-current',
-              size === 'sm' ? 'h-3 w-3' : 'h-4 w-4'
-            )}
+            className={cn('text-current', size === 'sm' ? 'h-3 w-3' : 'h-4 w-4')}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
+            aria-hidden="true"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       )}

@@ -30,6 +30,14 @@ export function removeFirstEmoji(text: string): string {
 }
 
 /**
+ * The icon a group imposes on its lists ("Use group icon for all lists"), or undefined when it imposes none:
+ * the switch is off, there is no group, or the group has no icon to show.
+ */
+export function groupIconOverride(group: { emoji?: string; overrideListIcons?: boolean } | null | undefined): string | undefined {
+  return group?.overrideListIcons && group.emoji ? group.emoji : undefined;
+}
+
+/**
  * Gets the display name and icon for a list
  * @param list - The list object
  * @returns Object with displayName and icon

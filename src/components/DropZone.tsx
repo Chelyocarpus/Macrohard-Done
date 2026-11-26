@@ -38,20 +38,20 @@ export function DropZone({
       ref={setNodeRef}
       className={cn(
         'relative transition-all duration-200',
-        isOver && 'bg-blue-50 dark:bg-blue-900/20',
+        isOver && 'bg-accent/10',
         className
       )}
     >
       {showIndicator && isOver && (
         <>
           {/* Horizontal drop indicator line */}
-          <div className="absolute left-3 right-3 h-0.5 bg-blue-500 rounded-full" 
+          <div className="absolute left-3 right-3 h-0.5 bg-accent rounded-full" 
                style={{ top: '50%', transform: 'translateY(-50%)' }} />
           {/* Drop zone background glow */}
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-100/50 via-blue-200/30 to-blue-100/50 dark:from-blue-900/20 dark:via-blue-800/10 dark:to-blue-900/20 rounded-md" />
+          <div className="absolute inset-0 bg-accent/10 rounded-md" />
           {/* Visual emphasis dots */}
-          <div className="absolute left-2 top-1/2 transform -translate-y-1/2 w-1 h-1 bg-blue-500 rounded-full" />
-          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 w-1 h-1 bg-blue-500 rounded-full" />
+          <div className="absolute left-2 top-1/2 transform -translate-y-1/2 w-1 h-1 bg-accent rounded-full" />
+          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 w-1 h-1 bg-accent rounded-full" />
         </>
       )}
       {children}

@@ -31,3 +31,30 @@ export function useContextMenuHandler(getMenuData: (event: MouseEvent) => Contex
 
   return handleContextMenu;
 }
+
+/**
+ * Same menu as `useContextMenuHandler`, but opened from a visible "more" button.
+ *
+ * Right-click does not exist on phones and tablets (and long-press is unreliable on iOS Safari), so
+ * every right-click menu also needs a button. The menu is anchored under the button rather than at
+ * the pointer, which also makes it work for keyboard activation (where the pointer position is 0,0).
+ */
+export function useContextMenuButtonHandler(getMenuData: (event: MouseEvent<HTMLElement>) => ContextMenuData | null) {
+  const { show } = useContextMenu();
+
+  return (event: MouseEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const menuData = getMenuData(event);
+    if (!menuData) return;
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    show({
+      ...menuData,
+      // Right edge of the button; the provider shifts the menu back inside the viewport if needed
+      x: rect.right - 200,
+      y: rect.bottom + 4,
+    });
+  };
+}

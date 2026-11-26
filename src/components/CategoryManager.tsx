@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useEscapeKey } from '../hooks/useEscapeKey.ts';
 import type { Category } from '../types/index.ts';
 import { useTaskStore } from '../stores/taskStore.ts';
+import { useShallow } from 'zustand/react/shallow';
 import { CategoryForm } from './CategoryForm.tsx';
 import { CategoryBadge } from './CategoryBadge.tsx';
 import { Button } from './ui/Button.tsx';
@@ -18,9 +20,16 @@ type ModalState = {
 };
 
 export function CategoryManager({ onClose, className }: CategoryManagerProps) {
-  const { categories, addCategory, updateCategory, deleteCategory, getTaskCountForCategory } = useTaskStore();
+  // Selected: only what is used here. `tasks` is listed too because the getters below read it; without it a change would not re-render.
+  const { categories, addCategory, updateCategory, deleteCategory, getTaskCountForCategory } = useTaskStore(useShallow((state) => ({ categories: state.categories, addCategory: state.addCategory, updateCategory: state.updateCategory, deleteCategory: state.deleteCategory, getTaskCountForCategory: state.getTaskCountForCategory, tasks: state.tasks })));
   const [modal, setModal] = useState<ModalState>({ type: null });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Escape closes the open form or confirmation first, then the whole manager
+  useEscapeKey(Boolean(onClose), () => {
+    if (modal.type !== null) setModal({ type: null });
+    else onClose?.();
+  }, { back: true });
 
   const sortedCategories = [...categories].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -72,11 +81,11 @@ export function CategoryManager({ onClose, className }: CategoryManagerProps) {
   };
 
   return (
-    <div className={cn('bg-white dark:bg-gray-900 rounded-lg shadow-lg', className)}>
+    <div className={cn('bg-canvas sm:rounded-lg sm:shadow-lg flex flex-col max-h-full', className)}>
       {/* Header */}
-      <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-          Manage Categories
+      <div className="flex items-center justify-between p-6 border-b border-line flex-shrink-0">
+        <h2 className="text-xl font-semibold text-ink">
+          Manage tags
         </h2>
         <div className="flex items-center gap-2">
           <Button
@@ -85,26 +94,27 @@ export function CategoryManager({ onClose, className }: CategoryManagerProps) {
             onClick={() => setModal({ type: 'create' })}
           >
             <Plus className="h-4 w-4 mr-2" />
-            New Category
+            New tag
           </Button>
           {onClose && (
             <Button
               variant="ghost"
               size="sm"
               onClick={onClose}
+              aria-label="Close"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4" aria-hidden="true" />
             </Button>
           )}
         </div>
       </div>
 
-      {/* Content */}
-      <div className="p-6">
+      {/* Content - Scrollable */}
+      <div className="p-6 overflow-y-auto flex-1 min-h-0">
         {modal.type === 'create' && (
-          <div className="mb-6 p-4 border border-blue-200 dark:border-blue-800 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-              Create New Category
+          <div className="mb-6 p-4 border border-accent/30 rounded-lg bg-accent/10">
+            <h3 className="text-lg font-medium text-ink mb-4">
+              Create new tag
             </h3>
             <CategoryForm
               onSave={handleCreateCategory}
@@ -115,11 +125,12 @@ export function CategoryManager({ onClose, className }: CategoryManagerProps) {
         )}
 
         {modal.type === 'edit' && modal.category && (
-          <div className="mb-6 p-4 border border-blue-200 dark:border-blue-800 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-              Edit Category
+          <div className="mb-6 p-4 border border-accent/30 rounded-lg bg-accent/10">
+            <h3 className="text-lg font-medium text-ink mb-4">
+              Edit tag
             </h3>
             <CategoryForm
+              key={modal.category.id}
               category={modal.category}
               onSave={handleUpdateCategory}
               onCancel={() => setModal({ type: null })}
@@ -129,12 +140,12 @@ export function CategoryManager({ onClose, className }: CategoryManagerProps) {
         )}
 
         {modal.type === 'delete' && modal.category && (
-          <div className="mb-6 p-4 border border-red-200 dark:border-red-800 rounded-lg bg-red-50 dark:bg-red-900/20">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-              Remove Category
+          <div className="mb-6 p-4 border border-overdue/30 rounded-lg bg-overdue/10">
+            <h3 className="text-lg font-medium text-ink mb-2">
+              Remove tag
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Are you sure you want to remove "{modal.category.name}"? This action will remove the category from all tasks and cannot be undone.
+            <p className="text-sm text-muted mb-4">
+              Are you sure you want to remove "{modal.category.name}"? This will remove the tag from all tasks and cannot be undone.
             </p>
             <div className="flex gap-2">
               <Button
@@ -143,7 +154,7 @@ export function CategoryManager({ onClose, className }: CategoryManagerProps) {
                 onClick={handleDeleteCategory}
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Removing...' : 'Remove Category'}
+                {isSubmitting ? 'Removing...' : 'Remove tag'}
               </Button>
               <Button
                 variant="secondary"
@@ -157,72 +168,76 @@ export function CategoryManager({ onClose, className }: CategoryManagerProps) {
           </div>
         )}
 
-        {/* Categories List */}
-        <div className="space-y-3">
+        {/* Tags list */}
+        <div>
           {sortedCategories.length === 0 ? (
             <div className="text-center py-8">
-              <div className="text-gray-400 dark:text-gray-600 text-lg mb-2">
+              <div className="text-muted text-lg mb-2">
                 📂
               </div>
-              <p className="text-gray-500 dark:text-gray-400 mb-4">
-                No categories yet
+              <p className="text-muted mb-4">
+                No tags yet
               </p>
               <Button
                 variant="secondary"
                 onClick={() => setModal({ type: 'create' })}
               >
-                Create your first category
+                Create your first tag
               </Button>
             </div>
           ) : (
-            sortedCategories.map((category) => {
-              const taskCount = getTaskCountForCategory(category.id);
+            <div className="space-y-3">
+              {sortedCategories.map((category) => {
+                const taskCount = getTaskCountForCategory(category.id);
               
-              return (
-                <div
-                  key={category.id}
-                  className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <CategoryBadge category={category} size="md" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                          {category.name}
-                        </span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
-                          {taskCount} task{taskCount !== 1 ? 's' : ''}
-                        </span>
+                return (
+                  <div
+                    key={category.id}
+                    className="flex items-center justify-between p-3 border border-line rounded-lg hover:bg-hover transition-colors"
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <CategoryBadge category={category} size="md" showEmoji />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-ink truncate">
+                            {category.name}
+                          </span>
+                          <span className="text-xs text-muted flex-shrink-0">
+                            {taskCount} task{taskCount !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        {category.description && (
+                          <p className="text-xs text-muted truncate">
+                            {category.description}
+                          </p>
+                        )}
                       </div>
-                      {category.description && (
-                        <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                          {category.description}
-                        </p>
-                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setModal({ type: 'edit', category })}
+                        className="h-8 w-8 p-0"
+                        aria-label={`Edit tag ${category.name}`}
+                      >
+                        <Edit2 className="h-3 w-3" aria-hidden="true" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => confirmDelete(category)}
+                        className="h-8 w-8 p-0 text-overdue hover:text-overdue/80 hover:bg-overdue/10"
+                        aria-label={`Delete tag ${category.name}`}
+                      >
+                        <Trash2 className="h-3 w-3" aria-hidden="true" />
+                      </Button>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setModal({ type: 'edit', category })}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Edit2 className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => confirmDelete(category)}
-                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })
+                );
+              })}
+            </div>
           )}
         </div>
       </div>

@@ -6,7 +6,6 @@ import {
   Calendar, 
   Sun, 
   Eye, 
-  EyeOff,
   CheckCircle,
   Circle,
   Plus,
@@ -16,7 +15,10 @@ import {
   RotateCcw,
   Pin,
   Globe,
-  Tag
+  Tag,
+  CheckSquare,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import type { Task, TaskList } from '../../types/index.ts';
 import type { ContextMenuData } from '../ui/ContextMenu.tsx';
@@ -36,6 +38,10 @@ export function createTaskContextMenu(
     onAddToMyDay?: () => void;
     onSetDueDate?: () => void;
     onManageCategories?: () => void;
+    /** Start selecting several tasks with this one */
+    onSelect?: () => void;
+    /** This task is already selected */
+    selected?: boolean;
   }
 ): ContextMenuData {
   return {
@@ -56,6 +62,14 @@ export function createTaskContextMenu(
             icon: <Copy size={16} />,
             onClick: actions.onDuplicate,
           },
+          ...(actions.onSelect
+            ? [{
+                id: 'select',
+                label: actions.selected ? 'Unselect' : 'Select',
+                icon: <CheckSquare size={16} />,
+                onClick: actions.onSelect,
+              }]
+            : []),
         ],
       },
       {
@@ -106,7 +120,7 @@ export function createTaskContextMenu(
         items: [
           {
             id: 'categories',
-            label: 'Manage categories',
+            label: 'Manage tags',
             icon: <Tag size={16} />,
             onClick: actions.onManageCategories || actions.onEdit,
           },
@@ -137,8 +151,10 @@ export function createListContextMenu(
     onDuplicate: () => void;
     onChangeColor: () => void;
     onArchive?: () => void;
-    onHide?: () => void;
     onCreateTask: () => void;
+    /** Reorder without dragging (keyboard and screen reader users); `undefined` leaves the item out, `null` switches it off */
+    onMoveUp?: (() => void) | null;
+    onMoveDown?: (() => void) | null;
   }
 ): ContextMenuData {
   const isSystemList = list.isSystem;
@@ -181,15 +197,17 @@ export function createListContextMenu(
           ]),
         ],
       },
+      ...(isSystemList || actions.onMoveUp === undefined || actions.onMoveDown === undefined ? [] : [
+        {
+          items: [
+            { id: 'move-up', label: 'Move up', icon: <ArrowUp size={16} />, onClick: actions.onMoveUp ?? (() => {}), disabled: actions.onMoveUp === null },
+            { id: 'move-down', label: 'Move down', icon: <ArrowDown size={16} />, onClick: actions.onMoveDown ?? (() => {}), disabled: actions.onMoveDown === null },
+          ],
+        },
+      ]),
       ...(isSystemList ? [] : [
         {
           items: [
-            {
-              id: 'hide',
-              label: 'Hide list',
-              icon: <EyeOff size={16} />,
-              onClick: actions.onHide || actions.onEdit,
-            },
             {
               id: 'delete',
               label: 'Remove list',

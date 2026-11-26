@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useTaskStore } from '../stores/taskStore.ts';
+import { useShallow } from 'zustand/react/shallow';
 import { CategoryBadge } from './CategoryBadge.tsx';
 import { cn } from '../utils/cn.ts';
 import { Plus } from 'lucide-react';
@@ -20,6 +21,8 @@ interface CategorySelectorProps {
   onCreateCategory?: (name: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  /** Makes the chosen tags clickable (e.g. "show only tasks with this tag") */
+  onTagClick?: (categoryId: string) => void;
   className?: string;
 }
 
@@ -27,11 +30,12 @@ export function CategorySelector({
   selectedCategoryIds,
   onChange,
   onCreateCategory,
-  placeholder = 'Search or add categories...',
+  placeholder = 'Search or add tags...',
   disabled = false,
+  onTagClick,
   className
 }: CategorySelectorProps) {
-  const { categories, addCategory } = useTaskStore();
+  const { categories, addCategory } = useTaskStore(useShallow((state) => ({ categories: state.categories, addCategory: state.addCategory })));
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [hoveredIndex, setHoveredIndex] = useState(-1);
@@ -99,6 +103,7 @@ export function CategorySelector({
 
     switch (e.key) {
       case 'Escape':
+        e.preventDefault(); // used here: a panel around this field must not close as well
         setIsOpen(false);
         setSearchQuery('');
         setHoveredIndex(-1);
@@ -166,13 +171,27 @@ export function CategorySelector({
     <div ref={containerRef} className={cn('relative', className)}>
       <div
         className={cn(
-          'min-h-10 w-full border border-gray-300 dark:border-gray-600 rounded-lg',
-          'bg-white dark:bg-gray-800 px-3 py-2 cursor-text',
-          'focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500',
+          'min-h-10 w-full border border-line rounded-lg',
+          'bg-canvas px-3 py-2 cursor-text',
+          'focus-within:ring-2 focus-within:ring-accent focus-within:border-accent',
           disabled && 'opacity-50 cursor-not-allowed',
-          isOpen && 'ring-2 ring-blue-500 border-blue-500'
+          isOpen && 'ring-2 ring-accent border-accent'
         )}
         onClick={() => !disabled && setIsOpen(true)}
+        // Keyboard access: the text input only exists while open, so the wrapper itself must be
+        // focusable and open the picker on Enter / Space / ArrowDown.
+        role="button"
+        tabIndex={disabled || isOpen ? -1 : 0}
+        aria-label="Select tags"
+        aria-expanded={isOpen}
+        aria-disabled={disabled || undefined}
+        onKeyDown={(e) => {
+          if (disabled || isOpen || e.target !== e.currentTarget) return;
+          if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            setIsOpen(true);
+          }
+        }}
       >
         <div className="flex flex-wrap gap-1.5">
           {selectedCategories.map((category) => (
@@ -182,6 +201,7 @@ export function CategorySelector({
               size="sm"
               showRemove={!disabled}
               onRemove={() => handleRemoveCategory(category.id)}
+              onClick={onTagClick ? () => onTagClick(category.id) : undefined}
             />
           ))}
           
@@ -194,12 +214,12 @@ export function CategorySelector({
               onKeyDown={handleKeyDown}
               placeholder={selectedCategories.length === 0 ? placeholder : ''}
               disabled={disabled}
-              className="flex-1 min-w-32 bg-transparent border-none outline-none text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500"
+              className="flex-1 min-w-32 bg-transparent border-none outline-none text-sm text-ink placeholder-gray-500"
             />
           )}
           
           {!isOpen && selectedCategories.length === 0 && (
-            <span className="text-sm text-gray-500 pointer-events-none">
+            <span className="text-sm text-muted pointer-events-none">
               {placeholder}
             </span>
           )}
@@ -207,10 +227,10 @@ export function CategorySelector({
       </div>
 
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-canvas border border-line rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
           {filteredCategories.length === 0 && !canCreateNew && (
-            <div className="px-3 py-2 text-sm text-gray-500 text-center">
-              {searchQuery ? 'No categories found' : 'No more categories available'}
+            <div className="px-3 py-2 text-sm text-muted text-center">
+              {searchQuery ? 'No tags found' : 'No more tags available'}
             </div>
           )}
 
@@ -223,12 +243,12 @@ export function CategorySelector({
               }}
               onMouseEnter={() => setHoveredIndex(-1)}
               className={cn(
-                'w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700',
-                'flex items-center gap-2 border-b border-gray-100 dark:border-gray-700',
-                hoveredIndex === -1 && 'bg-gray-50 dark:bg-gray-700'
+                'w-full px-3 py-2 text-left text-sm hover:bg-hover',
+                'flex items-center gap-2 border-b border-line',
+                hoveredIndex === -1 && 'bg-hover'
               )}
             >
-              <Plus className="h-4 w-4 text-blue-500" />
+              <Plus className="h-4 w-4 text-accent" />
               <span>Create "{searchQuery}"</span>
             </button>
           )}
@@ -243,9 +263,9 @@ export function CategorySelector({
               }}
               onMouseEnter={() => setHoveredIndex(index)}
               className={cn(
-                'w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700',
+                'w-full px-3 py-2 text-left text-sm hover:bg-hover',
                 'flex items-center gap-2',
-                hoveredIndex === index && 'bg-gray-50 dark:bg-gray-700'
+                hoveredIndex === index && 'bg-hover'
               )}
             >
               <CategoryBadge category={category} size="sm" />
