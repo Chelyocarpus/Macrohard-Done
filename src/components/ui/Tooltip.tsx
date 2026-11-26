@@ -202,7 +202,7 @@ export function Tooltip({ label, shortcut, side = 'top', disabled = false, class
         >
           <span>{label}</span>
           {shortcut && (
-            <kbd className="rounded bg-canvas/15 px-1.5 py-0.5 font-mono text-[10px] font-medium tracking-tight text-canvas">
+            <kbd className="rounded bg-canvas/15 px-1.5 py-0.5 font-mono text-[0.625rem] font-medium tracking-tight text-canvas">
               {shortcut}
             </kbd>
           )}

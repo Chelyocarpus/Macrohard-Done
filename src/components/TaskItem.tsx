@@ -234,7 +234,8 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
   const NO_TOUCH_WHEN_OFF = 'max-sm:hidden [@media(hover:none)]:hidden';
 
   // Touch screens get larger targets (44px) and no hover-only controls
-  const ACTION_BUTTON = 'p-0 h-8 w-8 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11 rounded-full flex-shrink-0';
+  // A little space between neighbours (the star, sun, pin and "more" are easy to mix up when they touch)
+  const ACTION_BUTTON = 'p-0 h-9 w-9 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11 rounded-full flex-shrink-0';
 
   const row = (
       <div
@@ -256,8 +257,12 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
           'task-item group relative cursor-pointer transition-[background-color,border-color,box-shadow] px-4 py-2 rounded-xl border border-line bg-canvas shadow-sm [@media(pointer:coarse)]:touch-pan-y',
           'hover:bg-[image:linear-gradient(var(--row-hover),var(--row-hover))] hover:shadow-md',
           // Selected: a border in the list's colour plus a stronger tint than hover, so the two never look alike.
+          // Only for a mouse or keyboard: they use the selection (arrow keys, shortcuts). On a touch screen a tap
+          // would leave the card looking "selected" with nothing to do next, so there it shows only while the card's
+          // details are open (the permanent pane on a wide screen).
           // Focus ring: 2px accent, inside the card so the list can't clip it.
-          selected && !isOverlay && 'border-list bg-[image:linear-gradient(var(--row-selected),var(--row-selected))]',
+          selected && !isOverlay && '[@media(pointer:fine)]:border-list [@media(pointer:fine)]:bg-[image:linear-gradient(var(--row-selected),var(--row-selected))]',
+          showEditSidebar && !isOverlay && 'border-list bg-[image:linear-gradient(var(--row-selected),var(--row-selected))]',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
           // While swiping the content slides sideways; keep it inside the card so the list doesn't scroll sideways
           swipe.offset !== 0 && 'overflow-hidden',
@@ -291,7 +296,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
           }}
         >
           <div className="flex items-start gap-3">
-          {/* Checkbox: a 22px circle; hover previews the check, checked fills with the "done" colour */}
+          {/* Checkbox: a 24px circle (follows the text size); hover previews the check, checked fills with the "done" colour */}
           <Tooltip label={completed ? 'Mark as not done' : 'Mark as done'}>
           <button
             type="button"
@@ -302,19 +307,19 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
               handleToggleComplete();
             }}
             className={cn(
-              // The invisible ::before grows the tap area to about 46px without changing the look
-              'group/check relative before:content-[""] before:absolute before:-inset-3',
-              'w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center transition-colors duration-[120ms] flex-shrink-0',
+              // .hit-area grows the tap area to 44px on a touch screen (32px with a mouse) without changing the look
+              'hit-area group/check',
+              'mt-px h-6 w-6 rounded-full border-2 flex items-center justify-center transition-colors duration-[120ms] flex-shrink-0',
               completed
                 ? 'bg-done border-done'
                 : 'border-muted hover:border-done'
             )}
           >
             <Check
-              size={14}
               strokeWidth={3}
               aria-hidden="true"
               className={cn(
+                'h-4 w-4',
                 completed ? 'text-white animate-check-in' : 'text-done opacity-0 group-hover/check:opacity-70 transition-opacity'
               )}
             />
@@ -326,7 +331,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
             <div
               className={cn(
                 // Minimal cards keep the title to one line (cut with an ellipsis; the full title is in the tooltip and the details panel)
-                'text-[15px] leading-[1.4] font-normal',
+                'text-[0.9375rem] leading-[1.4] font-normal',
                 minimal ? 'line-clamp-1' : 'line-clamp-2',
                 completed ? 'line-through text-muted' : 'text-ink'
               )}
@@ -350,7 +355,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
           {/* Actions on the right: sun (My Day), pin, star, and "more". Set ones always show; off ones show on hover. */}
           {/* The negative top and bottom margins cancel the buttons' extra height, so the note and details start right
               under the title instead of under the taller buttons. */}
-          <div className="flex items-center self-start -my-1 -mr-1 [@media(pointer:coarse)]:-my-[11px]">
+          <div className="flex items-center gap-0.5 self-start -my-1.5 -mr-1 [@media(pointer:coarse)]:-my-[11px] [@media(pointer:coarse)]:gap-1">
             <Tooltip label={myDay ? 'Remove from My Day' : 'Add to My Day'}>
             <Button
               variant="ghost"
@@ -429,8 +434,8 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
 
           {/* Everything under the title, on the full width of the card (not squeezed beside the action buttons, which
               matters on a phone): the note as a description, the date pills, the steps, and the tags and list. The left
-              margin lines it up with the title: the 22px check plus the 12px gap. */}
-          <div className="ml-[34px] min-w-0">
+              margin lines it up with the title: the 24px check plus the 12px gap (both in rem, so it follows the text size). */}
+          <div className="ml-9 min-w-0">
             {/* The note, as a description right under the title (minimal rows fold everything into one line below) */}
             {!minimal && <TaskDescription task={task} density={rowDensity} />}
 
@@ -459,9 +464,10 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
             {steps.length > 0 && showSteps && (
               <div className="mt-2 w-full min-w-0 overflow-hidden space-y-1">
                 {steps.map((step) => (
-                  <div
+                  // The whole line is the label, so tapping the words ticks the step too (a 14px box was hard to hit)
+                  <label
                     key={step.id}
-                    className="flex items-start gap-2 py-0.5 w-full min-h-fit"
+                    className="flex cursor-pointer items-start gap-2.5 py-1.5 w-full min-h-fit [@media(pointer:coarse)]:py-2.5"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <input
@@ -472,17 +478,17 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                         e.stopPropagation();
                         handleToggleStep(step.id);
                       }}
-                      className="rounded accent-accent focus:ring-accent w-3.5 h-3.5 flex-shrink-0 mt-0.5"
+                      className="rounded accent-accent focus:ring-accent h-5 w-5 flex-shrink-0"
                     />
-                    <div className={cn(
+                    <span className={cn(
                       'text-sm flex-1 leading-snug',
                       step.completed ? 'line-through text-muted' : 'text-ink'
                     )}
                     style={{ overflowWrap: 'anywhere', whiteSpace: 'pre-wrap' }}
                     >
                       {step.title}
-                    </div>
-                  </div>
+                    </span>
+                  </label>
                 ))}
               </div>
             )}

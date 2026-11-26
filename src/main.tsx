@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.tsx'
 import { useSyncStore } from './stores/syncStore.ts'
 import { useProfileStore } from './stores/profileStore.ts'
+import './stores/displayPrefsStore.ts' // applies the saved text size before the first draw
 
 // Profiles: follow changes made in other tabs
 useProfileStore.getState().init()

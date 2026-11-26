@@ -92,6 +92,14 @@
   }
 }
 
+/* The text size setting (Settings > Appearance) scales everything sized in rem. Icons are drawn at a fixed pixel size
+   (size={16}), so they follow it here: icons that are sized by a class (h-4 w-4, in rem) already scale and are left out. */
+@supports (zoom: 1) {
+  svg.lucide:not([class*=' h-']):not([class*=' w-']):not([class*=' size-']) {
+    zoom: var(--icon-scale, 1);
+  }
+}
+
 /* Respect the system "reduce motion" setting: keep state changes, drop the movement */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -123,6 +131,30 @@
 
   .btn-secondary {
     @apply bg-hover hover:bg-line text-ink px-4 py-2 rounded-md font-medium transition-colors;
+  }
+
+  /* An invisible extra tap area for small icon buttons: at least 32px to hit with a mouse and 44px on a touch screen,
+     whatever size the button is drawn at. Centered on the button; the button itself keeps its look. Sized in rem so it
+     grows with the text size setting. */
+  .hit-area {
+    position: relative;
+  }
+
+  .hit-area::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 2rem);
+    height: max(100%, 2rem);
+    transform: translate(-50%, -50%);
+  }
+
+  @media (pointer: coarse) {
+    .hit-area::after {
+      width: max(100%, 2.75rem);
+      height: max(100%, 2.75rem);
+    }
   }
 
   .task-item {

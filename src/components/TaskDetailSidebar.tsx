@@ -57,6 +57,10 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId, 
   // (other screen sizes, and the New Task form) opens them over the page: a side panel, or on a phone a bottom sheet
   const layout = useLayoutMode();
   const persistent = layout === 'wide' && mode === 'edit';
+  // On a phone the details are a bottom sheet: tell the messages (Undo and so on) how tall its button bar is, so they
+  // sit above it instead of covering Duplicate, Pin, Complete and Move
+  const footerRef = useRef<HTMLDivElement>(null);
+  const isBottomSheet = isOpen && layout === 'narrow';
   // A Date prop would be a new object every render, so the effect below depends on its timestamp
   const initialDueTime = initialDueDate?.getTime();
   const { addTask, updateTask, deleteTask, addSubTask, toggleSubTask, deleteSubTask, moveSubTask, togglePin, lists, darkMode } = useTaskStore(useShallow((state) => ({ addTask: state.addTask, updateTask: state.updateTask, deleteTask: state.deleteTask, addSubTask: state.addSubTask, toggleSubTask: state.toggleSubTask, deleteSubTask: state.deleteSubTask, moveSubTask: state.moveSubTask, togglePin: state.togglePin, lists: state.lists, darkMode: state.darkMode })));
@@ -523,6 +527,21 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId, 
     if (Number.isFinite(n) && n >= 1) setRepeatInterval(n);
   };
 
+  // Keeps the shared "sheet footer height" current while the bottom sheet is showing (the bar grows with the text
+  // size), and resets it to 0 when the sheet closes or stops being a bottom sheet.
+  useEffect(() => {
+    const footer = footerRef.current;
+    if (!isBottomSheet || !footer) return;
+    const report = () => useUiStore.getState().setBottomSheetFooterHeight(footer.offsetHeight);
+    report();
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(report) : null;
+    observer?.observe(footer);
+    return () => {
+      observer?.disconnect();
+      useUiStore.getState().setBottomSheetFooterHeight(0);
+    };
+  }, [isBottomSheet, mode]);
+
   if (!isOpen) return null;
 
   return (
@@ -586,7 +605,7 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId, 
                   onClick={handleToggleComplete}
                   aria-label={task.completed ? 'Mark as not done' : 'Mark as done'}
                   className={cn(
-                    'mt-3 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 flex-shrink-0',
+                    'hit-area mt-3 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all duration-200 flex-shrink-0',
                     'hover:scale-105 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2',
                     task.completed
                       ? 'bg-accent border-accent text-on-accent shadow-md hover:bg-accent-hover'
@@ -962,7 +981,7 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId, 
         )}
 
         {/* Footer */}
-        <div className="p-4 border-t border-line bg-sidebar">
+        <div ref={footerRef} className="p-4 border-t border-line bg-sidebar">
           {/* Edit mode: one row of quick actions, then Remove on the left and Done on the right (changes are saved as you make them) */}
           {mode === 'edit' && task && (
             <div className="space-y-3">

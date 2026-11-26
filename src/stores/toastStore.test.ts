@@ -6,14 +6,14 @@ const store = () => useToastStore.getState();
 describe('durations', () => {
   beforeEach(() => store().clearAllToasts());
 
-  it('keeps messages for 6 seconds (errors 7), as in the UI spec', () => {
-    expect(DEFAULT_DURATION).toBe(6000);
-    expect(UNDO_DURATION).toBe(6000);
-    expect(ERROR_DURATION).toBe(7000);
+  it('keeps messages for 8 seconds (errors 10, messages with Undo 15)', () => {
+    expect(DEFAULT_DURATION).toBe(8000);
+    expect(UNDO_DURATION).toBe(15000);
+    expect(ERROR_DURATION).toBe(10000);
     store().showSuccess('a');
     store().showUndo('b', 'c', () => {});
     store().showError('d');
-    expect(store().toasts.map((t) => t.duration)).toEqual([6000, 6000, 7000]);
+    expect(store().toasts.map((t) => t.duration)).toEqual([8000, 15000, 10000]);
   });
 });
 

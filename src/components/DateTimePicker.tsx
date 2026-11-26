@@ -365,7 +365,7 @@ export function DateTimePicker({ value, onChange, onClose, mode, title }: DateTi
                       variant="ghost"
                       size="sm"
                       onClick={(e) => handleDeleteClick(preset, e)}
-                      className="absolute -top-1 -right-1 w-6 h-6 p-0 rounded-full bg-overdue/15 hover:bg-overdue/20 text-overdue"
+                      className="hit-area absolute -top-1 -right-1 w-7 h-7 p-0 rounded-full bg-overdue/15 hover:bg-overdue/20 text-overdue"
                       title={`Remove ${preset.label}`}
                     >
                       <X size={12} />

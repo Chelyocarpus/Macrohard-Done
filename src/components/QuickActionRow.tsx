@@ -75,7 +75,7 @@ export function QuickActionRow({ icon, label, detail, active = false, onClick, o
             type="button"
             onClick={onClear}
             aria-label={clearLabel ?? 'Remove'}
-            className="absolute right-1 top-1 w-6 h-6 [@media(pointer:coarse)]:w-8 [@media(pointer:coarse)]:h-8 flex items-center justify-center rounded-full text-accent hover:bg-accent/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
+            className="hit-area absolute right-1 top-1 w-7 h-7 [@media(pointer:coarse)]:w-8 [@media(pointer:coarse)]:h-8 flex items-center justify-center rounded-full text-accent hover:bg-accent/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
           >
             <X size={14} aria-hidden="true" />
           </button>

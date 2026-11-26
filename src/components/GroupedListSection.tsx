@@ -25,9 +25,9 @@ import { createListContextMenu } from './ui/contextMenus.tsx';
 import { DropZone } from './DropZone.tsx';
 import { Tooltip } from './ui/Tooltip.tsx';
 
-/** The group heading's add and menu buttons: 28px to hit (36px on touch screens), with a 16px icon */
+/** The group heading's add and menu buttons: 32px to hit (44px on touch screens), with a 16px icon */
 const GROUP_ACTION_CLASS =
-  'flex h-7 w-7 items-center justify-center rounded text-muted hover:bg-hover hover:text-ink transition-colors [@media(pointer:coarse)]:h-9 [@media(pointer:coarse)]:w-9';
+  'hit-area flex h-8 w-8 items-center justify-center rounded text-muted hover:bg-hover hover:text-ink transition-colors [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11';
 
 interface GroupedListSectionProps {
   group: ListGroup | null;
@@ -185,7 +185,7 @@ function SortableListItem({ list, groupIcon, isActive, taskCount, onClick, onEdi
             aria-label={`More actions for ${displayName}`}
             aria-haspopup="menu"
             onClick={handleMenuButtonClick}
-            className="flex h-7 w-7 items-center justify-center rounded text-muted hover:bg-line hover:text-ink opacity-0 group-hover/list:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity [@media(pointer:coarse)]:h-9 [@media(pointer:coarse)]:w-9"
+            className="hit-area flex h-8 w-8 items-center justify-center rounded text-muted hover:bg-line hover:text-ink opacity-0 group-hover/list:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11"
           >
             <MoreHorizontal size={16} />
           </button>
@@ -303,7 +303,7 @@ export function GroupedListSection({
             onClick={() => toggleGroupCollapsed(group.id)}
             aria-label={`${group.collapsed ? 'Expand' : 'Collapse'} group ${group.name}`}
             aria-expanded={!group.collapsed}
-            className="flex h-6 w-6 items-center justify-center hover:bg-hover rounded transition-colors mr-1 -ml-1 [@media(pointer:coarse)]:h-9 [@media(pointer:coarse)]:w-9"
+            className="hit-area flex h-8 w-8 items-center justify-center hover:bg-hover rounded transition-colors mr-1 -ml-1 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11"
           >
             {group.collapsed ? (
               <ChevronRight size={14} className="text-muted" />

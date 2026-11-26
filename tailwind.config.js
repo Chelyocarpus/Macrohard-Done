@@ -86,4 +86,9 @@ export default {
   },
   plugins: [],
   darkMode: 'class',
+  // `hover:` styles only apply where the device can really hover. On a touch screen a tap would otherwise leave the
+  // control (or task card) looking "hovered" until the next tap elsewhere.
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
 }

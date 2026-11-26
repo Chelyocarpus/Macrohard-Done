@@ -128,7 +128,7 @@ export function TaskDescription({ task, density }: { task: Pick<Task, 'notes' | 
   return (
     <p
       className={cn(
-        'mt-0.5 text-[13px] leading-[1.35] text-muted',
+        'mt-0.5 text-[0.8125rem] leading-[1.35] text-muted',
         density === 'comfortable' ? 'line-clamp-2' : 'line-clamp-1',
         task.completed && 'opacity-70'
       )}

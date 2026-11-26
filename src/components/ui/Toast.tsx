@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { cn } from '../../utils/cn.ts';
 import type { Toast } from '../../types/index.ts';
+import { useDisplayPrefsStore } from '../../stores/displayPrefsStore.ts';
+import { messageDuration } from '../../utils/displayPrefs.ts';
 
 interface ToastProps {
   toast: Toast;
@@ -48,13 +50,16 @@ export function Toast({ toast, onClose }: ToastProps) {
   const Icon = variant.icon;
   const [progress, setProgress] = useState(100);
   const isPausedRef = useRef(false);
+  // "How long messages stay" in Settings: normal, 30 seconds, or until the person closes them
+  const messageTime = useDisplayPrefsStore((state) => state.messageTime);
+  const effectiveDuration = messageDuration(toast.duration, messageTime);
 
   // Auto-dismiss functionality with visual progress
   useEffect(() => {
-    if (!toast.duration) return;
+    if (!effectiveDuration) return;
 
     const startTime = Date.now();
-    const duration = toast.duration;
+    const duration = effectiveDuration;
     let pausedTime = 0;
     let animationFrame: number;
     let lastPauseStart = 0;
@@ -95,39 +100,50 @@ export function Toast({ toast, onClose }: ToastProps) {
     return () => {
       if (animationFrame) cancelAnimationFrame(animationFrame);
     };
-  }, [toast.id, toast.duration, toast.title, onClose]);
+  }, [toast.id, effectiveDuration, toast.title, onClose]);
 
-  const handleMouseEnter = () => {
+  // The countdown holds while the message is pointed at, touched (a phone has no hover, so a finger held on the
+  // message pauses it) or has keyboard focus, and goes on when that stops.
+  const pause = () => {
     isPausedRef.current = true;
   };
-
-  const handleMouseLeave = () => {
+  const resume = () => {
     isPausedRef.current = false;
+  };
+  const handleBlur = (event: React.FocusEvent<HTMLDivElement>) => {
+    // Focus moving to the Undo or close button inside the message is not leaving it
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) resume();
   };
 
   return (
     <div
       className={cn(
         // Opaque card, one soft shadow, a short fade in (instant with reduced motion, see index.css)
-        'relative flex w-full max-w-sm items-start gap-3 rounded-[10px] border p-4 shadow-lg overflow-hidden',
+        // Wraps: with large text the Undo button drops under the words instead of pushing the close button off the card
+        'relative flex w-full max-w-sm flex-wrap items-start gap-x-3 gap-y-2 rounded-[10px] border p-4 pr-12 shadow-lg overflow-hidden',
         'animate-toast-in',
         variant.bgColor,
         variant.borderColor
       )}
       role="status"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={pause}
+      onMouseLeave={resume}
+      onTouchStart={pause}
+      onTouchEnd={resume}
+      onTouchCancel={resume}
+      onFocus={pause}
+      onBlur={handleBlur}
     >
       {/* Icon */}
-      <Icon className={cn('h-5 w-5 flex-shrink-0 mt-0.5', variant.iconColor)} />
+      <Icon className={cn('h-5 w-5 flex-shrink-0 mt-0.5', variant.iconColor)} aria-hidden="true" />
       
       {/* Content */}
-      <div className="flex-1 space-y-1">
-        <h4 className={cn('text-sm font-medium', variant.titleColor)}>
+      <div className="min-w-[7rem] flex-1 basis-0 space-y-1">
+        <h4 className={cn('text-base font-medium', variant.titleColor)}>
           {toast.title}
         </h4>
         {toast.description && (
-          <p className={cn('text-sm', variant.descriptionColor)}>
+          <p className={cn('text-sm leading-snug', variant.descriptionColor)}>
             {toast.description}
           </p>
         )}
@@ -137,7 +153,7 @@ export function Toast({ toast, onClose }: ToastProps) {
         <button
           type="button"
           onClick={toast.action.onClick}
-          className="flex-shrink-0 self-center rounded-md px-3 py-1.5 text-sm font-semibold text-accent hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent transition-colors"
+          className="ml-auto flex-shrink-0 self-center rounded-md px-4 py-2 min-h-11 text-base font-semibold text-accent hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent transition-colors"
         >
           {toast.action.label}
         </button>
@@ -147,17 +163,18 @@ export function Toast({ toast, onClose }: ToastProps) {
       <button
         onClick={() => onClose(toast.id)}
         className={cn(
-          'flex-shrink-0 rounded-md p-1 transition-colors',
+          // In the top right corner whatever the text size. 36px to see; .hit-area makes it 32px (mouse) or 44px (touch) to hit
+          'hit-area absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-md transition-colors',
           'hover:bg-hover',
           'focus:outline-none focus:ring-2 focus:ring-accent'
         )}
         aria-label="Close notification"
       >
-        <X className="h-4 w-4 text-muted" />
+        <X className="h-5 w-5 text-muted" aria-hidden="true" />
       </button>
       
       {/* Progress bar (only for a toast that closes by itself: a duration of 0 stays until it is closed, and must not print "0") */}
-      {!!toast.duration && (
+      {!!effectiveDuration && (
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-hover rounded-b-lg overflow-hidden">
           <div
             className={cn(

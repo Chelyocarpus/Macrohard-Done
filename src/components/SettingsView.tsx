@@ -14,6 +14,8 @@ import { downloadTextFile } from '../utils/download.ts';
 import { DATE_FORMATS, TIME_FORMATS } from '../utils/dateFormat.ts';
 import { formatDateTime, formatFullDate, formatTime } from '../utils/dateUtils.ts';
 import { useDateFormatStore, useDateTimePrefs } from '../stores/dateFormatStore.ts';
+import { useDisplayPrefsStore } from '../stores/displayPrefsStore.ts';
+import { MESSAGE_TIMES, TEXT_SIZES } from '../utils/displayPrefs.ts';
 import type { RowDensity, TaskList, ThemePreference } from '../types/index.ts';
 
 /** A message under a section: green for done, amber for "not sure", red for failed */
@@ -116,6 +118,10 @@ const DENSITIES: { value: RowDensity; label: string; hint: string }[] = [
   { value: 'minimal', label: 'Minimal', hint: 'One line of details under each title, like Microsoft To Do' },
 ];
 
+const TEXT_SIZE_HINTS: Record<string, string> = { standard: 'The usual size', large: '25% bigger', xlarge: '50% bigger' };
+const TEXT_SIZE_OPTIONS = TEXT_SIZES.map((option) => ({ value: option.id, label: option.label, hint: TEXT_SIZE_HINTS[option.id] }));
+const MESSAGE_TIME_OPTIONS = MESSAGE_TIMES.map((option) => ({ value: option.id, label: option.label, hint: option.hint }));
+
 // One fixed example (a day above the 12th, so day and month can't be mixed up) written in every style, so each choice shows what it looks like
 const SAMPLE = new Date(2026, 10, 26, 16, 30);
 const DATE_OPTIONS = DATE_FORMATS.map((option) => ({ value: option.id, label: option.label, hint: formatFullDate(SAMPLE, { dateFormat: option.id, timeFormat: '12h' }) }));
@@ -192,6 +198,10 @@ export function SettingsView() {
   const rowDensity = useTaskStore((state) => state.rowDensity);
   const setThemePreference = useTaskStore((state) => state.setThemePreference);
   const setRowDensity = useTaskStore((state) => state.setRowDensity);
+  const textSize = useDisplayPrefsStore((state) => state.textSize);
+  const messageTime = useDisplayPrefsStore((state) => state.messageTime);
+  const setTextSize = useDisplayPrefsStore((state) => state.setTextSize);
+  const setMessageTime = useDisplayPrefsStore((state) => state.setMessageTime);
   const tasks = useTaskStore((state) => state.tasks);
   const lists = useTaskStore((state) => state.lists);
   const categories = useTaskStore((state) => state.categories);
@@ -350,8 +360,16 @@ export function SettingsView() {
         </div>
       </Section>
 
-      <Section id="settings-appearance" title="Appearance">
+      <Section id="settings-appearance" title="Appearance" description="Text size and how long messages stay are remembered on this device, for all profiles.">
         <div className="space-y-5">
+          <div>
+            <p className="mb-2 text-sm font-medium text-ink">Text size</p>
+            <Choice label="Text size" value={textSize} options={TEXT_SIZE_OPTIONS} onChange={setTextSize} />
+          </div>
+          <div>
+            <p className="mb-2 text-sm font-medium text-ink">How long messages stay</p>
+            <Choice label="How long messages stay" value={messageTime} options={MESSAGE_TIME_OPTIONS} onChange={setMessageTime} />
+          </div>
           <div>
             <p className="mb-2 text-sm font-medium text-ink" id="theme-label">Theme</p>
             <Choice label="Theme" value={themePreference} options={THEMES} onChange={setThemePreference} />

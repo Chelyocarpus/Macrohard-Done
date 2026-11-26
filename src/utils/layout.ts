@@ -41,3 +41,12 @@ export function contentInsets(mode: LayoutMode, storedCollapsed: boolean, detail
     right: mode === 'wide' && detailPaneOpen ? DETAIL_PANE_WIDTH : 0,
   };
 }
+
+/**
+ * Distance of the messages from the bottom of the screen. Normally above the "Add a task" button; with a bottom sheet
+ * open, above the sheet's footer (its measured height) plus the device's bottom inset and a little space.
+ */
+export function toastBottom(sheetFooterHeight: number): string {
+  if (sheetFooterHeight > 0) return `calc(env(safe-area-inset-bottom, 0px) + ${sheetFooterHeight}px + 0.75rem)`;
+  return 'calc(max(1rem, env(safe-area-inset-bottom)) + 4.5rem)';
+}

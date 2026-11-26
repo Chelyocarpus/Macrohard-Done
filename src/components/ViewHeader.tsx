@@ -21,7 +21,7 @@ interface ViewHeaderProps {
  * page's buttons on the right. The tile and wash take the list's or tag's color (the blue accent when it has none).
  */
 export function ViewHeader({ glyph, title, subtitle, tinted, onBack, actions }: ViewHeaderProps) {
-  const titleClass = 'text-2xl md:text-[28px] leading-tight font-semibold text-ink truncate';
+  const titleClass = 'text-2xl md:text-[1.75rem] leading-tight font-semibold text-ink truncate';
   return (
     <header
       className="relative border-b border-line p-4 pt-[max(1rem,env(safe-area-inset-top))] md:p-6 md:pt-6"

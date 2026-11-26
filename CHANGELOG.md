@@ -10,8 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Settings > Date and time lets you choose how dates and times are written: Mon D, YYYY (the old way), D Mon YYYY, YYYY-MM-DD, DD-MM-YYYY, MM/DD/YYYY or DD.MM.YYYY, and a 12-hour or 24-hour clock. Each choice shows an example. It applies everywhere: task cards, the task details, the date picker and its time presets, reminder messages and the "Next one" message for repeating tasks. "Today", "Tomorrow" and weekday names stay as they are. The choice is remembered on this device for all profiles, and several open tabs stay in step.
 - Type a day at the end of a new task and it becomes the due date: "Call Mom tomorrow" is added as "Call Mom", due tomorrow. It understands today, tomorrow, weekdays (also "by friday" and "next friday"), "next week" and "in 3 days" or "in 2 weeks". The add bar shows an example.
+- Settings > Appearance has a Text size choice (Standard, Large or Extra large, 25% or 50% bigger) that makes all text, buttons and icons larger. It is remembered on this device.
+- Settings > Appearance also has "How long messages stay": normal, 30 seconds, or until you close them.
 
 ### Changed
+- Messages stay longer: 8 seconds, 10 for errors and 15 for a message with an Undo button (it was 6). A message also waits while you hold a finger on it or have it selected with the keyboard, not just while the mouse is over it.
+- The Undo button and the X on messages are bigger and easier to hit. On a touch screen the check circle, the X buttons, the step circles and the group buttons all have a 44 px tap area, with more room between the star, sun, pin and "more" buttons on a task. The check circle is a little bigger, and the small boxes for steps on a task card are bigger and can be ticked by tapping the step's words.
+- On a phone, a message no longer covers the Duplicate, Pin, Complete and Move buttons in the task details; it moves up above them.
+- On a touch screen, a task no longer stays highlighted after you tap it (the highlight and the "hover" look were meant for a mouse and keyboard). A task whose details are open still shows as selected.
 - The empty My Day page now explains what My Day is and how to add tasks to it. Important and Planned explain themselves too.
 - The profile in the sidebar is explained (a separate set of lists and tasks, such as Personal and Work) and stays plain until you have a second profile.
 - In My Day the sun on each task is no longer blue; it shows when you point at the task, like the other buttons.

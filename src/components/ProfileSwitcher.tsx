@@ -144,7 +144,7 @@ export function ProfileSwitcher({ variant, className }: { variant: Variant; clas
         <>
           <ProfileAvatar profile={active} size={30} />
           <span className="min-w-0 flex-1">
-            <span className="block text-[11px] font-medium uppercase leading-tight tracking-wide text-muted">Profile</span>
+            <span className="block text-[0.6875rem] font-medium uppercase leading-tight tracking-wide text-muted">Profile</span>
             <span className="block truncate text-sm font-semibold leading-tight text-ink">{active.name}</span>
           </span>
           <ChevronDown size={16} className="flex-shrink-0 text-muted" aria-hidden="true" />
@@ -173,7 +173,7 @@ export function ProfileSwitcher({ variant, className }: { variant: Variant; clas
           className="fixed z-[70] overflow-y-auto rounded-xl border border-line bg-canvas p-1.5 shadow-xl"
           style={{ top: anchor.top, left: anchor.left, width: `min(${MENU_WIDTH}px, calc(100vw - ${EDGE * 2}px))`, maxHeight: anchor.maxHeight }}
         >
-          <p className="px-2.5 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Switch profile</p>
+          <p className="px-2.5 pb-1 pt-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">Switch profile</p>
           <p className="px-2.5 pb-2 text-xs text-muted">{PROFILE_EXPLANATION}</p>
           <ul className="space-y-0.5">
             {profiles.map((profile) => {

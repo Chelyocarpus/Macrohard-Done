@@ -168,7 +168,7 @@ function StepRow({ step, onToggle, onDelete, onConvertToTask, onMove, isFirst, i
         aria-checked={step.completed}
         aria-label={step.completed ? `Mark step "${step.title}" as not done` : `Mark step "${step.title}" as done`}
         className={cn(
-          'mt-3 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors',
+          'hit-area mt-3 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors',
           'focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900',
           step.completed
             ? 'bg-accent border-accent text-on-accent'

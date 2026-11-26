@@ -55,7 +55,7 @@ function RailItem({ label, onClick, active = false, badge = 0, shortcut, ariaKey
         {badge > 0 && (
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-sidebar px-1 text-[10px] font-semibold leading-none text-ink ring-1 ring-line"
+            className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-sidebar px-1 text-[0.625rem] font-semibold leading-none text-ink ring-1 ring-line"
           >
             {badge > 99 ? '99+' : badge}
           </span>

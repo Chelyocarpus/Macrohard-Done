@@ -18,10 +18,12 @@ interface ToastStore {
   undoLatest: () => boolean;
 }
 
-// Messages stay 6 seconds (the UI spec); errors a little longer so they can be read.
-export const DEFAULT_DURATION = 6000;
-export const ERROR_DURATION = 7000;
-export const UNDO_DURATION = 6000;
+// How long messages stay at the "Normal" setting (Settings > Appearance can make them longer, or keep them until closed).
+// 6 seconds was too short for someone who reads slowly, so: 8 seconds, errors 10, and 15 for a message with an Undo
+// button, because Undo is the one a person must not miss.
+export const DEFAULT_DURATION = 8000;
+export const ERROR_DURATION = 10000;
+export const UNDO_DURATION = 15000;
 
 export const useToastStore = create<ToastStore>()((set, get) => ({
   toasts: [],

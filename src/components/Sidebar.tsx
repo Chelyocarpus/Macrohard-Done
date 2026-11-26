@@ -46,7 +46,7 @@ function HeadingAction({ label, onClick, children }: { label: string; onClick: (
         type="button"
         onClick={onClick}
         aria-label={label}
-        className="flex h-7 w-7 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-ink [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11"
+        className="hit-area flex h-8 w-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-ink [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11"
       >
         {children}
       </button>
