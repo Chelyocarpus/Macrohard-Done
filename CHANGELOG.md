@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Each list in the sidebar has "Move up" and "Move down" in its menu, so lists can be reordered without dragging. The list rows are no longer an extra Tab stop announced as a "sortable button" around the real buttons, and the old keyboard drag on them is replaced by these menu items.
 
 ### Fixed
+- A list group's name in the sidebar is no longer cut short ("ANOTH..."). The group's add and menu buttons used to keep room for themselves even when hidden; now they appear over the heading only when you point at it, and a long name wraps onto a second line.
 - A message with an Undo button no longer works behind an open window such as "Remove all data": it is dimmed and cannot be reached until the window closes, and its countdown waits, so the Undo is still there afterwards.
 
 ## [0.2.2] - 2026-11-25

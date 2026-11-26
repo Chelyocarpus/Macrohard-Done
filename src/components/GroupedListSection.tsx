@@ -326,7 +326,7 @@ export function GroupedListSection({
     <div className="mb-1">
       {/* Group Header: the add and menu buttons show when the heading is hovered or focused (always on touch screens) */}
       <DroppableGroupHeader group={group}>
-        <div className="group/head px-3 min-h-8 flex items-center [@media(pointer:coarse)]:min-h-11">
+        <div className="group/head relative px-3 py-0.5 min-h-8 flex items-center [@media(pointer:coarse)]:min-h-11">
           {/* Collapse Button */}
           <button
             onClick={() => toggleGroupCollapsed(group.id)}
@@ -366,7 +366,8 @@ export function GroupedListSection({
                     {group.emoji}
                   </span>
                 )}
-                <span className="text-xs font-medium text-muted uppercase tracking-wide truncate">
+                {/* Wraps instead of being cut with "...": a group's name is the only thing that says what is in it */}
+                <span title={group.name} className="min-w-0 text-xs font-medium text-muted uppercase tracking-wide [overflow-wrap:anywhere]">
                   {group.name}
                 </span>
               </>
@@ -374,7 +375,9 @@ export function GroupedListSection({
           </div>
           
           {/* Action Buttons */}
-          <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/head:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+          {/* With a mouse the buttons lie over the end of the heading while it is hovered or focused, so they take no room
+              from the name the rest of the time. Touch screens have no hover: there they stay in the row and the name wraps. */}
+          <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-0.5 rounded-md bg-sidebar opacity-0 transition-opacity group-hover/head:opacity-100 focus-within:opacity-100 [@media(hover:none)]:static [@media(hover:none)]:translate-y-0 [@media(hover:none)]:bg-transparent [@media(hover:none)]:opacity-100">
             <Tooltip label="Add list to group">
               <button
                 onClick={handleAddList}
@@ -386,16 +389,19 @@ export function GroupedListSection({
             </Tooltip>
             
             <div className="relative">
-              <button
-                onClick={() => setShowGroupMenu(!showGroupMenu)}
-                aria-label={`Group actions for ${group.name}`}
-                aria-haspopup="menu"
-                aria-expanded={showGroupMenu}
-                className={GROUP_ACTION_CLASS}
-              >
-                <MoreHorizontal size={16} />
-              </button>
-              
+              {/* Not while the menu is open: the tooltip would sit on top of it */}
+              <Tooltip label="Group actions" disabled={showGroupMenu}>
+                <button
+                  onClick={() => setShowGroupMenu(!showGroupMenu)}
+                  aria-label={`Group actions for ${group.name}`}
+                  aria-haspopup="menu"
+                  aria-expanded={showGroupMenu}
+                  className={GROUP_ACTION_CLASS}
+                >
+                  <MoreHorizontal size={16} />
+                </button>
+              </Tooltip>
+
               {showGroupMenu && (
                 <div className="absolute right-0 top-full mt-1 bg-canvas border border-line rounded-md shadow-lg z-30 min-w-[120px]">
                   <button
