@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { cn } from '../utils/cn.ts';
 import { QUICK_ADD_EVENT } from '../hooks/useKeyboardShortcuts.ts';
 
@@ -126,18 +126,33 @@ export function FloatingActionButton({
     <div
       ref={fabContainerRef}
       className={cn(
-        "absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 z-50",
+        // The strip itself lets taps through (on a phone it is as wide as the screen but only the button is solid)
+        "absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 z-50 pointer-events-none",
         hideBar ? "hidden" : "flex", // Spans the full available width when shown
         className
       )}
       onKeyDown={handleKeyDown}
     >
+      {/* Phones, closed: just a round button in the bottom right corner. Tapping it opens the field below. */}
+      {!isQuickAddMode && (
+        <button
+          type="button"
+          onClick={() => setIsQuickAddMode(true)}
+          aria-label="Add a task"
+          className="sm:hidden pointer-events-auto ml-auto h-14 w-14 rounded-full flex items-center justify-center flex-shrink-0 bg-list text-on-list shadow-lg active:scale-95 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-list focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
+        >
+          <Plus size={26} strokeWidth={2.5} aria-hidden="true" />
+        </button>
+      )}
+
       {/* A plain surface bar: it reads as an input field, with the one accent colour only on the plus, the
-          focus ring and the Add button. A list's own colour never reaches these controls. */}
+          focus ring and the Add button. A list's own colour never reaches these controls. On a phone it is
+          only there while open (the round button above is the closed state). */}
       <div
         className={cn(
-          "w-full h-12 sm:h-14 flex items-center gap-3 pl-2.5 sm:pl-3 pr-2.5 sm:pr-3 rounded-[10px] border transition-shadow duration-150",
+          "pointer-events-auto w-full h-12 sm:h-14 items-center gap-3 pl-2.5 sm:pl-3 pr-2.5 sm:pr-3 rounded-[10px] border transition-shadow duration-150",
           "bg-canvas",
+          isQuickAddMode ? "flex" : "hidden sm:flex",
           isQuickAddMode
             ? "border-list ring-1 ring-list shadow-lg"
             : "border-line shadow-md hover:shadow-lg"
@@ -146,10 +161,22 @@ export function FloatingActionButton({
       >
         <span
           aria-hidden="true"
-          className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-list text-on-list"
+          className="hidden sm:flex w-9 h-9 rounded-full items-center justify-center flex-shrink-0 bg-list text-on-list"
         >
           <Plus size={20} strokeWidth={2.5} />
         </span>
+        {/* There is no Esc key on a phone, so the open field gets a way to close it (what was typed is kept) */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsQuickAddMode(false);
+          }}
+          aria-label="Close"
+          className="sm:hidden w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-muted hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-list"
+        >
+          <X size={20} aria-hidden="true" />
+        </button>
 
         {isQuickAddMode ? (
           <>

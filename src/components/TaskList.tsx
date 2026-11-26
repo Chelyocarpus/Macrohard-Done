@@ -353,7 +353,7 @@ export function TaskList() {
       {/* Global spacer to prevent FAB overlap - always present regardless of task list state */}
       {allTasks.length > 0 && (
         <div 
-          className="h-16 sm:h-20" 
+          className="h-24 sm:h-20"
           aria-hidden="true"
           data-testid="fab-spacer"
           title="Space to prevent floating action button overlap"

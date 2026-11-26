@@ -298,7 +298,7 @@ export function SearchView() {
           ))}
         </div>
       )}
-      <div className="h-16 sm:h-20" aria-hidden="true" />
+      <div className="h-24 sm:h-20" aria-hidden="true" />
     </div>
   );
 }
