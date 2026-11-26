@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - In My Day the sun on each task is no longer blue; it shows when you point at the task, like the other buttons.
 - The message after adding a task now says where it went and what it started with ("Added to Groceries", "Due tomorrow"), instead of repeating the title.
 - The Settings text about sync no longer points to the README.
-- The message after adding a task to My Day with its sun button no longer has an emoji.
+- Starring a task or adding it to My Day no longer shows a message; the star and the sun already show it. Adding from the My Day suggestions is still announced to screen readers.
 - On a phone, the "Add a task" bar is now a round plus button in the bottom right corner. Tap it to open a small text field with an Add button; the X closes it again, and what you typed is kept. Computers and tablets still show the full bar.
 - Screen readers: tasks are now a real list, so a screen reader can say "task 2 of 5" and jump from task to task (pinned, other, completed and search results are separate lists). The sidebar is now a navigation area, and its buttons are read as "Tasks, 2 open" instead of "Tasks 2".
 

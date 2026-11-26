@@ -19,6 +19,12 @@ export function MyDaySuggestions() {
   const tasks = useTaskStore((state) => state.tasks);
   const toggleMyDay = useTaskStore((state) => state.toggleMyDay);
   const [open, setOpen] = useState(false);
+  // The row disappears once it is added, so a screen reader is told in words (not shown on screen)
+  const [announcement, setAnnouncement] = useState('');
+  const addToMyDay = (task: (typeof tasks)[number]) => {
+    toggleMyDay(task.id);
+    setAnnouncement(`Added "${task.title}" to My Day`);
+  };
 
   const suggestions = useMemo(() => {
     const today = startOfDay(new Date()).getTime();
@@ -38,11 +44,14 @@ export function MyDaySuggestions() {
       .map((task) => ({ task, overdue: isOverdue(task) }));
   }, [tasks]);
 
-  if (suggestions.length === 0) return null;
-
   const Chevron = open ? ChevronDown : ChevronRight;
 
+  // The live region stays even when the last suggestion has been added, or its announcement would go with it
+  if (suggestions.length === 0) return <div role="status" className="sr-only">{announcement}</div>;
+
   return (
+    <>
+    <div role="status" className="sr-only">{announcement}</div>
     <section aria-label="Suggestions" className="px-3 sm:px-0 mb-4">
       <button
         type="button"
@@ -83,7 +92,7 @@ export function MyDaySuggestions() {
               </div>
               <button
                 type="button"
-                onClick={() => toggleMyDay(task.id)}
+                onClick={() => addToMyDay(task)}
                 aria-label={`Add "${task.title}" to My Day`}
                 className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-accent hover:bg-accent/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
               >
@@ -94,5 +103,6 @@ export function MyDaySuggestions() {
         </ul>
       )}
     </section>
+    </>
   );
 }

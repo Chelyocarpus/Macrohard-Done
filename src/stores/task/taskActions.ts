@@ -265,11 +265,7 @@ export const createTaskActions = ({ set, get, saveState }: StoreContext): Pick<T
       ),
     }));
     saveState();
-    
-    // Show toast only when marking as important
-    if (newImportantState) {
-      useToastStore.getState().showInfo('Marked as important', `"${task.title}" is now important ⭐`);
-    }
+    // No message: the star fills in (and is a pressed/unpressed toggle for screen readers), so a toast would only repeat it
   },
 
   toggleMyDay: (id: string) => {
@@ -289,11 +285,7 @@ export const createTaskActions = ({ set, get, saveState }: StoreContext): Pick<T
       ),
     }));
     saveState();
-    
-    // Show toast only when adding to My Day
-    if (newMyDayState) {
-      useToastStore.getState().showInfo('Added to My Day', `"${task.title}" was added to My Day`);
-    }
+    // No message: the sun button shows its state (pressed/unpressed), so a toast would only repeat it
   },
 
   togglePin: (id: string) => {
