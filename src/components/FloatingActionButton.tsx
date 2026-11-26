@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Plus, X } from 'lucide-react';
 import { cn } from '../utils/cn.ts';
 import { QUICK_ADD_EVENT } from '../hooks/useKeyboardShortcuts.ts';
+import { useModalOpen } from '../hooks/useModalOpen.ts';
 
 interface FloatingActionButtonProps {
   onQuickAdd: () => void;
@@ -20,7 +21,8 @@ export function FloatingActionButton({
 }: FloatingActionButtonProps) {
   const [quickAddText, setQuickAddText] = useState('');
   const [isQuickAddMode, setIsQuickAddMode] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
+  // A dialog or side panel is open over the page (see hooks/useModalOpen.ts)
+  const modalOpen = useModalOpen();
   const inputRef = useRef<HTMLInputElement>(null);
   const fabContainerRef = useRef<HTMLDivElement>(null);
 
@@ -89,33 +91,6 @@ export function FloatingActionButton({
       handleQuickAdd();
     }
   };
-
-  // Is a dialog or side panel open over the page? Every one of them (task details, list and group editors, tag manager,
-  // pickers, ...) declares `aria-modal`, so that is what is looked for. (The old check looked for elements by their width
-  // class; the pop-up message container has one too, so on a phone it hid this bar for good.)
-  //
-  // Robustness / pitfalls guarded against:
-  // - Bursts of changes in the page cause at most one look per animation frame.
-  // - Only the page's own structure is watched (added/removed elements and the `aria-modal` attribute), not every class
-  //   change, and there is no timer polling.
-  useEffect(() => {
-    const check = () => setModalOpen(!!document.querySelector('[aria-modal="true"]'));
-    check();
-    let frame = 0;
-    const scheduleCheck = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        check();
-      });
-    };
-    const observer = new MutationObserver(scheduleCheck);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-modal'] });
-    return () => {
-      observer.disconnect();
-      if (frame) cancelAnimationFrame(frame);
-    };
-  }, []);
 
   // While a side panel (task details, list or group editor) is open the bar is hidden: the panel has its
   // own buttons, and the bar would only sit on top of the dimmed page. Hidden with CSS rather than

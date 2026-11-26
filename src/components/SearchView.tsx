@@ -292,7 +292,7 @@ export function SearchView() {
           <p className="mt-1 text-sm">{filtersOn ? 'Try clearing a filter or using fewer words.' : 'Check the spelling or try fewer words.'}</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2" role="list" aria-label="Search results">
           {hits.map((hit) => (
             <TaskItem
               key={hit.task.id}

@@ -171,8 +171,10 @@ export function TaskList() {
 
 
 
-  const renderGroup = (tasks: typeof activeTasks, isDraggable: boolean) => (
-    <div className={FEED_CLASSES}>
+  // Each group of cards is a list (its rows are list items, see TaskItem), so a screen reader can say how many tasks
+  // there are and which one it is on
+  const renderGroup = (tasks: typeof activeTasks, isDraggable: boolean, label: string) => (
+    <div className={FEED_CLASSES} role="list" aria-label={label}>
       {tasks.map((task) => (
         <TaskItem
           key={task.id}
@@ -193,7 +195,7 @@ export function TaskList() {
           {section.label}
           <span className="font-normal normal-case tracking-normal text-muted">{section.tasks.length}</span>
         </h3>
-        {renderGroup(section.tasks, false)}
+        {renderGroup(section.tasks, false, `${section.label} tasks`)}
       </section>
     ));
   };
@@ -212,7 +214,7 @@ export function TaskList() {
               Pinned
               <span className="font-normal normal-case tracking-normal text-muted">{pinnedTasks.length}</span>
             </h3>
-            {renderGroup(pinnedTasks, isDraggable)}
+            {renderGroup(pinnedTasks, isDraggable, 'Pinned tasks')}
           </section>
         )}
         {otherTasks.length > 0 && (
@@ -222,7 +224,7 @@ export function TaskList() {
                 Other tasks
               </h3>
             )}
-            {renderGroup(otherTasks, isDraggable)}
+            {renderGroup(otherTasks, isDraggable, hasPinned ? 'Other tasks' : 'Tasks')}
           </section>
         )}
       </>
@@ -243,7 +245,7 @@ export function TaskList() {
     if (tasks.length === 0) return null;
 
     return (
-      <div className={FEED_CLASSES}>
+      <div className={FEED_CLASSES} role="list" aria-label="Completed tasks">
         {tasks.map((task) => (
           <TaskItem key={task.id} task={task} isDragEnabled={false} activeTaskId={activeId} tabbable={task.id === tabbableId} />
         ))}

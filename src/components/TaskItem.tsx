@@ -95,6 +95,10 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
     isDragging: sortableIsDragging,
   } = sortable;
   
+  // Only what the row still needs from the drag library's attributes: the hidden drag instructions. (`role` is the
+  // row's own, see below, and the pressed state / "sortable" description would be wrong on a list item.)
+  const dragAttributes = { tabIndex: attributes.tabIndex, 'aria-disabled': attributes['aria-disabled'], 'aria-describedby': attributes['aria-describedby'] };
+
   // Use provided isDragging or sortable.isDragging
   const isDragging = providedIsDragging || sortableIsDragging;
   // Selection and the open details panel live in a small shared store so the keyboard shortcuts can
@@ -276,7 +280,11 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
       <div
         ref={setNodeRef}
         style={style}
-        {...(isDragEnabled ? { ...attributes, ...listeners } : {})}
+        {...(isDragEnabled ? { ...dragAttributes, ...listeners } : {})}
+        // A row is a list item, so a screen reader can say "task 2 of 5" and jump between them. (The drag library's own
+        // role, "button", and its "sortable" description are left out: they would replace "list item", and there are real
+        // buttons inside the row.) The copy shown while dragging is not part of the list.
+        role={isOverlay ? undefined : 'listitem'}
         // Keyboard: one row is in the Tab order (roving tabindex); the arrow keys move between rows (see
         // hooks/useKeyboardShortcuts.ts). The copy shown while dragging is not a real row.
         {...(isOverlay ? {} : { 'data-task-id': taskId, 'data-task-section': completed && !held ? 'done' : 'open', 'data-task-checked': checked ? 'true' : undefined })}

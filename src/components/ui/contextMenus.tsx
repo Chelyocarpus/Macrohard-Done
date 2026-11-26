@@ -16,7 +16,9 @@ import {
   Pin,
   Globe,
   Tag,
-  CheckSquare
+  CheckSquare,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import type { Task, TaskList } from '../../types/index.ts';
 import type { ContextMenuData } from '../ui/ContextMenu.tsx';
@@ -150,6 +152,9 @@ export function createListContextMenu(
     onChangeColor: () => void;
     onArchive?: () => void;
     onCreateTask: () => void;
+    /** Reorder without dragging (keyboard and screen reader users); `undefined` leaves the item out, `null` switches it off */
+    onMoveUp?: (() => void) | null;
+    onMoveDown?: (() => void) | null;
   }
 ): ContextMenuData {
   const isSystemList = list.isSystem;
@@ -192,6 +197,14 @@ export function createListContextMenu(
           ]),
         ],
       },
+      ...(isSystemList || actions.onMoveUp === undefined || actions.onMoveDown === undefined ? [] : [
+        {
+          items: [
+            { id: 'move-up', label: 'Move up', icon: <ArrowUp size={16} />, onClick: actions.onMoveUp ?? (() => {}), disabled: actions.onMoveUp === null },
+            { id: 'move-down', label: 'Move down', icon: <ArrowDown size={16} />, onClick: actions.onMoveDown ?? (() => {}), disabled: actions.onMoveDown === null },
+          ],
+        },
+      ]),
       ...(isSystemList ? [] : [
         {
           items: [

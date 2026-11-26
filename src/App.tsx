@@ -107,7 +107,7 @@ function App() {
     if (!isMobile || !changed) return;
     const frame = window.requestAnimationFrame(() => {
       const target = phoneShowsLists
-        ? document.querySelector<HTMLElement>('aside [aria-current="page"]') ?? document.querySelector<HTMLElement>('aside button')
+        ? document.querySelector<HTMLElement>('[data-sidebar] [aria-current="page"]') ?? document.querySelector<HTMLElement>('[data-sidebar] button')
         : document.getElementById('view-title');
       target?.focus({ preventScroll: true });
     });

@@ -13,6 +13,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { ChevronDown, ChevronRight, MoreHorizontal, Plus, Trash2, Edit3 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { withCount } from '../utils/accessibleNames.ts';
+import { moveWithin } from '../utils/listOrder.ts';
 import { useTaskStore } from '../stores/taskStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { TaskList, ListGroup } from '../types';
@@ -47,6 +49,9 @@ interface SortableListItemProps {
   onClick: () => void;
   onEditList: (list: TaskList) => void;
   onCreateTask: (listId: string) => void;
+  /** Move the list one place up (-1) or down (1) among its siblings, and whether that is possible */
+  onMove: (listId: string, delta: -1 | 1) => void;
+  canMove: (listId: string, delta: -1 | 1) => boolean;
 }
 
 interface DroppableGroupHeaderProps {
@@ -104,10 +109,9 @@ function DroppableUngroupedArea({ children, activeId, lists }: { children: React
   );
 }
 
-function SortableListItem({ list, groupIcon, isActive, taskCount, onClick, onEditList, onCreateTask }: SortableListItemProps) {
+function SortableListItem({ list, groupIcon, isActive, taskCount, onClick, onEditList, onCreateTask, onMove, canMove }: SortableListItemProps) {
   const { deleteList, duplicateList } = useTaskStore(useShallow((state) => ({ deleteList: state.deleteList, duplicateList: state.duplicateList })));
   const {
-    attributes,
     listeners,
     setNodeRef,
     transform,
@@ -129,6 +133,8 @@ function SortableListItem({ list, groupIcon, isActive, taskCount, onClick, onEdi
     onDuplicate: () => { duplicateList(list.id); },
     onChangeColor: () => onEditList(list),
     onCreateTask: () => onCreateTask(list.id),
+    onMoveUp: canMove(list.id, -1) ? () => onMove(list.id, -1) : null,
+    onMoveDown: canMove(list.id, 1) ? () => onMove(list.id, 1) : null,
   });
   const handleContextMenu = useContextMenuHandler(getListMenu);
   const handleMenuButtonClick = useContextMenuButtonHandler(getListMenu);
@@ -137,7 +143,10 @@ function SortableListItem({ list, groupIcon, isActive, taskCount, onClick, onEdi
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
+      // Dragging only: the pointer listeners. The drag library's own attributes (role="button", a tab stop, "sortable")
+      // are left off on purpose: this wrapper holds two real buttons (the list and its "more" menu), and a button inside
+      // a button is announced twice and is not allowed. Moving a list without a mouse is "Move up" / "Move down" in the
+      // list's menu.
       {...listeners}
       className={cn(
         'group/list relative transition-opacity duration-200',
@@ -147,6 +156,7 @@ function SortableListItem({ list, groupIcon, isActive, taskCount, onClick, onEdi
       <button
         onClick={onClick}
         onContextMenu={handleContextMenu}
+        aria-label={withCount(displayName, taskCount)}
         aria-current={isActive ? 'page' : undefined}
         className={cn(
           'w-full flex items-center px-3 min-h-8 [@media(pointer:coarse)]:min-h-11 rounded-md text-left transition-[background-color,color,opacity,transform] duration-200 text-sm relative group',
@@ -172,7 +182,7 @@ function SortableListItem({ list, groupIcon, isActive, taskCount, onClick, onEdi
         
         {/* The count gives way to the "more" button while the row is hovered or focused */}
         {taskCount > 0 && (
-          <span className="text-xs tabular-nums text-muted font-normal transition-opacity group-hover/list:opacity-0 group-focus-within/list:opacity-0 [@media(hover:none)]:mr-8 [@media(pointer:coarse)]:mr-10">
+          <span aria-hidden="true" className="text-xs tabular-nums text-muted font-normal transition-opacity group-hover/list:opacity-0 group-focus-within/list:opacity-0 [@media(hover:none)]:mr-8 [@media(pointer:coarse)]:mr-10">
             {taskCount}
           </span>
         )}
@@ -210,7 +220,24 @@ export function GroupedListSection({
   const [showGroupEditSidebar, setShowGroupEditSidebar] = useState(false);
   
   // Selected: only what is used here. `tasks` is listed too because the getters below read it; without it a change would not re-render.
-  const { toggleGroupCollapsed, updateGroup, deleteGroup, getTaskCountForList, setView } = useTaskStore(useShallow((state) => ({ toggleGroupCollapsed: state.toggleGroupCollapsed, updateGroup: state.updateGroup, deleteGroup: state.deleteGroup, getTaskCountForList: state.getTaskCountForList, setView: state.setView, tasks: state.tasks })));
+  const { toggleGroupCollapsed, updateGroup, deleteGroup, getTaskCountForList, setView, reorderLists } = useTaskStore(useShallow((state) => ({ toggleGroupCollapsed: state.toggleGroupCollapsed, updateGroup: state.updateGroup, deleteGroup: state.deleteGroup, getTaskCountForList: state.getTaskCountForList, setView: state.setView, reorderLists: state.reorderLists, tasks: state.tasks })));
+
+  // "Move up" / "Move down" in a list's menu: the way to reorder without dragging.
+  //
+  // Robustness / pitfalls guarded against:
+  // - Stale order: the siblings are read from the store at the moment of the click, not from what was drawn when the
+  //   menu opened, so a change made in between (another tab, a drag) is never overwritten with an old order.
+  // - First/last place: `moveWithin` returns null and nothing is written (the menu also switches the item off).
+  // - Only this group's own lists are renumbered (`reorderLists` leaves other groups alone), and system lists never move.
+  const moveList = (listId: string, delta: -1 | 1) => {
+    const siblings = useTaskStore.getState().lists
+      .filter((list) => !list.isSystem && (list.groupId ?? null) === (group?.id ?? null))
+      .sort((a, b) => a.order - b.order)
+      .map((list) => list.id);
+    const next = moveWithin(siblings, listId, delta);
+    if (next) reorderLists(group?.id ?? null, next);
+  };
+  const canMove = (listId: string, delta: -1 | 1) => moveWithin(lists.map((list) => list.id), listId, delta) !== null;
 
   const handleAddList = () => {
     setShowAddListModal(true);
@@ -274,6 +301,8 @@ export function GroupedListSection({
                       onClick={() => onSetView('list', list.id)}
                       onEditList={handleEditList}
                       onCreateTask={handleCreateTask}
+                      onMove={moveList}
+                      canMove={canMove}
                     />
                     {/* Drop zone after each item */}
                     <DropZone
@@ -422,6 +451,8 @@ export function GroupedListSection({
                       onClick={() => onSetView('list', list.id)}
                       onEditList={handleEditList}
                       onCreateTask={handleCreateTask}
+                      onMove={moveList}
+                      canMove={canMove}
                     />
                     {/* Drop zone after each item */}
                     {!group.collapsed && (

@@ -3,6 +3,7 @@ import { Search, Menu, Tag, Plus, FolderPlus, Settings, Keyboard, MoreHorizontal
 import { Tooltip } from './ui/Tooltip.tsx';
 import { ProfileSwitcher } from './ProfileSwitcher.tsx';
 import { cn } from '../utils/cn.ts';
+import { withCount } from '../utils/accessibleNames.ts';
 import { getListDisplayInfo, groupIconOverride } from '../utils/emojiUtils.ts';
 import { ListGlyph, TagGlyph, SIDEBAR_ICON_SIZE } from './SidebarGlyphs.tsx';
 import { HOVER_TINT_CLASS, hoverTintStyle, selectionStyle } from '../utils/accentTheme.ts';
@@ -68,7 +69,6 @@ function RailItem({ label, onClick, active = false, badge = 0, shortcut, ariaKey
 const Divider = () => <div aria-hidden="true" className="mx-4 my-1.5 h-px bg-line" />;
 
 /** "My Day, 3 open" */
-const withCount = (name: string, count: number) => (count > 0 ? `${name}, ${count} open` : name);
 
 interface SidebarRailProps {
   layout: LayoutMode;

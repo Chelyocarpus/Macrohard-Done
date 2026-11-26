@@ -153,10 +153,17 @@ export const createListActions = ({ set, get, saveState }: StoreContext): Pick<T
     return newListId;
   },
 
+  /**
+   * Robustness / pitfalls guarded against:
+   * - A list without a group has `groupId` undefined (not null), so "no group" is compared as `?? null`; before, the
+   *   lists outside any group were never renumbered.
+   * - Only lists of the given group and only ids in `listIds` change; system lists and other groups keep their order.
+   * - The new order is written in one `set`, from the state at that moment, so no earlier read can overwrite a newer change.
+   */
   reorderLists: (groupId: string | null, listIds: string[]) => {
     set((state) => ({
       lists: state.lists.map((list) => {
-        if (list.groupId === groupId) {
+        if (!list.isSystem && (list.groupId ?? null) === groupId) {
           const newOrder = listIds.indexOf(list.id);
           return newOrder >= 0 ? { ...list, order: newOrder } : list;
         }

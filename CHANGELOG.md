@@ -29,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Settings text about sync no longer points to the README.
 - The message after adding a task to My Day with its sun button no longer has an emoji.
 - On a phone, the "Add a task" bar is now a round plus button in the bottom right corner. Tap it to open a small text field with an Add button; the X closes it again, and what you typed is kept. Computers and tablets still show the full bar.
+- Screen readers: tasks are now a real list, so a screen reader can say "task 2 of 5" and jump from task to task (pinned, other, completed and search results are separate lists). The sidebar is now a navigation area, and its buttons are read as "Tasks, 2 open" instead of "Tasks 2".
+
+- Each list in the sidebar has "Move up" and "Move down" in its menu, so lists can be reordered without dragging. The list rows are no longer an extra Tab stop announced as a "sortable button" around the real buttons, and the old keyboard drag on them is replaced by these menu items.
+
+### Fixed
+- A message with an Undo button no longer works behind an open window such as "Remove all data": it is dimmed and cannot be reached until the window closes, and its countdown waits, so the Undo is still there afterwards.
 
 ## [0.2.2] - 2026-11-25
 

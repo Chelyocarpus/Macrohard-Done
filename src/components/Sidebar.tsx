@@ -10,6 +10,7 @@ import { SidebarSearch } from './SidebarSearch.tsx';
 import { TagGlyph, SIDEBAR_ICON_SIZE } from './SidebarGlyphs.tsx';
 import { Tooltip } from './ui/Tooltip.tsx';
 import { cn } from '../utils/cn.ts';
+import { withCount } from '../utils/accessibleNames.ts';
 import { GroupedListSection } from './GroupedListSection.tsx';
 import { ListEditSidebar } from './ListEditSidebar.tsx';
 import { GroupEditSidebar } from './GroupEditSidebar.tsx';
@@ -17,8 +18,7 @@ import { CategoryManager } from './CategoryManager.tsx';
 import { ListDragOverlay } from './ListDragOverlay.tsx';
 import { listCollisionDetection, resolveListDrop } from '../utils/listDnd.ts';
 import { UngroupDropTarget } from './UngroupDropTarget.tsx';
-import { DndContext, MouseSensor, KeyboardSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { DndContext, MouseSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useFocusTrap } from '../hooks/useFocusTrap.ts';
@@ -109,9 +109,8 @@ export function Sidebar({
         distance: 5, // Reduced from 8 for more responsive dragging
       },
     }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
+    // No keyboard sensor: the list rows are not keyboard stops for dragging any more; "Move up" / "Move down" in a
+    // list's menu reorders without a mouse (see GroupedListSection)
     useSensor(TouchSensor, {
       activationConstraint: {
         delay: 200, // Reduced from 250 for better responsiveness
@@ -192,8 +191,11 @@ export function Sidebar({
           showing. No transform is used, because a transform would make every fixed-position panel opened
           from in here (list/group editors) position itself relative to the sidebar instead of the screen.
           `invisible` keeps the hidden links out of the tab order. */}
-      <aside
+      {/* A navigation landmark (not "complementary"): its buttons switch between pages, so a screen reader can list it
+          among the page's landmarks and jump straight to it. */}
+      <nav
         ref={asideRef}
+        data-sidebar="true"
         aria-label="Lists and tags"
         className={cn(
           `fixed top-0 h-full bg-sidebar pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]`,
@@ -267,6 +269,7 @@ export function Sidebar({
                 <button
                   key={listItem.id}
                   onClick={() => setView(listItem.view)}
+                  aria-label={withCount(listItem.name, taskCount)}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
                     ROW_CLASSES,
@@ -277,7 +280,7 @@ export function Sidebar({
                 >
                   <Icon size={SIDEBAR_ICON_SIZE} className="flex-shrink-0" aria-hidden="true" />
                   <span className="flex-1 truncate">{listItem.name}</span>
-                  {taskCount > 0 && <span className="text-xs tabular-nums text-muted font-normal">{taskCount}</span>}
+                  {taskCount > 0 && <span aria-hidden="true" className="text-xs tabular-nums text-muted font-normal">{taskCount}</span>}
                 </button>
               );
             })}
@@ -332,6 +335,7 @@ export function Sidebar({
                 <button
                   key={category.id}
                   onClick={() => setView('category', undefined, category.id)}
+                  aria-label={withCount(`Tag ${category.name}`, taskCount)}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
                     ROW_CLASSES,
@@ -346,7 +350,7 @@ export function Sidebar({
                     {category.emoji && <span className="mr-1.5">{category.emoji}</span>}
                     {category.name}
                   </span>
-                  {taskCount > 0 && <span className="text-xs tabular-nums text-muted font-normal">{taskCount}</span>}
+                  {taskCount > 0 && <span aria-hidden="true" className="text-xs tabular-nums text-muted font-normal">{taskCount}</span>}
                 </button>
               );
             })}
@@ -408,9 +412,9 @@ export function Sidebar({
         </div>
       </div>
       )}
-    </aside>
+    </nav>
 
-      {/* Panels live outside the <aside> so they stay visible when the phone menu slides away */}
+      {/* Panels live outside the <nav> so they stay visible when the phone menu slides away */}
       {/* New list and new group open the same kind of side panel */}
       <ListEditSidebar
         isOpen={showAddListModal}

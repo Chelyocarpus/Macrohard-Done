@@ -4,6 +4,7 @@ import { cn } from '../../utils/cn.ts';
 import type { Toast } from '../../types/index.ts';
 import { useDisplayPrefsStore } from '../../stores/displayPrefsStore.ts';
 import { messageDuration } from '../../utils/displayPrefs.ts';
+import { useModalOpen } from '../../hooks/useModalOpen.ts';
 
 interface ToastProps {
   toast: Toast;
@@ -54,6 +55,17 @@ export function Toast({ toast, onClose }: ToastProps) {
   const messageTime = useDisplayPrefsStore((state) => state.messageTime);
   const effectiveDuration = messageDuration(toast.duration, messageTime);
 
+  // A message with a button (Undo) is frozen while a dialog is open: behind the dialog it could not be seen, yet a screen
+  // reader or the keyboard could still reach the button and change the data under the dialog. It is switched off
+  // (`inert`: not clickable, not focusable, not read out), dimmed, and its countdown waits, so the Undo is still there
+  // when the dialog closes. Plain messages stay as they are, so a dialog can still tell you "Saved".
+  const modalOpen = useModalOpen();
+  const frozen = modalOpen && !!toast.action;
+  const frozenRef = useRef(false);
+  useEffect(() => {
+    frozenRef.current = frozen;
+  }, [frozen]);
+
   // Auto-dismiss functionality with visual progress
   useEffect(() => {
     if (!effectiveDuration) return;
@@ -68,7 +80,7 @@ export function Toast({ toast, onClose }: ToastProps) {
       const currentTime = Date.now();
       
       // If paused, track pause time but don't update progress
-      if (isPausedRef.current) {
+      if (isPausedRef.current || frozenRef.current) {
         if (lastPauseStart === 0) {
           lastPauseStart = currentTime;
         }
@@ -122,10 +134,13 @@ export function Toast({ toast, onClose }: ToastProps) {
         // Wraps: with large text the Undo button drops under the words instead of pushing the close button off the card
         'relative flex w-full max-w-sm flex-wrap items-start gap-x-3 gap-y-2 rounded-[10px] border p-4 pr-12 shadow-lg overflow-hidden',
         'animate-toast-in',
+        frozen && 'opacity-60',
         variant.bgColor,
         variant.borderColor
       )}
       role="status"
+      inert={frozen}
+      data-frozen={frozen ? 'true' : undefined}
       onMouseEnter={pause}
       onMouseLeave={resume}
       onTouchStart={pause}
