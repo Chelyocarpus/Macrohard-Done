@@ -31,7 +31,7 @@ export function AccountSection() {
   if (phase === 'off') {
     return (
       <p className="text-sm text-muted">
-        Sync is not set up for this copy of the app. Your data stays on this device. The README explains how to turn it on.
+        Syncing between devices is not available in this app. Your tasks are saved on this device only.
       </p>
     );
   }

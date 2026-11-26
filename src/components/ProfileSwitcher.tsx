@@ -13,6 +13,9 @@ type Variant = 'sidebar' | 'rail';
 interface Anchor { top: number; left: number; maxHeight: number }
 
 const MENU_WIDTH = 264;
+
+/** What a profile is, in the words a first-time user needs (the Profiles dialog says the same at more length) */
+const PROFILE_EXPLANATION = 'A profile is a separate set of lists and tasks, for example Personal and Work. Pick one to switch, or add another.';
 const EDGE = 8;
 
 /** Where the menu goes, relative to its button, kept inside the window */
@@ -111,6 +114,9 @@ export function ProfileSwitcher({ variant, className }: { variant: Variant; clas
   };
 
   const label = `Profile: ${active.name}. Change profile`;
+  // With a single profile there is nothing to tell apart yet, so the card stays plain instead of being the loudest
+  // thing in the sidebar; a second profile gives each one its colour.
+  const several = profiles.length > 1;
   const trigger = (
     <button
       ref={buttonRef}
@@ -120,14 +126,16 @@ export function ProfileSwitcher({ variant, className }: { variant: Variant; clas
       aria-haspopup="true"
       aria-expanded={open}
       data-profile-trigger=""
+      title={variant === 'sidebar' ? PROFILE_EXPLANATION : undefined}
       className={cn(
         'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
-        variant === 'sidebar' && 'flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-left hover:brightness-95 dark:hover:brightness-110',
+        variant === 'sidebar' && 'flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-left',
+        variant === 'sidebar' && (several ? 'hover:brightness-95 dark:hover:brightness-110' : 'border-line hover:bg-hover'),
         variant === 'rail' && 'relative flex h-11 w-11 items-center justify-center rounded-lg hover:bg-hover',
         className,
       )}
       style={
-        variant === 'rail'
+        variant === 'rail' || !several
           ? undefined
           : { backgroundColor: `${active.color}1f`, borderColor: `${active.color}66` }
       }
@@ -166,6 +174,7 @@ export function ProfileSwitcher({ variant, className }: { variant: Variant; clas
           style={{ top: anchor.top, left: anchor.left, width: `min(${MENU_WIDTH}px, calc(100vw - ${EDGE * 2}px))`, maxHeight: anchor.maxHeight }}
         >
           <p className="px-2.5 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Switch profile</p>
+          <p className="px-2.5 pb-2 text-xs text-muted">{PROFILE_EXPLANATION}</p>
           <ul className="space-y-0.5">
             {profiles.map((profile) => {
               const isActive = profile.id === active.id;

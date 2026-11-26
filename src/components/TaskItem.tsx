@@ -227,7 +227,10 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
   // Narrow screens (under 640px) work like touch screens even with a mouse: a hidden button would still take about
   // 32px of a narrow card and cut the title short for nothing, so there the star and "more" are always shown, and
   // the sun and pin only when set.
-  const REVEAL = 'sm:[@media(hover:hover)]:opacity-0 sm:[@media(hover:hover)]:group-hover:opacity-100 sm:[@media(hover:hover)]:group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity';
+  // In the My Day page every task is in My Day, so a blue sun on each row says nothing and looks like a status, not a
+  // button. There it is drawn like the other buttons that are off (shown on hover), still filled to say "in My Day".
+  const sunIsStatus = myDay && currentView !== 'my-day';
+  const REVEAL ='sm:[@media(hover:hover)]:opacity-0 sm:[@media(hover:hover)]:group-hover:opacity-100 sm:[@media(hover:hover)]:group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity';
   const NO_TOUCH_WHEN_OFF = 'max-sm:hidden [@media(hover:none)]:hidden';
 
   // Touch screens get larger targets (44px) and no hover-only controls
@@ -360,7 +363,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
               }}
               className={cn(
                 ACTION_BUTTON,
-                myDay ? 'text-accent' : cn('text-muted', REVEAL, NO_TOUCH_WHEN_OFF)
+                sunIsStatus ? 'text-accent' : cn('text-muted', REVEAL, NO_TOUCH_WHEN_OFF)
               )}
             >
               <Sun size={16} className={myDay ? 'fill-current' : ''} />

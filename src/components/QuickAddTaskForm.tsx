@@ -7,6 +7,7 @@ import { useToastStore } from '../stores/toastStore.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
 import { getNewTaskDefaults } from '../utils/newTaskDefaults.ts';
+import { applyTitleDate } from '../utils/titleDate.ts';
 
 interface QuickAddTaskFormProps {
   isOpen: boolean;
@@ -51,11 +52,14 @@ export function QuickAddTaskForm({ isOpen, onClose, onFullFormRequested, initial
 
     try {
       // The task starts with whatever the current view needs (list, category, My Day, ...) so it shows up there
-      const { listId, ...options } = getNewTaskDefaults(currentView, currentListId, currentCategoryId);
+      const { listId, ...defaults } = getNewTaskDefaults(currentView, currentListId, currentCategoryId);
+
+      // "Call Mom tomorrow" becomes the task "Call Mom" due tomorrow
+      const created = applyTitleDate(title, defaults);
 
       // Create the task with minimal data
       // Only clear and close when the task was actually created, so typed text isn't lost on failure
-      if (addTask(title.trim(), listId, options)) {
+      if (addTask(created.title.trim(), listId, created.options)) {
         setTitle('');
         onClose();
       }

@@ -3,6 +3,7 @@ import { useTaskStore } from '../stores/taskStore.ts';
 import { useShallow } from 'zustand/react/shallow';
 import { TaskItem } from './TaskItem.tsx';
 import { MyDaySuggestions } from './MyDaySuggestions.tsx';
+import { EmptyViewMessage } from './EmptyViewMessage.tsx';
 import { useUiStore } from '../stores/uiStore.ts';
 import { useCompletionHoldStore } from '../stores/completionHoldStore.ts';
 import { filterTasksByTag } from '../utils/tagFilter.ts';
@@ -250,16 +251,7 @@ export function TaskList() {
 
       {/* No Tasks Message */}
       {allTasks.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-48 text-muted">
-          <div className="text-center">
-            <h3 className="text-lg font-medium mb-2">{filterTag ? `Nothing tagged #${filterTag.name} here` : 'No tasks yet'}</h3>
-            {filterTag ? (
-              <p className="text-sm">Clear the filter above to see the other tasks in this view.</p>
-            ) : (
-            <p className="text-sm">Use the "Add a task" bar below or press<kbd className="px-2 py-1 bg-hover rounded text-xs font-mono">N</kbd> to create your first task</p>
-            )}
-          </div>
-        </div>
+        <EmptyViewMessage view={currentView} tagName={filterTag?.name} />
       ) : isDragEnabled ? (
 
           <DndContext

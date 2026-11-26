@@ -2,6 +2,7 @@ import { startOfDay, addDays, differenceInCalendarDays } from 'date-fns';
 import { formatShortDate } from '../../utils/dateUtils.ts';
 import type { Task } from '../../types/index.ts';
 import { generateId } from '../../utils/storage.ts';
+import { describeAddedTask } from '../../utils/addedTask.ts';
 import { useToastStore } from '../toastStore.ts';
 import { computeNextDueDate, normalizeInterval } from '../../utils/repeat.ts';
 import { deduplicateCategoryIds, normalizeRepeat, toDayKey, rollOverMyDay } from './helpers.ts';
@@ -74,8 +75,20 @@ export const createTaskActions = ({ set, get, saveState }: StoreContext): Pick<T
       }));
       saveState();
       
-      // Show success toast
-      useToastStore.getState().showSuccess('Task created', `"${title.trim()}" was added successfully`);
+      // The message is only a courtesy: building it must never turn a saved task into a reported failure
+      try {
+        const state = get();
+        const message = describeAddedTask({
+          listName: listId === 'all' ? 'Tasks' : state.lists.find((list) => list.id === listId)?.name ?? 'Tasks',
+          myDay: newTask.myDay,
+          important: newTask.important,
+          dueDate: newTask.dueDate ? new Date(newTask.dueDate) : undefined,
+          tagNames: state.categories.filter((category) => newTask.categoryIds.includes(category.id)).map((category) => category.name),
+        });
+        useToastStore.getState().showSuccess(message.title, message.description);
+      } catch (toastError) {
+        console.error('Error showing the task added message:', toastError);
+      }
       return true;
     } catch (error) {
       console.error('Error adding task:', error);
@@ -296,7 +309,7 @@ export const createTaskActions = ({ set, get, saveState }: StoreContext): Pick<T
     
     // Show toast only when adding to My Day
     if (newMyDayState) {
-      useToastStore.getState().showInfo('Added to My Day', `"${task.title}" was added to My Day 📅`);
+      useToastStore.getState().showInfo('Added to My Day', `"${task.title}" was added to My Day`);
     }
   },
 

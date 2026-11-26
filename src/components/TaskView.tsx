@@ -6,6 +6,7 @@ import { getListDisplayInfo, groupIconOverride } from '../utils/emojiUtils.ts';
 import { FOCUS_SEARCH_EVENT } from '../hooks/useKeyboardShortcuts.ts';
 import { accentVars } from '../utils/accentTheme.ts';
 import { getNewTaskDefaults } from '../utils/newTaskDefaults.ts';
+import { applyTitleDate } from '../utils/titleDate.ts';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { useToastStore } from '../stores/toastStore.ts';
@@ -164,10 +165,13 @@ export function TaskView({ onBack }: TaskViewProps) {
 
     try {
       // The task starts with whatever the current view needs (list, category, My Day, ...) so it shows up there
-      const { listId, ...options } = getNewTaskDefaults(currentView, currentListId, currentCategoryId);
+      const { listId, ...defaults } = getNewTaskDefaults(currentView, currentListId, currentCategoryId);
+
+      // "Call Mom tomorrow" becomes the task "Call Mom" due tomorrow
+      const created = applyTitleDate(title, defaults);
 
       // Create the task directly
-      return addTask(title, listId, options);
+      return addTask(created.title, listId, created.options);
     } catch {
       // Show error feedback
       showError('Error', 'Failed to create task. Please try again.');

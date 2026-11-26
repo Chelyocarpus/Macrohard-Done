@@ -10,7 +10,7 @@
 ## ✨ Features
 
 ### 📋 Core Task Management
-- **My Day** - Focus on today's priorities with ☀️ icon
+- **My Day** - Your short list for today: tasks due today show up by themselves, and the sun button on any task adds it. It starts empty again the next day
 - **Important** - Mark tasks as important with ⭐ star system
 - **Planned** - Schedule tasks with due dates or reminders using 📅 calendar
 - **Tasks** - View all tasks across lists with ☑️ organization
@@ -27,7 +27,7 @@
 - **Comprehensive Task Editor** - Professional sidebar interface
 - **Subtasks/Steps** - Break down complex tasks with progress tracking
 - **Notes** - Detailed descriptions and additional context
-- **Due Dates** - Smart date picker with quick preset options
+- **Due Dates** - Smart date picker with quick preset options. When adding a task, a day at the end of the title sets the due date and is taken out of the title: "Call Mom tomorrow", "Report by friday", "Rent in 2 weeks" (today, tomorrow, a weekday, next week, in N days or weeks; no times, set those in the details)
 - **Repeat Functionality** - Smart recurring tasks that:
   - Complete normally for the day
   - Automatically reset with new due dates

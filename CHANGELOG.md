@@ -9,8 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Settings > Date and time lets you choose how dates and times are written: Mon D, YYYY (the old way), D Mon YYYY, YYYY-MM-DD, DD-MM-YYYY, MM/DD/YYYY or DD.MM.YYYY, and a 12-hour or 24-hour clock. Each choice shows an example. It applies everywhere: task cards, the task details, the date picker and its time presets, reminder messages and the "Next one" message for repeating tasks. "Today", "Tomorrow" and weekday names stay as they are. The choice is remembered on this device for all profiles, and several open tabs stay in step.
+- Type a day at the end of a new task and it becomes the due date: "Call Mom tomorrow" is added as "Call Mom", due tomorrow. It understands today, tomorrow, weekdays (also "by friday" and "next friday"), "next week" and "in 3 days" or "in 2 weeks". The add bar shows an example.
 
 ### Changed
+- The empty My Day page now explains what My Day is and how to add tasks to it. Important and Planned explain themselves too.
+- The profile in the sidebar is explained (a separate set of lists and tasks, such as Personal and Work) and stays plain until you have a second profile.
+- In My Day the sun on each task is no longer blue; it shows when you point at the task, like the other buttons.
+- The message after adding a task now says where it went and what it started with ("Added to Groceries", "Due tomorrow"), instead of repeating the title.
+- The Settings text about sync no longer points to the README.
+- The message after adding a task to My Day with its sun button no longer has an emoji.
 - On a phone, the "Add a task" bar is now a round plus button in the bottom right corner. Tap it to open a small text field with an Add button; the X closes it again, and what you typed is kept. Computers and tablets still show the full bar.
 
 ## [0.2.2] - 2026-11-25
