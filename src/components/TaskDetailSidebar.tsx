@@ -23,7 +23,8 @@ import { useAutoSave } from '../hooks/useAutoSave.ts';
 import { useEscapeKey } from '../hooks/useEscapeKey.ts';
 import { useFocusTrap } from '../hooks/useFocusTrap.ts';
 import { cn } from '../utils/cn.ts';
-import { formatDate, formatTime } from '../utils/dateUtils.ts';
+import { formatDate, formatFullDate, formatTime } from '../utils/dateUtils.ts';
+import { useDateTimePrefs } from '../stores/dateFormatStore.ts';
 import { shortcutLabel } from '../utils/platform.ts';
 import { Tooltip } from './ui/Tooltip.tsx';
 import { StepList } from './StepList.tsx';
@@ -51,6 +52,7 @@ interface TaskDetailSidebarProps {
 const QUICK_ACTION_CLASS = 'flex w-full flex-col items-center justify-center gap-1.5 px-1 py-2.5 text-xs font-medium text-muted transition-colors hover:bg-hover hover:text-ink focus:outline-none focus-visible:bg-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent [@media(pointer:coarse)]:min-h-14';
 
 export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId, initialCategoryId, initialMyDay, initialImportant, initialDueDate, panelRequest }: TaskDetailSidebarProps) {
+  useDateTimePrefs(); // dates here follow the chosen style, so draw again when it changes
   // Wide screens show an existing task's details as a permanent pane beside the list; everything else
   // (other screen sizes, and the New Task form) opens them over the page: a side panel, or on a phone a bottom sheet
   const layout = useLayoutMode();
@@ -624,7 +626,7 @@ export function TaskDetailSidebar({ task, isOpen, onClose, mode, initialListId, 
                 />
                 {mode === 'edit' && task && (
                   <div className="text-sm text-muted mt-2">
-                    Created {new Date(task.createdAt).toLocaleDateString('en-US')}
+                    Created {formatFullDate(new Date(task.createdAt))}
                   </div>
                 )}
               </div>

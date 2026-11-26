@@ -1,8 +1,9 @@
 import { Fragment, type ReactNode } from 'react';
 import { AlertTriangle, Bell, Calendar, ChevronDown, FileText, Repeat } from 'lucide-react';
-import { format, isToday, isTomorrow } from 'date-fns';
+import { isToday, isTomorrow } from 'date-fns';
 import type { Category, RowDensity, Task, TaskList } from '../types/index.ts';
-import { isOverdue } from '../utils/dateUtils.ts';
+import { formatLongDate, formatLongDateTime, isOverdue } from '../utils/dateUtils.ts';
+import { useDateTimePrefs } from '../stores/dateFormatStore.ts';
 import { dueLabel, noteExcerpt, reminderLabel, repeatLabel, splitTags, stepSegments } from '../utils/taskMeta.ts';
 import { useUiStore } from '../stores/uiStore.ts';
 import { useTaskStore } from '../stores/taskStore.ts';
@@ -28,6 +29,7 @@ interface TaskMetaProps {
 const MAX_TAGS: Record<RowDensity, number> = { compact: 2, comfortable: 3, minimal: 2 };
 
 export function TaskMeta({ task, density, stepsOpen, onToggleSteps }: TaskMetaProps) {
+  useDateTimePrefs(); // dates here follow the chosen style, so draw again when it changes
   const { completed, dueDate, reminder, steps } = task;
   const comfortable = density === 'comfortable';
 
@@ -50,13 +52,13 @@ export function TaskMeta({ task, density, stepsOpen, onToggleSteps }: TaskMetaPr
 
   const when: ReactNode[] = [
     dueDate ? (
-      <span key="due" className={cn(PILL, dueTone)} title={`Due date: ${format(dueDate, 'EEEE, MMM d, yyyy')}`}>
+      <span key="due" className={cn(PILL, dueTone)} title={`Due date: ${formatLongDate(dueDate)}`}>
         {overdue ? <AlertTriangle size={12} className="flex-shrink-0" aria-hidden="true" /> : <Calendar size={12} className="flex-shrink-0" aria-hidden="true" />}
         {dueLabel(dueDate, overdue)}
       </span>
     ) : null,
     reminder ? (
-      <span key="reminder" className={OUTLINE_PILL} title={`Reminder: ${format(reminder, 'EEEE, MMM d, yyyy, h:mm a')}`}>
+      <span key="reminder" className={OUTLINE_PILL} title={`Reminder: ${formatLongDateTime(reminder)}`}>
         <Bell size={12} className="flex-shrink-0" aria-hidden="true" />
         {reminderLabel(task)}
       </span>
@@ -163,6 +165,7 @@ interface TaskMinimalMetaProps {
  * Only an overdue date gets colour (red, with the word "Overdue"). Renders nothing when there is nothing to show.
  */
 export function TaskMinimalMeta({ task, list, listEmoji, showList, categories, stepsOpen, onToggleSteps }: TaskMinimalMetaProps) {
+  useDateTimePrefs(); // dates here follow the chosen style, so draw again when it changes
   const { completed, dueDate, reminder, steps } = task;
   const overdue = !!dueDate && !completed && isOverdue(dueDate);
   const stepsDone = steps.filter((step) => step.completed).length;
@@ -197,7 +200,7 @@ export function TaskMinimalMeta({ task, list, listEmoji, showList, categories, s
       <span
         key="due"
         className={cn('inline-flex items-center gap-1 whitespace-nowrap', overdue && 'font-medium text-overdue')}
-        title={`Due date: ${format(dueDate, 'EEEE, MMM d, yyyy')}`}
+        title={`Due date: ${formatLongDate(dueDate)}`}
       >
         {overdue && <AlertTriangle size={12} className="flex-shrink-0" aria-hidden="true" />}
         {dueLabel(dueDate, overdue)}
@@ -207,7 +210,7 @@ export function TaskMinimalMeta({ task, list, listEmoji, showList, categories, s
 
   if (reminder) {
     items.push(
-      <span key="reminder" className="inline-flex items-center" title={`Reminder: ${format(reminder, 'EEEE, MMM d, yyyy, h:mm a')}`}>
+      <span key="reminder" className="inline-flex items-center" title={`Reminder: ${formatLongDateTime(reminder)}`}>
         <Bell size={12} className="flex-shrink-0" aria-hidden="true" />
         <span className="sr-only">{reminderLabel(task)}</span>
       </span>

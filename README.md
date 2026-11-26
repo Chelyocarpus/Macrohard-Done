@@ -36,7 +36,7 @@
 
 ### 🎯 User Experience
 - **Calm, flat design** - Tasks are compact cards with one blue accent and your device's own font (nothing to download)
-- **Settings** - Open Settings from the bottom of the sidebar. Choose the theme (follow your device, light or dark) and how task rows look (compact, comfortable, or minimal for one line of details, like Microsoft To Do), and manage your lists. Your choices are remembered
+- **Settings** - Open Settings from the bottom of the sidebar. Choose the theme (follow your device, light or dark) and how task rows look (compact, comfortable, or minimal for one line of details, like Microsoft To Do), choose how dates and times are written (Mon D, YYYY, D Mon YYYY, YYYY-MM-DD, DD-MM-YYYY, MM/DD/YYYY or DD.MM.YYYY, and 12-hour or 24-hour), and manage your lists. Your choices are remembered; the date and time style belongs to the device and is shared by all profiles
 - **Responsive Design** - Three layouts: from 1100 px wide the sidebar, the list and a permanent task-details pane sit side by side; from 700 px the sidebar shrinks to icons and the details open over the list; under 700 px the app shows one screen at a time (Lists, then a list) with the details as a bottom sheet. On a touch screen, swipe a task right to add it to My Day or left to delete it (with Undo); every action is also in the task's "more" menu. On a phone, adding a task is a round plus button in the corner that opens a small text field
 - **Installable & Offline** - Add it to your home screen or desktop (PWA); the app opens without a connection once it has been loaded
 - **Smart Text Handling** - Advanced word wrapping and overflow protection
@@ -135,7 +135,8 @@ src/
 │   └── index.ts        # Core interfaces
 ├── utils/              # Utility functions
 │   ├── cn.ts          # Conditional className utility
-│   ├── dateUtils.ts   # Date formatting helpers
+│   ├── dateFormat.ts  # The date and time styles and how they are saved
+│   ├── dateUtils.ts   # Date formatting helpers (follow the chosen style)
 │   └── storage.ts     # LocalStorage management
 └── App.tsx            # Main application component
 ```
@@ -209,7 +210,7 @@ We welcome contributions! Here's how to get started:
 ### Current Limitations
 - Data lives in each browser or installed copy; it is shared between devices only through the optional cloud sync (early preview, see "Cloud sync")
 - Sign-in exists only for that sync (email and password); there are no shared lists or other users
-- Dates and labels are English only
+- Dates and labels are English only (month and weekday names; the order, separators and 12/24-hour clock can be changed in Settings). The browser's own date and time fields inside the date picker follow the device's language and clock, not that choice
 - Reminders alert only while the app is running (open, in the background, or an installed app that is still running): there is no server to wake a closed browser or phone. Only the profile you are in alerts, there is no snooze, and on an iPhone the app must be added to the Home Screen first
 - Offline support and installing need a production build served over HTTPS (or localhost); `npm run dev` does not register the service worker
 - On Windows/Linux Chrome, Ctrl+N is reserved by the browser, so that shortcut may not fire there; press `N` instead

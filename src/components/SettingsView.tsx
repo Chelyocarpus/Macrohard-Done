@@ -11,6 +11,9 @@ import { Button } from './ui/Button.tsx';
 import { cn } from '../utils/cn.ts';
 import { MAX_BACKUP_CHARS, backupFileName, parseBackup, type ParseResult } from '../utils/backup.ts';
 import { downloadTextFile } from '../utils/download.ts';
+import { DATE_FORMATS, TIME_FORMATS } from '../utils/dateFormat.ts';
+import { formatDateTime, formatFullDate, formatTime } from '../utils/dateUtils.ts';
+import { useDateFormatStore, useDateTimePrefs } from '../stores/dateFormatStore.ts';
 import type { RowDensity, TaskList, ThemePreference } from '../types/index.ts';
 
 /** A message under a section: green for done, amber for "not sure", red for failed */
@@ -113,6 +116,11 @@ const DENSITIES: { value: RowDensity; label: string; hint: string }[] = [
   { value: 'minimal', label: 'Minimal', hint: 'One line of details under each title, like Microsoft To Do' },
 ];
 
+// One fixed example (a day above the 12th, so day and month can't be mixed up) written in every style, so each choice shows what it looks like
+const SAMPLE = new Date(2026, 10, 26, 16, 30);
+const DATE_OPTIONS = DATE_FORMATS.map((option) => ({ value: option.id, label: option.label, hint: formatFullDate(SAMPLE, { dateFormat: option.id, timeFormat: '12h' }) }));
+const TIME_OPTIONS = TIME_FORMATS.map((option) => ({ value: option.id, label: option.label, hint: formatTime(SAMPLE, { dateFormat: 'text-us', timeFormat: option.id }) }));
+
 /** The confirmation before everything is removed. Escape or Cancel closes it; focus stays inside it. */
 function RemoveAllDialog({ counts, onClose, onExport, onConfirm, busy, exported }: {
   counts: { tasks: number; lists: number; tags: number };
@@ -177,6 +185,9 @@ function RemoveAllDialog({ counts, onClose, onExport, onConfirm, busy, exported 
  * and Data (export, import, remove all).
  */
 export function SettingsView() {
+  const { dateFormat, timeFormat } = useDateTimePrefs();
+  const setDateFormat = useDateFormatStore((state) => state.setDateFormat);
+  const setTimeFormat = useDateFormatStore((state) => state.setTimeFormat);
   const themePreference = useTaskStore((state) => state.themePreference);
   const rowDensity = useTaskStore((state) => state.rowDensity);
   const setThemePreference = useTaskStore((state) => state.setThemePreference);
@@ -352,6 +363,20 @@ export function SettingsView() {
         </div>
       </Section>
 
+      <Section id="settings-date-time" title="Date and time" description="How dates and times are written. This is remembered on this device, for all profiles; Today, Tomorrow and weekday names stay as they are.">
+        <div className="space-y-5">
+          <div>
+            <p className="mb-2 text-sm font-medium text-ink">Date</p>
+            <Choice label="Date format" value={dateFormat} options={DATE_OPTIONS} onChange={setDateFormat} />
+          </div>
+          <div>
+            <p className="mb-2 text-sm font-medium text-ink">Time</p>
+            <Choice label="Time format" value={timeFormat} options={TIME_OPTIONS} onChange={setTimeFormat} />
+          </div>
+          <p className="text-sm text-muted" aria-live="polite">Example: {formatDateTime(SAMPLE, { dateFormat, timeFormat })}</p>
+        </div>
+      </Section>
+
       <Section id="settings-reminders" title="Reminders" description="Get alerted at the time you set with “Remind me” on a task.">
         <ReminderSettings />
       </Section>
@@ -417,7 +442,7 @@ export function SettingsView() {
                 <p className="mt-1 text-muted">
                   Contains {pending.result.summary.tasks} task{pending.result.summary.tasks === 1 ? '' : 's'}, {pending.result.summary.lists} list{pending.result.summary.lists === 1 ? '' : 's'},{' '}
                   {pending.result.summary.listGroups} group{pending.result.summary.listGroups === 1 ? '' : 's'} and {pending.result.summary.categories} tag{pending.result.summary.categories === 1 ? '' : 's'}
-                  {pending.result.exportedAt && !Number.isNaN(new Date(pending.result.exportedAt).getTime()) ? `, exported ${new Date(pending.result.exportedAt).toLocaleString('en-US')}` : ''}.
+                  {pending.result.exportedAt && !Number.isNaN(new Date(pending.result.exportedAt).getTime()) ? `, exported ${formatDateTime(new Date(pending.result.exportedAt))}` : ''}.
                 </p>
                 <p className="mt-2 text-ink">
                   This will replace your current {counts.tasks} task{counts.tasks === 1 ? '' : 's'}, {counts.lists} list{counts.lists === 1 ? '' : 's'} and {counts.tags} tag{counts.tags === 1 ? '' : 's'}.

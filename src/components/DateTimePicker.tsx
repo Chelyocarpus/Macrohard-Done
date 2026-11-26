@@ -4,7 +4,8 @@ import { X, Clock, Calendar, Plus } from 'lucide-react';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
 import { cn } from '../utils/cn.ts';
-import { formatDate, formatTime } from '../utils/dateUtils.ts';
+import { formatClock, formatDate, formatHour, formatTime } from '../utils/dateUtils.ts';
+import { useDateTimePrefs } from '../stores/dateFormatStore.ts';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { useShallow } from 'zustand/react/shallow';
 import type { TimePreset } from '../types/index.ts';
@@ -27,6 +28,7 @@ interface DatePreset {
 }
 
 export function DateTimePicker({ value, onChange, onClose, mode, title }: DateTimePickerProps) {
+  useDateTimePrefs(); // dates here follow the chosen style, so draw again when it changes
   const { customTimePresets, addCustomTimePreset, removeCustomTimePreset, removeBuiltInPreset, disabledBuiltInPresets } = useTaskStore(useShallow((state) => ({ customTimePresets: state.customTimePresets, addCustomTimePreset: state.addCustomTimePreset, removeCustomTimePreset: state.removeCustomTimePreset, removeBuiltInPreset: state.removeBuiltInPreset, disabledBuiltInPresets: state.disabledBuiltInPresets })));
   const [selectedDate, setSelectedDate] = useState<Date>(value || new Date());
   const [selectedTime, setSelectedTime] = useState<{ hour: number; minute: number }>(() => {
@@ -306,7 +308,7 @@ export function DateTimePicker({ value, onChange, onClose, mode, title }: DateTi
                     >
                       {Array.from({ length: 24 }, (_, i) => (
                         <option key={i} value={i}>
-                          {i.toString().padStart(2, '0')}
+                          {formatHour(i)}
                         </option>
                       ))}
                     </select>
@@ -355,7 +357,7 @@ export function DateTimePicker({ value, onChange, onClose, mode, title }: DateTi
                       <div className="flex flex-col items-start">
                         <span className="font-medium">{preset.label}</span>
                         <span className="text-xs text-muted">
-                          {preset.hour.toString().padStart(2, '0')}:{preset.minute.toString().padStart(2, '0')}
+                          {formatClock(preset.hour, preset.minute)}
                         </span>
                       </div>
                     </Button>
@@ -394,7 +396,7 @@ export function DateTimePicker({ value, onChange, onClose, mode, title }: DateTi
                       <div className="flex flex-col items-start">
                         <span className="font-medium">{preset.label}</span>
                         <span className="text-xs text-muted">
-                          {preset.hour.toString().padStart(2, '0')}:{preset.minute.toString().padStart(2, '0')}
+                          {formatClock(preset.hour, preset.minute)}
                         </span>
                       </div>
                     </Button>

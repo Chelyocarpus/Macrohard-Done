@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useSyncStore } from '../stores/syncStore.ts';
+import { formatDateTime } from '../utils/dateUtils.ts';
+import { useDateTimePrefs } from '../stores/dateFormatStore.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
 
@@ -8,11 +10,12 @@ const MIN_PASSWORD = 8;
 function formatTime(iso: string | null): string {
   if (!iso) return '';
   const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString('en-US');
+  return formatDateTime(date); // '' for an invalid date
 }
 
 /** Settings > Account: sign in to keep your tasks in sync across devices (needs the cloud set up, see README). */
 export function AccountSection() {
+  useDateTimePrefs(); // dates below follow the chosen style
   const phase = useSyncStore((s) => s.phase);
   const email = useSyncStore((s) => s.email);
   const message = useSyncStore((s) => s.message);

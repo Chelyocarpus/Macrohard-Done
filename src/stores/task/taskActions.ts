@@ -1,4 +1,5 @@
-import { format, startOfDay, addDays, differenceInCalendarDays } from 'date-fns';
+import { startOfDay, addDays, differenceInCalendarDays } from 'date-fns';
+import { formatShortDate } from '../../utils/dateUtils.ts';
 import type { Task } from '../../types/index.ts';
 import { generateId } from '../../utils/storage.ts';
 import { useToastStore } from '../toastStore.ts';
@@ -237,7 +238,7 @@ export const createTaskActions = ({ set, get, saveState }: StoreContext): Pick<T
     saveState();
 
     const description = next?.dueDate
-      ? `"${task.title}" is done. Next one: ${format(next.dueDate, 'EEE, MMM d')}`
+      ? `"${task.title}" is done. Next one: ${formatShortDate(next.dueDate)}`
       : `"${task.title}" is done`;
     useToastStore.getState().showUndo('Task completed', description, () => {
       const current = get().tasks.find((t) => t.id === id);

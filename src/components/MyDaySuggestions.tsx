@@ -3,6 +3,7 @@ import { Lightbulb, ChevronDown, ChevronRight, Plus, Star, AlertTriangle } from 
 import { startOfDay } from 'date-fns';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { formatDate } from '../utils/dateUtils.ts';
+import { useDateTimePrefs } from '../stores/dateFormatStore.ts';
 import { cn } from '../utils/cn.ts';
 
 // A long backlog must not turn the panel into a second task list
@@ -14,6 +15,7 @@ const MAX_SUGGESTIONS = 20;
  * shows them on its own. The panel is collapsed until opened.
  */
 export function MyDaySuggestions() {
+  useDateTimePrefs(); // dates here follow the chosen style, so draw again when it changes
   const tasks = useTaskStore((state) => state.tasks);
   const toggleMyDay = useTaskStore((state) => state.toggleMyDay);
   const [open, setOpen] = useState(false);

@@ -7,6 +7,7 @@
  * that refuses to save, a notification that fails, two tabs, a lost acknowledgement.
  */
 import { format, isSameDay } from 'date-fns';
+import { formatTime } from './dateUtils.ts';
 import type { KeyValueStorage } from './profiles.ts';
 import {
   MAX_DELIVERY_ATTEMPTS,
@@ -66,7 +67,7 @@ const idOf = (item: DueReminder) => `${item.taskId}:${item.time}`;
 
 function whenLabel(time: number, now: number): string {
   const date = new Date(time);
-  return format(date, isSameDay(date, new Date(now)) ? 'h:mm a' : 'EEE h:mm a');
+  return isSameDay(date, new Date(now)) ? formatTime(date) : `${format(date, 'EEE')} ${formatTime(date)}`;
 }
 
 /** The message for one reminder */

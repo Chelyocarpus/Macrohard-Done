@@ -16,6 +16,7 @@ import { Button } from './ui/Button.tsx';
 import { Tooltip } from './ui/Tooltip.tsx';
 import { cn } from '../utils/cn.ts';
 import { formatDate } from '../utils/dateUtils.ts';
+import { useDateTimePrefs } from '../stores/dateFormatStore.ts';
 import { TaskDetailSidebar } from './TaskDetailSidebar.tsx';
 import { TaskMeta, TaskMinimalMeta, TaskFooter, TaskDescription } from './TaskMeta.tsx';
 import { useContextMenuHandler, useContextMenuButtonHandler } from './ui/useContextMenu.ts';
@@ -38,6 +39,7 @@ interface TaskItemProps {
 }
 
 function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIsDragging = false, isOverlay = false, activeTaskId = null, tabbable = false, highlight, extra, showListName = false }: TaskItemProps) {
+  useDateTimePrefs(); // dates here follow the chosen style, so draw again when it changes
   // Select only what this item needs (actions are stable; lists/groups change rarely) so
   // unrelated store updates, such as editing another task, don't re-render every item.
   const {
