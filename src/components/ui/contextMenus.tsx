@@ -15,7 +15,8 @@ import {
   RotateCcw,
   Pin,
   Globe,
-  Tag
+  Tag,
+  CheckSquare
 } from 'lucide-react';
 import type { Task, TaskList } from '../../types/index.ts';
 import type { ContextMenuData } from '../ui/ContextMenu.tsx';
@@ -35,6 +36,10 @@ export function createTaskContextMenu(
     onAddToMyDay?: () => void;
     onSetDueDate?: () => void;
     onManageCategories?: () => void;
+    /** Start selecting several tasks with this one */
+    onSelect?: () => void;
+    /** This task is already selected */
+    selected?: boolean;
   }
 ): ContextMenuData {
   return {
@@ -55,6 +60,14 @@ export function createTaskContextMenu(
             icon: <Copy size={16} />,
             onClick: actions.onDuplicate,
           },
+          ...(actions.onSelect
+            ? [{
+                id: 'select',
+                label: actions.selected ? 'Unselect' : 'Select',
+                icon: <CheckSquare size={16} />,
+                onClick: actions.onSelect,
+              }]
+            : []),
         ],
       },
       {

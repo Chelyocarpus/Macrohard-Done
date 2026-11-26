@@ -6,7 +6,7 @@ import { getListDisplayInfo, groupIconOverride } from '../utils/emojiUtils.ts';
 import { FOCUS_SEARCH_EVENT } from '../hooks/useKeyboardShortcuts.ts';
 import { accentVars } from '../utils/accentTheme.ts';
 import { getNewTaskDefaults } from '../utils/newTaskDefaults.ts';
-import { applyTitleDate } from '../utils/titleDate.ts';
+import { addTaskFromText } from '../utils/addTaskFromText.ts';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { useToastStore } from '../stores/toastStore.ts';
@@ -25,6 +25,7 @@ import type { TaskList as TaskListType } from '../types/index.ts';
 import { useContextMenuHandler } from './ui/useContextMenu.ts';
 import { createEmptyAreaContextMenu } from './ui/contextMenus.tsx';
 import { FloatingActionButton } from './FloatingActionButton.tsx';
+import { BulkActionBar } from './BulkActionBar.tsx';
 import { QuickAddTaskForm } from './QuickAddTaskForm.tsx';
 import { useEscapeKey } from '../hooks/useEscapeKey.ts';
 
@@ -54,7 +55,10 @@ export function TaskView({ onBack }: TaskViewProps) {
   const filterTag = tagFilter ? categories.find((category) => category.id === tagFilter) : undefined;
   useEffect(() => {
     useUiStore.getState().setTagFilter(null);
+    useUiStore.getState().clearChecked(); // ticked tasks belong to the page they were ticked on
   }, [currentView, currentListId, currentCategoryId]);
+  // While tasks are ticked the selection bar takes the place of the add bar
+  const checkedCount = useUiStore((state) => state.checkedTaskIds.length);
   useEffect(() => {
     if (tagFilter && !filterTag) useUiStore.getState().setTagFilter(null);
   }, [tagFilter, filterTag]);
@@ -160,18 +164,12 @@ export function TaskView({ onBack }: TaskViewProps) {
   };
 
   const handleInlineTaskCreate = (title: string): boolean => {
-    const { addTask } = useTaskStore.getState();
     const { showError } = useToastStore.getState();
 
     try {
-      // The task starts with whatever the current view needs (list, category, My Day, ...) so it shows up there
-      const { listId, ...defaults } = getNewTaskDefaults(currentView, currentListId, currentCategoryId);
-
-      // "Call Mom tomorrow" becomes the task "Call Mom" due tomorrow
-      const created = applyTitleDate(title, defaults);
-
-      // Create the task directly
-      return addTask(created.title, listId, created.options);
+      // "Call Mom tomorrow #home !" becomes the task "Call Mom", due tomorrow, tagged home, important. The task also
+      // starts with whatever the current view needs (list, category, My Day, ...) so it shows up there.
+      return addTaskFromText(title);
     } catch {
       // Show error feedback
       showError('Error', 'Failed to create task. Please try again.');
@@ -282,9 +280,12 @@ export function TaskView({ onBack }: TaskViewProps) {
       <FloatingActionButton
         onQuickAdd={() => handleQuickAdd()}
         onInlineTaskCreate={handleInlineTaskCreate}
-        isAnySidebarOpening={isAnySidebarOpen}
+        isAnySidebarOpening={isAnySidebarOpen || checkedCount > 0}
       />
       )}
+
+      {/* Selection bar: complete, important, My Day, due date, tag, move and delete for the ticked tasks */}
+      {currentView !== 'settings' && <BulkActionBar />}
 
       {/* Quick Add Task Modal */}
       <QuickAddTaskForm

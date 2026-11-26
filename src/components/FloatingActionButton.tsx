@@ -185,7 +185,8 @@ export function FloatingActionButton({
               value={quickAddText}
               onChange={(e) => setQuickAddText(e.target.value)}
               onKeyDown={handleQuickAddKeyDown}
-              placeholder='Task name, e.g. "Call Mom tomorrow"'
+              placeholder='e.g. "Call Mom tomorrow #home !"'
+              aria-description="Add #tag, @list, ! for important, or a day such as friday at the end"
               aria-label="New task name"
               className="flex-1 min-w-0 bg-transparent text-base text-ink placeholder:text-muted border-none outline-none"
             />

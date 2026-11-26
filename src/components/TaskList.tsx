@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTaskStore } from '../stores/taskStore.ts';
 import { useShallow } from 'zustand/react/shallow';
 import { TaskItem } from './TaskItem.tsx';
@@ -100,6 +100,13 @@ export function TaskList() {
     ...(completedSectionAllowed && showCompleted ? completedTasks : []),
   ].map((task) => task.id);
   const tabbableId = selectedTaskId && visibleIds.includes(selectedTaskId) ? selectedTaskId : visibleIds[0] ?? null;
+
+  // Ticked tasks that are no longer shown (deleted, filtered out, a collapsed "Completed" section) are unticked, so a
+  // bulk action never reaches a task that is not on screen
+  const visibleKey = visibleIds.join('|');
+  useEffect(() => {
+    useUiStore.getState().retainChecked(visibleKey ? visibleKey.split('|') : []);
+  }, [visibleKey]);
 
   // MouseSensor (not PointerSensor) so finger touches are handled only by TouchSensor's press-and-hold;
   // otherwise a swipe to scroll the list would also start a drag.

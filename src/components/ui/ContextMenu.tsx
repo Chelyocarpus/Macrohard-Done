@@ -161,7 +161,8 @@ const ContextMenu = React.forwardRef<HTMLDivElement, ContextMenuProps>(
           top: position.y,
         }}
       >
-        <div className="py-1">
+        {/* Long menus (many lists or tags) scroll instead of running off the screen */}
+        <div className="py-1 max-h-[min(70vh,28rem)] overflow-y-auto">
           {data.sections.map((section, sectionIndex) => (
             <div key={sectionIndex}>
               {section.items.map((item, itemIndex) => (

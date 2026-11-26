@@ -28,6 +28,7 @@
 - **Subtasks/Steps** - Break down complex tasks with progress tracking
 - **Notes** - Detailed descriptions and additional context
 - **Due Dates** - Smart date picker with quick preset options. When adding a task, a day at the end of the title sets the due date and is taken out of the title: "Call Mom tomorrow", "Report by friday", "Rent in 2 weeks" (today, tomorrow, a weekday, next week, in N days or weeks; no times, set those in the details)
+- **Quick-add syntax** - Type everything into the add bar or the Quick Add dialog: `Ship invoice #work ! friday @Clients` creates "Ship invoice" tagged work, important, due Friday, in the list Clients. `#tag` uses an existing tag, `@list` an existing list (or `@tasks` for the default one), a lone `!` means important, and the day goes at the end. Names ignore capitals, spaces and punctuation (`#deepwork` finds "Deep Work"), and a short start works while it is unambiguous. A tag or list that does not exist stays in the title and a message says so; nothing is made up. The Quick Add dialog shows what it understood before you add
 - **Repeat Functionality** - Smart recurring tasks that:
   - Complete normally for the day
   - Automatically reset with new due dates
@@ -41,7 +42,8 @@
 - **Installable & Offline** - Add it to your home screen or desktop (PWA); the app opens without a connection once it has been loaded
 - **Smart Text Handling** - Advanced word wrapping and overflow protection
 - **Navigation that follows the browser** - Every list, tag and page has its own address (`#/list/...`, `#/tag/...`, `#/important`, `#/planned`, `#/tasks`, `#/search`, `#/settings`). The browser's Back and Forward buttons (and a phone's back gesture) walk through the places you visited, Back also closes an open panel or dialog instead of leaving the page, and reloading or sharing the link opens the same place. On a phone, Back from a list returns to the Lists screen. The tab title names the page, and a link to a list or tag that no longer exists opens My Day. Keyboard users get a "Skip to tasks" link as the first Tab stop
-- **Keyboard Shortcuts** - Select a task with the arrow keys, then `Space` completes it, `S` marks it important, `M` adds it to My Day, `P` pins it to the top of its list, `D` and `R` set a due date and reminder, `Enter` opens it, `Delete` removes it, and `Alt+↑`/`Alt+↓` reorder it in a manually sorted list. `1` to `4` open My Day, Important, Planned and Tasks, `N` adds a task, `F` or `Ctrl+F` (Strg+F) searches, `Ctrl+Z` undoes while the Undo message is showing, and `?` lists every shortcut. Shortcuts are off while you type in a field.
+- **Select several tasks** - `Ctrl+click` (`⌘`-click on a Mac) selects a task, `Shift+click` or `Shift+↑`/`Shift+↓` selects a range, `X` selects the current task and `Ctrl+A` all of them; on a touch screen choose **Select** in a task's "more" menu and then tap more tasks. A bar appears at the bottom with Complete, Important, My Day, Due, Tag, Move and Delete, each applied to all selected tasks with one Undo message. `Space`, `S`, `M`, `P` and `Delete` also act on the whole selection, and `Esc` clears it
+- **Keyboard Shortcuts** - Select a task with the arrow keys, then `Space` completes it, `S` marks it important, `M` adds it to My Day, `P` pins it to the top of its list, `D` and `R` set a due date and reminder, `Enter` opens it, `Delete` removes it (and the selection moves to the next task in the same part of the page, so deleting the last open task does not jump into "Completed"), and `Alt+↑`/`Alt+↓` reorder it in a manually sorted list. The star, sun, pin and "more" buttons on a task are always shown, so cards don't change as you move through the list. `1` to `4` open My Day, Important, Planned and Tasks, `N` adds a task, `F` or `Ctrl+F` (Strg+F) searches, `Ctrl+Z` undoes while the Undo message is showing, and `?` lists every shortcut. Shortcuts are off while you type in a field.
 - **Collapsible Sidebar** - Maximize workspace when needed
 - **Search** - Press `F` or `Ctrl+F` (or click the search box in the sidebar) to look through every task's title, notes, steps and tags as you type. Results show the list each task is in and where the words were found, and can be narrowed by list, tag, due date or importance
 
@@ -145,7 +147,7 @@ src/
 
 ### Creating Tasks
 1. Click "Add Task" button or press keyboard shortcut
-2. Enter task title and additional details
+2. Enter task title and additional details (or use the quick-add syntax: `Ship invoice #work ! friday @Clients`)
 3. Set due dates, importance, and repeat patterns
 4. Organize with custom lists and colors
 

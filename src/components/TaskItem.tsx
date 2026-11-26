@@ -9,6 +9,7 @@ import { useUiStore } from '../stores/uiStore.ts';
 import { useCompletionHoldStore } from '../stores/completionHoldStore.ts';
 import { toggleTaskWithHold } from '../utils/completeTask.ts';
 import { focusTaskRowSoon } from '../utils/taskDom.ts';
+import { checkRangeTo } from '../utils/bulkTasks.ts';
 import { groupIconOverride } from '../utils/emojiUtils.ts';
 import { highlightSegments, sameTerms } from '../utils/search.ts';
 import { useSwipeRow } from '../hooks/useSwipeRow.ts';
@@ -100,11 +101,15 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
   // drive them. These selectors return plain values, so only the affected rows re-render.
   const selected = useUiStore((state) => state.selectedTaskId === taskId);
   const showEditSidebar = useUiStore((state) => state.openTask?.id === taskId);
+  // Ticked for a bulk action (Ctrl/Shift+click, X, Ctrl+A); the selection bar acts on these
+  const checked = useUiStore((state) => state.checkedTaskIds.includes(taskId));
   // The request object itself (new for every shortcut press), so the open details can react to a repeated D or R
   const detailRequest = useUiStore((state) => (state.openTask?.id === taskId ? state.openTask : null));
   const [showSteps, setShowSteps] = useState(false);
   // Only counts while the task is still completed: an Undo during the hold must not collapse an open task
   const collapsing = useCompletionHoldStore((state) => state.phases[taskId] === 'collapsing') && completed;
+  // Which part of the page the row is in: a task that was just completed waits among the open ones for a moment
+  const held = useCompletionHoldStore((state) => !!state.phases[taskId]);
 
   // Touch: swipe right = My Day, swipe left = delete (with Undo). The "more" menu has both for every other input.
   const swipe = useSwipeRow({
@@ -175,13 +180,43 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
   };
 
   // Clicking or tapping the row opens the task details (the steps have their own toggle button).
+  // Ctrl/Cmd+click ticks the task and Shift+click ticks everything from the selected row to this one (see
+  // utils/bulkTasks.ts). Once any task is ticked a plain click ticks too, so a touch screen can pick several.
   // Pitfalls guarded against: clicks on links, buttons and inputs inside the row keep their own
   // behaviour, and finishing a text selection by dragging across the title must not open the panel.
   const handleTaskClick = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('a, button, input, textarea, label, select')) return;
-    if (window.getSelection()?.toString()) return;
     if (swipe.consumeClick()) return; // the tap a browser sends when a swipe ends
+    if (!isOverlay) {
+      if (e.shiftKey) {
+        checkRangeTo(taskId);
+        focusTaskRowSoon(taskId);
+        return;
+      }
+      if (e.ctrlKey || e.metaKey || useUiStore.getState().checkedTaskIds.length > 0) {
+        const ui = useUiStore.getState();
+        ui.toggleChecked(taskId);
+        ui.selectTask(taskId);
+        focusTaskRowSoon(taskId);
+        return;
+      }
+    }
+    if (window.getSelection()?.toString()) return;
     handleEdit();
+  };
+
+  // A click with Shift or Ctrl/Cmd must not also start a text selection or move focus (the click handler does both jobs)
+  const handleMouseDownCapture = (e: React.MouseEvent) => {
+    if ((e.shiftKey || e.ctrlKey || e.metaKey) && !(e.target as HTMLElement).closest('a, button, input, textarea, label, select')) {
+      e.preventDefault();
+    }
+  };
+
+  // From the more menu: start selecting several tasks with this one
+  const handleSelect = () => {
+    const ui = useUiStore.getState();
+    if (!ui.checkedTaskIds.includes(taskId)) ui.toggleChecked(taskId);
+    ui.selectTask(taskId);
   };
 
   // The same menu opens from a right-click and from the visible "more" button (for touch screens)
@@ -196,6 +231,8 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
     onDuplicate: handleDuplicate,
     onSetDueDate: handleSetDueDate,
     onManageCategories: handleEdit, // Opens edit sidebar where categories can be managed
+    onSelect: handleSelect,
+    selected: checked,
   });
   const handleContextMenu = useContextMenuHandler(getTaskMenu);
   const handleMenuButtonClick = useContextMenuButtonHandler(getTaskMenu);
@@ -220,17 +257,15 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
   const handlePinClick = () => (pinnedGlobally ? handleToggleGlobalPin() : handleTogglePin());
   const pinLabel = pinnedGlobally ? 'Unpin from all views' : pinned ? 'Unpin from the top of the list' : 'Pin to the top of the list';
 
-  // Hover only reveals the buttons that are still OFF. One that is set (in My Day, important, pinned) stays
-  // visible as the row's state. A hidden button still takes its space, so rows don't shift, and it shows for
-  // keyboard focus anywhere in the row. Touch screens have no hover: the star stays visible there, the sun and
-  // pin appear only when set (the "more" menu and swipes reach them).
-  // Narrow screens (under 640px) work like touch screens even with a mouse: a hidden button would still take about
-  // 32px of a narrow card and cut the title short for nothing, so there the star and "more" are always shown, and
-  // the sun and pin only when set.
+  // The buttons are always shown, so a card looks the same whether or not it is selected or hovered, and nothing
+  // appears or disappears as you move through the list with the arrow keys. A button that is set (in My Day,
+  // important, pinned) is drawn in its colour; one that is off is drawn quiet.
+  // Touch screens have no hover, and narrow screens (under 640px) work like them even with a mouse: a sun or pin that
+  // is off would take about 32px of a narrow card and cut the title short for nothing, so there they show only when
+  // set (the "more" menu and swipes reach them); the star and "more" are always shown.
   // In the My Day page every task is in My Day, so a blue sun on each row says nothing and looks like a status, not a
-  // button. There it is drawn like the other buttons that are off (shown on hover), still filled to say "in My Day".
+  // button. There it is drawn like the other buttons that are off, still filled to say "in My Day".
   const sunIsStatus = myDay && currentView !== 'my-day';
-  const REVEAL ='sm:[@media(hover:hover)]:opacity-0 sm:[@media(hover:hover)]:group-hover:opacity-100 sm:[@media(hover:hover)]:group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity';
   const NO_TOUCH_WHEN_OFF = 'max-sm:hidden [@media(hover:none)]:hidden';
 
   // Touch screens get larger targets (44px) and no hover-only controls
@@ -244,7 +279,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
         {...(isDragEnabled ? { ...attributes, ...listeners } : {})}
         // Keyboard: one row is in the Tab order (roving tabindex); the arrow keys move between rows (see
         // hooks/useKeyboardShortcuts.ts). The copy shown while dragging is not a real row.
-        {...(isOverlay ? {} : { 'data-task-id': taskId })}
+        {...(isOverlay ? {} : { 'data-task-id': taskId, 'data-task-section': completed && !held ? 'done' : 'open', 'data-task-checked': checked ? 'true' : undefined })}
         tabIndex={!isOverlay && (selected || tabbable) ? 0 : -1}
         aria-current={selected ? 'true' : undefined}
         onFocus={() => useUiStore.getState().selectTask(taskId)}
@@ -263,6 +298,8 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
           // Focus ring: 2px accent, inside the card so the list can't clip it.
           selected && !isOverlay && '[@media(pointer:fine)]:border-list [@media(pointer:fine)]:bg-[image:linear-gradient(var(--row-selected),var(--row-selected))]',
           showEditSidebar && !isOverlay && 'border-list bg-[image:linear-gradient(var(--row-selected),var(--row-selected))]',
+          // Ticked for a bulk action: an accent border, a tint and a bar on the left edge (not colour alone)
+          checked && !isOverlay && 'border-accent bg-[image:linear-gradient(rgb(var(--c-accent)/0.12),rgb(var(--c-accent)/0.12))] shadow-[inset_4px_0_0_0_rgb(var(--c-accent))]',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
           // While swiping the content slides sideways; keep it inside the card so the list doesn't scroll sideways
           swipe.offset !== 0 && 'overflow-hidden',
@@ -271,6 +308,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
           activeTaskId && activeTaskId !== taskId && !isDragging && 'opacity-40'
         )}
         onClick={handleTaskClick}
+        onMouseDownCapture={handleMouseDownCapture}
         onContextMenu={handleContextMenu}
         {...swipe.handlers}
       >
@@ -295,6 +333,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
             transition: swipe.dragging ? 'none' : 'transform 160ms ease-out',
           }}
         >
+          {checked && <span className="sr-only">Selected. </span>}
           <div className="flex items-start gap-3">
           {/* Checkbox: a 24px circle (follows the text size); hover previews the check, checked fills with the "done" colour */}
           <Tooltip label={completed ? 'Mark as not done' : 'Mark as done'}>
@@ -352,7 +391,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
             </div>
           </div>
 
-          {/* Actions on the right: sun (My Day), pin, star, and "more". Set ones always show; off ones show on hover. */}
+          {/* Actions on the right: sun (My Day), pin, star, and "more". Always shown; set ones are in colour. */}
           {/* The negative top and bottom margins cancel the buttons' extra height, so the note and details start right
               under the title instead of under the taller buttons. */}
           <div className="flex items-center gap-0.5 self-start -my-1.5 -mr-1 [@media(pointer:coarse)]:-my-[11px] [@media(pointer:coarse)]:gap-1">
@@ -368,7 +407,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
               }}
               className={cn(
                 ACTION_BUTTON,
-                sunIsStatus ? 'text-accent' : cn('text-muted', REVEAL, NO_TOUCH_WHEN_OFF)
+                sunIsStatus ? 'text-accent' : cn('text-muted hover:text-ink', NO_TOUCH_WHEN_OFF)
               )}
             >
               <Sun size={16} className={myDay ? 'fill-current' : ''} />
@@ -388,7 +427,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
               className={cn(
                 ACTION_BUTTON,
                 // pinned to all views reads as the accent, pinned to its list as normal text
-                pinnedGlobally ? 'text-accent' : pinned ? 'text-ink' : cn('text-muted', REVEAL, NO_TOUCH_WHEN_OFF)
+                pinnedGlobally ? 'text-accent' : pinned ? 'text-ink' : cn('text-muted hover:text-ink', NO_TOUCH_WHEN_OFF)
               )}
             >
               <Pin size={16} className={pinned || pinnedGlobally ? 'fill-current' : ''} />
@@ -405,14 +444,14 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
                 e.stopPropagation();
                 handleToggleImportant();
               }}
-              className={cn(ACTION_BUTTON, important ? 'text-important' : cn('text-muted hover:text-important', REVEAL))}
+              className={cn(ACTION_BUTTON, important ? 'text-important' : 'text-muted hover:text-important')}
             >
               <Star size={16} className={important ? 'fill-current' : ''} />
             </Button>
             </Tooltip>
 
             {/* More - same menu as right-click, so touch screens can reach every task action.
-                On mouse devices it appears on hover or keyboard focus to keep the list quiet. */}
+                Always shown, like the buttons beside it. */}
             <Tooltip label="More actions">
             <Button
               variant="ghost"
@@ -422,8 +461,7 @@ function TaskItemComponent({ task, isDragEnabled = false, isDragging: providedIs
               onClick={handleMenuButtonClick}
               className={cn(
                 ACTION_BUTTON,
-                'text-muted hover:text-ink',
-                REVEAL
+                'text-muted hover:text-ink'
               )}
             >
               <MoreHorizontal size={16} />

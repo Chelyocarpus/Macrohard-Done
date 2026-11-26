@@ -1,11 +1,11 @@
-import { startOfDay, addDays, differenceInCalendarDays } from 'date-fns';
+import { startOfDay } from 'date-fns';
 import { formatShortDate } from '../../utils/dateUtils.ts';
 import type { Task } from '../../types/index.ts';
 import { generateId } from '../../utils/storage.ts';
 import { describeAddedTask } from '../../utils/addedTask.ts';
 import { useToastStore } from '../toastStore.ts';
 import { computeNextDueDate, normalizeInterval } from '../../utils/repeat.ts';
-import { deduplicateCategoryIds, normalizeRepeat, toDayKey, rollOverMyDay } from './helpers.ts';
+import { buildNextOccurrence, deduplicateCategoryIds, normalizeRepeat, toDayKey, rollOverMyDay } from './helpers.ts';
 import type { NewTaskOptions, StoreContext, TaskStore } from './types.ts';
 
 /** Task actions: adding, changing, completing, pinning and ordering tasks and their steps, and the daily My Day and repeat passes. */
@@ -220,24 +220,7 @@ export const createTaskActions = ({ set, get, saveState }: StoreContext): Pick<T
 
     // Complete
     const now = new Date();
-    let next: Task | undefined;
-    if (task.repeat && task.repeat !== 'none') {
-      const nextDueDate = computeNextDueDate(task, now);
-      const shiftDays = task.dueDate ? differenceInCalendarDays(nextDueDate, new Date(task.dueDate)) : 0;
-      next = {
-        ...task,
-        id: generateId(),
-        completed: false,
-        myDay: false,
-        myDayDate: undefined,
-        dueDate: nextDueDate,
-        reminder: task.reminder && task.dueDate ? addDays(new Date(task.reminder), shiftDays) : undefined,
-        repeatSpawnedId: undefined,
-        steps: task.steps.map((step) => ({ ...step, id: generateId(), completed: false })),
-        createdAt: now,
-        updatedAt: now,
-      };
-    }
+    const next = buildNextOccurrence(task, now);
     const spawnedId = next?.id;
 
     set((state) => ({

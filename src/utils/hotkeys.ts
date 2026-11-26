@@ -14,6 +14,9 @@
  *   friends are never swallowed.
  * - Key repeat: holding a key down must not toggle a task over and over, so only navigation and
  *   moving a task repeat (`REPEATABLE`).
+ * - Select several: Space, S, M, P and Delete act on the whole selection once tasks are selected (see
+ *   utils/bulkTasks.ts); Ctrl+A only selects all from a task row, so it never replaces the browser's own
+ *   "select all text".
  * - Caps Lock and layouts: single characters are compared lower-cased, and "?" is accepted with or
  *   without Shift because layouts differ.
  */
@@ -39,6 +42,11 @@ export type HotkeyId =
   | 'go-important'
   | 'go-planned'
   | 'go-tasks'
+  | 'toggle-check'
+  | 'select-all'
+  | 'extend-next'
+  | 'extend-previous'
+  | 'clear-selection'
   | 'help';
 
 /** The parts of a keyboard event the map looks at (a real `KeyboardEvent` fits). */
@@ -67,7 +75,7 @@ export interface HotkeyContext {
 }
 
 /** Actions that may fire again while the key is held down. */
-const REPEATABLE: ReadonlySet<HotkeyId> = new Set<HotkeyId>(['move-up', 'move-down', 'select-next', 'select-previous']);
+const REPEATABLE: ReadonlySet<HotkeyId> = new Set<HotkeyId>(['move-up', 'move-down', 'select-next', 'select-previous', 'extend-next', 'extend-previous']);
 
 export function resolveHotkey(e: KeyInfo, ctx: HotkeyContext): HotkeyId | null {
   const id = resolveIgnoringRepeat(e, ctx);
@@ -85,6 +93,8 @@ function resolveIgnoringRepeat(e: KeyInfo, ctx: HotkeyContext): HotkeyId | null 
   if (mod && !e.altKey) {
     if (key === 'f' && !e.shiftKey) return 'search'; // Strg+F ("Suchen"); also from inside a text field
     if (ctx.typing) return null; // let the field handle its own undo, etc.
+    // Select all tasks, but only from a task row: elsewhere Ctrl+A keeps selecting the page's text
+    if (key === 'a' && !e.shiftKey && ctx.zone === 'task') return 'select-all';
     if (key === 'z' && !e.shiftKey) return 'undo';
     if (key === 'm' && e.shiftKey) return 'move-to-list';
     return null;
@@ -103,7 +113,13 @@ function resolveIgnoringRepeat(e: KeyInfo, ctx: HotkeyContext): HotkeyId | null 
 
   // "?" is Shift+/ on many layouts; some report the key as "/" with Shift held, so accept both
   if (key === '?' || (key === '/' && e.shiftKey)) return 'help';
-  if (e.shiftKey) return null;
+  // Shift+Up / Shift+Down add the next row to the selection
+  if (e.shiftKey) {
+    if (ctx.zone === 'other') return null;
+    if (key === 'ArrowDown') return 'extend-next';
+    if (key === 'ArrowUp') return 'extend-previous';
+    return null;
+  }
 
   switch (key) {
     case 'n': return 'new-task';
@@ -113,6 +129,8 @@ function resolveIgnoringRepeat(e: KeyInfo, ctx: HotkeyContext): HotkeyId | null 
     case 'p': return 'pin';
     case 'd': return 'due-date';
     case 'r': return 'reminder';
+    case 'x': return 'toggle-check';
+    case 'Escape': return 'clear-selection'; // only used when tasks are selected (the app checks)
     case 'Delete': return 'delete';
     // The four views, in the order the sidebar lists them
     case '1': return 'go-my-day';
@@ -133,7 +151,7 @@ function resolveIgnoringRepeat(e: KeyInfo, ctx: HotkeyContext): HotkeyId | null 
 
 export interface HotkeyHelpEntry {
   id: HotkeyId;
-  group: 'Tasks' | 'Move around' | 'App';
+  group: 'Tasks' | 'Select several' | 'Move around' | 'App';
   label: string;
   /** Alternatives, each a list of key names; "Mod" means Ctrl (⌘ on Apple devices) */
   keys: string[][];
@@ -152,6 +170,11 @@ export const HOTKEY_HELP: HotkeyHelpEntry[] = [
   { id: 'move-to-list', group: 'Tasks', label: 'Move to another list', keys: [['Mod', 'Shift', 'M']] },
   { id: 'move-up', group: 'Tasks', label: 'Move up in a manually ordered list', keys: [['Alt', 'Up']] },
   { id: 'move-down', group: 'Tasks', label: 'Move down in a manually ordered list', keys: [['Alt', 'Down']] },
+  { id: 'toggle-check', group: 'Select several', label: 'Select or unselect the current task', keys: [['X']] },
+  { id: 'extend-next', group: 'Select several', label: 'Add the next task to the selection', keys: [['Shift', 'Down']] },
+  { id: 'extend-previous', group: 'Select several', label: 'Add the previous task to the selection', keys: [['Shift', 'Up']] },
+  { id: 'select-all', group: 'Select several', label: 'Select all tasks on the page', keys: [['Mod', 'A']] },
+  { id: 'clear-selection', group: 'Select several', label: 'Clear the selection', keys: [['Esc']] },
   { id: 'select-next', group: 'Move around', label: 'Select the next task', keys: [['Down']] },
   { id: 'select-previous', group: 'Move around', label: 'Select the previous task', keys: [['Up']] },
   { id: 'go-my-day', group: 'Move around', label: 'Go to My Day', keys: [['1']] },

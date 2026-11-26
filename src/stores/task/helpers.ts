@@ -1,5 +1,30 @@
-import { format } from 'date-fns';
+import { addDays, differenceInCalendarDays, format } from 'date-fns';
 import type { Task, TaskList } from '../../types/index.ts';
+import { generateId } from '../../utils/storage.ts';
+import { computeNextDueDate } from '../../utils/repeat.ts';
+
+/**
+ * The next occurrence a repeating task creates when it is completed, or undefined when it does not repeat.
+ * It starts with all steps open, no My Day, and a reminder moved by the same number of days as the due date.
+ */
+export const buildNextOccurrence = (task: Task, now: Date): Task | undefined => {
+  if (!task.repeat || task.repeat === 'none') return undefined;
+  const nextDueDate = computeNextDueDate(task, now);
+  const shiftDays = task.dueDate ? differenceInCalendarDays(nextDueDate, new Date(task.dueDate)) : 0;
+  return {
+    ...task,
+    id: generateId(),
+    completed: false,
+    myDay: false,
+    myDayDate: undefined,
+    dueDate: nextDueDate,
+    reminder: task.reminder && task.dueDate ? addDays(new Date(task.reminder), shiftDays) : undefined,
+    repeatSpawnedId: undefined,
+    steps: task.steps.map((step) => ({ ...step, id: generateId(), completed: false })),
+    createdAt: now,
+    updatedAt: now,
+  };
+};
 
 // Utility function to deduplicate category IDs
 export const deduplicateCategoryIds = (categoryIds: string[]): string[] => {

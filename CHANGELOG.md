@@ -12,8 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Type a day at the end of a new task and it becomes the due date: "Call Mom tomorrow" is added as "Call Mom", due tomorrow. It understands today, tomorrow, weekdays (also "by friday" and "next friday"), "next week" and "in 3 days" or "in 2 weeks". The add bar shows an example.
 - Settings > Appearance has a Text size choice (Standard, Large or Extra large, 25% or 50% bigger) that makes all text, buttons and icons larger. It is remembered on this device.
 - Settings > Appearance also has "How long messages stay": normal, 30 seconds, or until you close them.
+- The add bar understands more than a day now: `#work` adds a tag, `@Clients` puts the task in that list, and a lone `!` makes it important. "Ship invoice #work ! friday @Clients" does all of it. A tag or list that doesn't exist stays in the title and a message tells you. The Quick Add window shows what it understood before you add.
+- You can select several tasks: Ctrl+click (or Select in a task's "more" menu on a phone), Shift+click or Shift+Up/Down for a range, X for the current one, Ctrl+A for all. A bar at the bottom completes, stars, adds to My Day, sets a due date, tags, moves or deletes them all at once, with one Undo. Space, S, M, P and Delete work on the whole selection, and Esc clears it.
 
 ### Changed
+- The star, sun, pin and "more" buttons on a task are always visible (they used to appear only for the selected or hovered task), so the list no longer changes as you move through it with the arrow keys. On phones the sun and pin still show only when set.
+- After deleting or completing a task with the keyboard, the selection stays with the open tasks. Deleting the last open task no longer jumps into the Completed list.
 - Messages stay longer: 8 seconds, 10 for errors and 15 for a message with an Undo button (it was 6). A message also waits while you hold a finger on it or have it selected with the keyboard, not just while the mouse is over it.
 - The Undo button and the X on messages are bigger and easier to hit. On a touch screen the check circle, the X buttons, the step circles and the group buttons all have a 44 px tap area, with more room between the star, sun, pin and "more" buttons on a task. The check circle is a little bigger, and the small boxes for steps on a task card are bigger and can be ticked by tapping the step's words.
 - On a phone, a message no longer covers the Duplicate, Pin, Complete and Move buttons in the task details; it moves up above them.

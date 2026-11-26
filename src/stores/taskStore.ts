@@ -5,6 +5,7 @@ import { createWriteScheduler } from '../utils/writeScheduler.ts';
 import type { StoreContext, TaskStore } from './task/types.ts';
 import { loadInitialState, toPersistedState } from './task/initialState.ts';
 import { createTaskActions } from './task/taskActions.ts';
+import { createBulkActions } from './task/bulkActions.ts';
 import { createTaskQueries } from './task/taskQueries.ts';
 import { createListActions } from './task/listActions.ts';
 import { createCategoryActions } from './task/categoryActions.ts';
@@ -55,6 +56,7 @@ export const useTaskStore = create<TaskStore>()((set, get) => {
   const store = {
     ...initialState,
     ...createTaskActions(context),
+    ...createBulkActions(context),
     ...createTaskQueries(context),
     ...createListActions(context),
     ...createCategoryActions(context),

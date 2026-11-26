@@ -10,6 +10,42 @@ const onButton: HotkeyContext = { typing: false, zone: 'button', modalOpen: fals
 const onOther: HotkeyContext = { typing: false, zone: 'other', modalOpen: false };
 const typing: HotkeyContext = { typing: true, zone: 'other', modalOpen: false };
 
+describe('selecting several tasks', () => {
+  it('extends the selection with Shift+Down / Shift+Up, also while held down', () => {
+    expect(resolveHotkey(key('ArrowDown', { shiftKey: true }), onRow)).toBe('extend-next');
+    expect(resolveHotkey(key('ArrowUp', { shiftKey: true }), onRow)).toBe('extend-previous');
+    expect(resolveHotkey(key('ArrowDown', { shiftKey: true }), onPage)).toBe('extend-next');
+    expect(resolveHotkey(key('ArrowDown', { shiftKey: true, repeat: true }), onRow)).toBe('extend-next');
+  });
+  it('leaves Shift+arrow to controls that use it and to text fields', () => {
+    expect(resolveHotkey(key('ArrowDown', { shiftKey: true }), onOther)).toBeNull();
+    expect(resolveHotkey(key('ArrowDown', { shiftKey: true }), typing)).toBeNull();
+    expect(resolveHotkey(key('ArrowDown', { shiftKey: true }), { ...onRow, modalOpen: true })).toBeNull();
+  });
+  it('ticks the current task with X and clears with Escape, but not while typing or held down', () => {
+    expect(resolveHotkey(key('x'), onRow)).toBe('toggle-check');
+    expect(resolveHotkey(key('X'), onRow)).toBe('toggle-check');
+    expect(resolveHotkey(key('x'), typing)).toBeNull();
+    expect(resolveHotkey(key('x', { repeat: true }), onRow)).toBeNull();
+    expect(resolveHotkey(key('Escape'), onRow)).toBe('clear-selection');
+    expect(resolveHotkey(key('Escape'), typing)).toBeNull();
+    expect(resolveHotkey(key('Escape'), { ...onRow, modalOpen: true })).toBeNull();
+  });
+  it('selects all with Ctrl/Cmd+A only from a task row, so the page text can still be selected elsewhere', () => {
+    expect(resolveHotkey(key('a', { ctrlKey: true }), onRow)).toBe('select-all');
+    expect(resolveHotkey(key('a', { metaKey: true }), onRow)).toBe('select-all');
+    expect(resolveHotkey(key('A', { ctrlKey: true }), onRow)).toBe('select-all');
+    expect(resolveHotkey(key('a', { ctrlKey: true }), onPage)).toBeNull();
+    expect(resolveHotkey(key('a', { ctrlKey: true }), onButton)).toBeNull();
+    expect(resolveHotkey(key('a', { ctrlKey: true }), typing)).toBeNull();
+    expect(resolveHotkey(key('a', { ctrlKey: true, shiftKey: true }), onRow)).toBeNull();
+  });
+  it('lists the new shortcuts in the help', () => {
+    const ids = HOTKEY_HELP.map((entry) => entry.id);
+    for (const id of ['toggle-check', 'extend-next', 'extend-previous', 'select-all', 'clear-selection']) expect(ids).toContain(id);
+  });
+});
+
 describe('resolveHotkey', () => {
   it('maps the plain keys of the spec', () => {
     expect(resolveHotkey(key('n'), onPage)).toBe('new-task');
@@ -114,6 +150,7 @@ describe('resolveHotkey', () => {
   describe('browser and system shortcuts', () => {
     it('does not capture Ctrl/Cmd combinations other than its own', () => {
       for (const k of ['n', 's', 'd', 'r', 'm', 'a', 'c', 'v']) {
+        // (Ctrl+A is the exception from a task row: see 'selecting several tasks')
         expect(resolveHotkey(key(k, { ctrlKey: true }), onPage)).toBeNull();
         expect(resolveHotkey(key(k, { metaKey: true }), onPage)).toBeNull();
       }

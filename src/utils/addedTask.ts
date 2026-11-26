@@ -10,6 +10,12 @@ export interface AddedTaskInfo {
   tagNames?: readonly string[];
 }
 
+/** A due date for the middle of a sentence: "tomorrow", but "Friday" and "Nov 27, 2026" (only the relative words are lower-cased) */
+export function dueWords(date: Date): string {
+  const text = formatDate(date);
+  return ['Today', 'Tomorrow', 'Yesterday'].includes(text) ? text.toLowerCase() : text;
+}
+
 /**
  * The message shown after a task is added. It says what the person cannot see for sure: WHERE the task went (a task
  * added in My Day, Important or Planned is stored in "Tasks", and one added from a list stays in that list) and what
@@ -18,11 +24,7 @@ export interface AddedTaskInfo {
 export function describeAddedTask(info: AddedTaskInfo): { title: string; description?: string } {
   const details: string[] = [];
 
-  if (info.dueDate && !Number.isNaN(info.dueDate.getTime())) {
-    const text = formatDate(info.dueDate);
-    // "Due tomorrow", but "Due Friday" and "Due Nov 27, 2026": only the relative words are lower-cased
-    details.push(`Due ${['Today', 'Tomorrow', 'Yesterday'].includes(text) ? text.toLowerCase() : text}`);
-  }
+  if (info.dueDate && !Number.isNaN(info.dueDate.getTime())) details.push(`Due ${dueWords(info.dueDate)}`);
   if (info.important) details.push('Marked important');
   if (info.tagNames && info.tagNames.length > 0) details.push(`Tagged ${info.tagNames.map((name) => `#${name}`).join(' ')}`);
 

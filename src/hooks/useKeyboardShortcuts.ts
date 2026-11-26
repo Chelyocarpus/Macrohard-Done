@@ -4,7 +4,10 @@ import { useToastStore } from '../stores/toastStore.ts';
 import { useUiStore } from '../stores/uiStore.ts';
 import { resolveHotkey, type HotkeyContext, type HotkeyId } from '../utils/hotkeys.ts';
 import { computeMovedOrder, nextSelectionId, stepSelection } from '../utils/taskNavigation.ts';
-import { findTaskRow, focusTaskRowSoon, getVisibleTaskIds } from '../utils/taskDom.ts';
+import { findTaskRow, focusTaskRowSoon, getTaskSections, getVisibleTaskIds } from '../utils/taskDom.ts';
+import {
+  bulkComplete, bulkDelete, bulkToggleFlag, checkAllVisible, checkedIdsInOrder, extendCheckedRange, selectAndFocus, toggleCheckedCursor,
+} from '../utils/bulkTasks.ts';
 import { sortTasks } from '../utils/taskSort.ts';
 import { toggleTaskWithHold } from '../utils/completeTask.ts';
 
@@ -42,9 +45,10 @@ function getSelectedTaskId(): string | null {
   return findTaskRow(id) ? id : null;
 }
 
-function selectAndFocus(id: string | null) {
-  useUiStore.getState().selectTask(id);
-  if (id) focusTaskRowSoon(id);
+/** The neighbouring row to move to when `id` leaves its place: from the same section first (see nextSelectionId) */
+function neighbourOf(id: string): string | null {
+  const sections = getTaskSections();
+  return nextSelectionId(getVisibleTaskIds(), id, (rowId) => sections.get(rowId) ?? 'open');
 }
 
 /**
@@ -99,6 +103,11 @@ function moveSelectedTask(taskId: string, delta: -1 | 1): void {
  * - Delete and complete go through the store's own actions, which already show an Undo message and
  *   guard against double undo, so Ctrl+Z reaches the same safety net.
  * - Unknown ids make the store actions show an error or do nothing; no partial state is written here.
+ * - Selected tasks: when tasks are ticked, Space, S, M, P and Delete act on ALL of them through one bulk action
+ *   (one Undo), not on the row the cursor happens to be on. Escape clears the ticks only when there are any, so
+ *   it still reaches whatever else wants it.
+ * - Moving on after a delete or completion stays in the same section ("Completed" is not entered from the last
+ *   open task while an open one is left).
  */
 function runHotkey(action: HotkeyId): boolean {
   const ui = useUiStore.getState();
@@ -132,25 +141,51 @@ function runHotkey(action: HotkeyId): boolean {
     case 'select-previous': {
       const next = stepSelection(getVisibleTaskIds(), getSelectedTaskId(), action === 'select-next' ? 1 : -1);
       if (!next) return false;
+      // Moving without Shift ends a range that was being extended (the ticks stay)
+      ui.setChecked(ui.checkedTaskIds, null);
       selectAndFocus(next);
       return true;
     }
+    case 'extend-next':
+    case 'extend-previous':
+      return extendCheckedRange(action === 'extend-next' ? 1 : -1);
+    case 'select-all':
+      return checkAllVisible();
+    case 'clear-selection':
+      if (ui.checkedTaskIds.length === 0) return false;
+      ui.clearChecked();
+      return true;
     default:
       break;
+  }
+
+  // With tasks ticked (and still on screen) these act on all of them, not on the cursor row
+  if (ui.checkedTaskIds.length > 0 && checkedIdsInOrder().length > 0) {
+    switch (action) {
+      case 'complete': bulkComplete(); return true;
+      case 'delete': bulkDelete(); return true;
+      case 'important': bulkToggleFlag('important'); return true;
+      case 'my-day': bulkToggleFlag('myDay'); return true;
+      case 'pin': bulkToggleFlag('pinned'); return true;
+      default: break;
+    }
   }
 
   const id = getSelectedTaskId();
   if (!id) return false;
 
   switch (action) {
+    case 'toggle-check':
+      toggleCheckedCursor(id);
+      return true;
     case 'complete': {
-      const next = nextSelectionId(getVisibleTaskIds(), id);
+      const next = neighbourOf(id);
       toggleTaskWithHold(id);
       selectAndFocus(next);
       return true;
     }
     case 'delete': {
-      const next = nextSelectionId(getVisibleTaskIds(), id);
+      const next = neighbourOf(id);
       store.deleteTask(id);
       selectAndFocus(next);
       return true;
@@ -158,7 +193,7 @@ function runHotkey(action: HotkeyId): boolean {
     case 'important':
     case 'pin':
     case 'my-day': {
-      const next = nextSelectionId(getVisibleTaskIds(), id);
+      const next = neighbourOf(id);
       if (action === 'important') store.toggleImportant(id);
       else if (action === 'pin') store.togglePin(id);
       else store.toggleMyDay(id);

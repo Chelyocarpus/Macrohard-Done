@@ -6,7 +6,7 @@ import { isApplePlatform } from '../utils/platform.ts';
 import { focusTaskRowSoon } from '../utils/taskDom.ts';
 import { useEscapeKey } from '../hooks/useEscapeKey.ts';
 
-const GROUPS = ['Tasks', 'Move around', 'App'] as const;
+const GROUPS = ['Tasks', 'Select several', 'Move around', 'App'] as const;
 
 /** The "?" list of keyboard shortcuts. Closes with Escape, the X button or a click outside. */
 export function ShortcutsHelp() {
@@ -89,8 +89,14 @@ export function ShortcutsHelp() {
               </ul>
             </section>
           ))}
+          <section aria-label="Typing a new task">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Typing a new task</h3>
+            <p className="text-sm text-ink">
+              Add a <span className="font-medium">#tag</span>, an <span className="font-medium">@list</span>, a lone <span className="font-medium">!</span> for important, and a day at the end: &ldquo;Ship invoice #work ! friday @Clients&rdquo;.
+            </p>
+          </section>
           <p className="text-xs text-muted">
-            Select a task by clicking it or with the arrow keys. Shortcuts are switched off while you type in a field.
+            Select a task by clicking it or with the arrow keys. Ctrl+click or Shift+click selects several. Shortcuts are switched off while you type in a field.
           </p>
         </div>
       </div>

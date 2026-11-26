@@ -123,6 +123,13 @@ export function SearchView() {
   const tabbableId = hits.some((hit) => hit.task.id === selectedTaskId) ? selectedTaskId : hits[0]?.task.id;
   const filtersOn = hasActiveFilters(filters);
   const searching = terms.length > 0 || filtersOn;
+
+  // Ticked results that are no longer shown (the words or a filter changed) are unticked, so a bulk action never reaches
+  // a task that is not on screen
+  const shownKey = searching ? hits.map((hit) => hit.task.id).join('|') : '';
+  useEffect(() => {
+    useUiStore.getState().retainChecked(shownKey ? shownKey.split('|') : []);
+  }, [shownKey]);
   const selectableLists = lists.filter((list) => !list.isSystem || list.id === 'all');
   const update = (patch: Partial<SearchFilters>) => setFilters((current) => ({ ...current, ...patch }));
 

@@ -16,8 +16,28 @@ export interface NewTaskOptions {
   categoryIds?: string[];
 }
 
+/** One change applied to every task of a bulk action. Only the fields that are set are changed. */
+export interface BulkChange {
+  important?: boolean;
+  myDay?: boolean;
+  /** Pinned to the top of its list */
+  pinned?: boolean;
+  /** A day to set, or null to clear the due date */
+  dueDate?: Date | null;
+  /** Move to this list ("all" is the default Tasks list) */
+  listId?: string;
+  addTagIds?: string[];
+  removeTagIds?: string[];
+}
+
 export interface TaskStore extends AppState {
   // Actions
+  /** Applies one change to many tasks, with one Undo. Returns how many tasks really changed. */
+  updateManyTasks: (ids: readonly string[], change: BulkChange) => number;
+  /** Completes (true) or reopens (false) many tasks, with one Undo. Returns how many changed. */
+  completeManyTasks: (ids: readonly string[], completed: boolean) => number;
+  /** Deletes many tasks, with one Undo. Returns how many were deleted. */
+  deleteManyTasks: (ids: readonly string[]) => number;
   /** Returns true when the task was created, false when validation or creation failed (an error toast is shown). */
   addTask: (title: string, listId?: string, options?: NewTaskOptions) => boolean;
   updateTask: (id: string, updates: Partial<Task>) => void;

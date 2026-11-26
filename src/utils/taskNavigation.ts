@@ -10,11 +10,43 @@
  * - A current id that is not in the list (already gone) falls back to the first row instead of
  *   throwing or returning a stale id.
  * - The returned id is never the current one, so focus can't "stay" on a row that is disappearing.
+ * - Sections: with `sectionOf`, the neighbour is taken from the same section first (open tasks next to open tasks,
+ *   completed next to completed). Without it, deleting the last open task would jump into the "Completed" list
+ *   below it, and the keyboard flow through the open tasks would break. Only when the section has no other row
+ *   does the selection cross over.
+ * - `removedIds`: rows that disappear together with the current one (a bulk delete) are never chosen.
  */
-export function nextSelectionId(ids: readonly string[], currentId: string): string | null {
-  const index = ids.indexOf(currentId);
-  if (index === -1) return ids.find((id) => id !== currentId) ?? null;
-  return ids[index + 1] ?? ids[index - 1] ?? null;
+export function nextSelectionId(
+  ids: readonly string[],
+  currentId: string,
+  sectionOf?: (id: string) => string,
+  removedIds?: ReadonlySet<string>,
+): string | null {
+  const remaining = removedIds ? ids.filter((id) => id === currentId || !removedIds.has(id)) : ids;
+  const index = remaining.indexOf(currentId);
+  if (index === -1) return remaining.find((id) => id !== currentId) ?? null;
+  if (sectionOf) {
+    const section = sectionOf(currentId);
+    const inSection = (id: string) => sectionOf(id) === section;
+    const after = remaining.slice(index + 1).find(inSection);
+    if (after) return after;
+    const before = remaining.slice(0, index).reverse().find(inSection);
+    if (before) return before;
+  }
+  return remaining[index + 1] ?? remaining[index - 1] ?? null;
+}
+
+/**
+ * The ids from `fromId` to `toId` in the order shown, both included, whichever comes first. Used to select a range of
+ * rows (Shift+click, Shift+arrow). An id that is not shown gives just the other one, so a stale anchor never selects
+ * everything.
+ */
+export function rangeBetween(ids: readonly string[], fromId: string, toId: string): string[] {
+  const from = ids.indexOf(fromId);
+  const to = ids.indexOf(toId);
+  if (to === -1) return [];
+  if (from === -1) return [toId];
+  return ids.slice(Math.min(from, to), Math.max(from, to) + 1);
 }
 
 /**

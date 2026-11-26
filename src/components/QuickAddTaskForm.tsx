@@ -6,8 +6,9 @@ import { useShallow } from 'zustand/react/shallow';
 import { useToastStore } from '../stores/toastStore.ts';
 import { Button } from './ui/Button.tsx';
 import { Input } from './ui/Input.tsx';
-import { getNewTaskDefaults } from '../utils/newTaskDefaults.ts';
-import { applyTitleDate } from '../utils/titleDate.ts';
+import { addTaskFromText } from '../utils/addTaskFromText.ts';
+import { planQuickAdd } from '../utils/quickAdd.ts';
+import { dueWords } from '../utils/addedTask.ts';
 
 interface QuickAddTaskFormProps {
   isOpen: boolean;
@@ -17,7 +18,7 @@ interface QuickAddTaskFormProps {
 }
 
 export function QuickAddTaskForm({ isOpen, onClose, onFullFormRequested, initialTitle = '' }: QuickAddTaskFormProps) {
-  const { addTask, currentView, currentListId, currentCategoryId } = useTaskStore(useShallow((state) => ({ addTask: state.addTask, currentView: state.currentView, currentListId: state.currentListId, currentCategoryId: state.currentCategoryId })));
+  const { currentView, currentListId, currentCategoryId, categories, lists } = useTaskStore(useShallow((state) => ({ currentView: state.currentView, currentListId: state.currentListId, currentCategoryId: state.currentCategoryId, categories: state.categories, lists: state.lists })));
   const { showError } = useToastStore();
   const [title, setTitle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,23 +44,13 @@ export function QuickAddTaskForm({ isOpen, onClose, onFullFormRequested, initial
       return;
     }
 
-    if (title.trim().length > 200) {
-      showError('Title too long', 'Task title must be 200 characters or less');
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
-      // The task starts with whatever the current view needs (list, category, My Day, ...) so it shows up there
-      const { listId, ...defaults } = getNewTaskDefaults(currentView, currentListId, currentCategoryId);
-
-      // "Call Mom tomorrow" becomes the task "Call Mom" due tomorrow
-      const created = applyTitleDate(title, defaults);
-
-      // Create the task with minimal data
+      // "Ship invoice #work ! friday @Clients" becomes a task with a tag, importance, a date and a list; the current
+      // view's own needs (list, tag, My Day, ...) still apply. The store checks the title and shows what is wrong.
       // Only clear and close when the task was actually created, so typed text isn't lost on failure
-      if (addTask(created.title.trim(), listId, created.options)) {
+      if (addTaskFromText(title)) {
         setTitle('');
         onClose();
       }
@@ -69,6 +60,21 @@ export function QuickAddTaskForm({ isOpen, onClose, onFullFormRequested, initial
       setIsSubmitting(false);
     }
   };
+
+  // What the typed symbols will do, shown under the field, so #tag, @list, ! and dates can be checked before adding
+  const preview = (() => {
+    if (!title.trim()) return '';
+    const plan = planQuickAdd(title, { view: currentView, currentListId, currentCategoryId, categories, lists });
+    const { parsed } = plan;
+    const parts: string[] = [];
+    if (parsed.listName) parts.push(`List ${parsed.listName}`);
+    if (parsed.tagNames.length > 0) parts.push(`Tagged ${parsed.tagNames.map((name) => `#${name}`).join(' ')}`);
+    if (parsed.important) parts.push('Important');
+    if (parsed.dueDate) parts.push(`Due ${dueWords(parsed.dueDate)}`);
+    if (parsed.unmatched.length > 0) parts.push(`${parsed.unmatched.join(' ')} not found, so it stays in the title`);
+    if (parts.length === 0) return '';
+    return `${plan.title}: ${parts.join(' · ')}`;
+  })();
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -125,7 +131,12 @@ export function QuickAddTaskForm({ isOpen, onClose, onFullFormRequested, initial
               onKeyDown={handleKeyDown}
               className="text-base border-line focus:border-accent"
               disabled={isSubmitting}
+              aria-describedby="quick-add-hint"
             />
+            {/* The hint is always there for screen readers; sighted users see what was recognised, or the tip while empty */}
+            <p id="quick-add-hint" role="status" aria-live="polite" className="mt-2 min-h-5 text-sm text-muted">
+              {preview || 'Tip: add #tag, @list, ! for important, or a day such as "friday".'}
+            </p>
           </div>
           
           <div className="flex justify-between items-center gap-3">

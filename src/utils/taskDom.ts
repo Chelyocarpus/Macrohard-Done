@@ -9,6 +9,18 @@ export function getVisibleTaskIds(): string[] {
     .filter((id): id is string => !!id);
 }
 
+/**
+ * Which section each shown row is in: "open" or "done" (the "Completed" part of the page). A row that was just
+ * completed still counts as open while it waits in place (see completeTask.ts).
+ */
+export function getTaskSections(): Map<string, string> {
+  const sections = new Map<string, string>();
+  document.querySelectorAll<HTMLElement>('[data-task-id]').forEach((row) => {
+    if (row.dataset.taskId) sections.set(row.dataset.taskId, row.dataset.taskSection ?? 'open');
+  });
+  return sections;
+}
+
 export function findTaskRow(id: string): HTMLElement | null {
   return Array.from(document.querySelectorAll<HTMLElement>('[data-task-id]')).find((row) => row.dataset.taskId === id) ?? null;
 }
